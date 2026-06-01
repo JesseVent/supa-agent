@@ -1,0 +1,7 @@
+// Demo build (auto-init with demo LLM, for quick testing)
+export const CDN_DEMO_URL =
+	'https://cdn.jsdelivr.net/npm/page-agent@1.8.2/dist/iife/page-agent.demo.js'
+
+// Demo LLM for website testing (homepage quick trial)
+export const DEMO_MODEL = 'google/gemini-2.5-flash'
+export const DEMO_BASE_URL = 'https://openrouter.ai/api/v1'
