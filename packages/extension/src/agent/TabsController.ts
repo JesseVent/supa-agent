@@ -298,7 +298,12 @@ export class TabsController {
 	 * Reconnection may miss events during the gap.
 	 * TODO: refresh this.tabs from background after reconnect to stay consistent.
 	 */
-	private connectTabEvents() {
+	private connectTabEvents(delay = 0) {
+		if (delay > 0) {
+			setTimeout(() => this.connectTabEvents(), delay)
+			return
+		}
+
 		this.port = chrome.runtime.connect({ name: 'tab-events' })
 
 		this.port.onMessage.addListener((message: any) => {
@@ -340,13 +345,11 @@ export class TabsController {
 		this.port.onDisconnect.addListener(() => {
 			this.port = undefined
 			if (this.disposed) return
-			if (this.portRetries >= 7) {
-				console.error(PREFIX, 'tab events port failed after 7 retries, giving up')
-				return
-			}
-			debug('port disconnected, reconnecting...')
 			this.portRetries++
-			this.connectTabEvents()
+			// Exponential backoff: 100ms, 200ms, 400ms … capped at 30s
+			const delay = Math.min(100 * Math.pow(2, this.portRetries - 1), 30_000)
+			debug(`port disconnected, reconnecting in ${delay}ms (attempt ${this.portRetries})`)
+			this.connectTabEvents(delay)
 		})
 	}
 

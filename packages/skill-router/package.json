@@ -1,0 +1,22 @@
+{
+    "name": "@page-agent/skill-router",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/client.ts"
+    },
+    "scripts": {
+        "ingest": "node --import tsx/esm src/ingest.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "@supabase/supabase-js": "^2.49.0",
+        "@types/pg": "^8.11.14",
+        "gray-matter": "^4.0.3",
+        "openai": "^4.104.0",
+        "pg": "^8.16.3",
+        "tsx": "^4.19.4"
+    }
+}

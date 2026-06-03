@@ -20,6 +20,7 @@ import type {
 	HistoricalEvent,
 	MacroToolInput,
 	MacroToolResult,
+	SkillRouterResult,
 } from './types'
 import { assert, fetchLlmsTxt, normalizeResponse, uid, waitFor } from './utils'
 
@@ -92,6 +93,8 @@ export class PageAgentCore extends EventTarget {
 		lastURL: '',
 		/** Browser state */
 		browserState: null as BrowserState | null,
+		/** Skill router result cached at task start */
+		skillContext: null as SkillRouterResult | null,
 	}
 
 	constructor(config: PageAgentCoreConfig) {
@@ -225,7 +228,15 @@ export class PageAgentCore extends EventTarget {
 		this.#observations = []
 
 		// Reset internal states
-		this.#states = { totalWaitTime: 0, lastURL: '', browserState: null }
+		this.#states = { totalWaitTime: 0, lastURL: '', browserState: null, skillContext: null }
+
+		// Fetch skill context once per task — injected into every subsequent LLM call
+		if (this.config.skillRouter) {
+			this.#states.skillContext = await this.config.skillRouter.route(task).catch((err) => {
+				console.warn(chalk.yellow('[PageAgent] Skill router unavailable:'), err.message)
+				return null
+			})
+		}
 
 		let step = 0
 
@@ -307,6 +318,7 @@ export class PageAgentCore extends EventTarget {
 						data: text,
 						history: this.history,
 					}
+					this.#sendSkillFeedback(success)
 					await onAfterTask?.(this, result)
 					return result
 				}
@@ -325,6 +337,7 @@ export class PageAgentCore extends EventTarget {
 					data: errorMessage,
 					history: this.history,
 				}
+				this.#sendSkillFeedback(false)
 				await onAfterTask?.(this, result)
 				return result
 			}
@@ -340,6 +353,7 @@ export class PageAgentCore extends EventTarget {
 					data: errorMessage,
 					history: this.history,
 				}
+				this.#sendSkillFeedback(false)
 				await onAfterTask?.(this, result)
 				return result
 			}
@@ -558,6 +572,10 @@ export class PageAgentCore extends EventTarget {
 
 		prompt += await this.#getInstructions()
 
+		// <skill_context> (optional — injected when skillRouter is configured)
+
+		prompt += this.#getSkillContext()
+
 		// <agent_state>
 		//  - <user_request>
 		//  - <step_info>
@@ -617,6 +635,28 @@ export class PageAgentCore extends EventTarget {
 		prompt += '</browser_state>\n\n'
 
 		return prompt
+	}
+
+	#sendSkillFeedback(success: boolean): void {
+		const ctx = this.#states.skillContext
+		if (!ctx || !this.config.skillRouter) return
+		this.config.skillRouter
+			.feedback(ctx.request_id, success ? 'success' : 'failure')
+			.catch((err) => console.warn(chalk.yellow('[PageAgent] Skill feedback failed:'), err.message))
+	}
+
+	#getSkillContext(): string {
+		const chunks = this.#states.skillContext?.chunks
+		if (!chunks?.length) return ''
+
+		let out = '<skill_context>\n'
+		for (const c of chunks) {
+			out += `[${c.impact}] ${c.title}\n`
+			out += `Why relevant: ${c.relevance_reason}\n`
+			out += `${c.content}\n\n`
+		}
+		out += '</skill_context>\n\n'
+		return out
 	}
 
 	#onDone(success = true) {

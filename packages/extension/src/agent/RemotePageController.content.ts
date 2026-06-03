@@ -28,31 +28,42 @@ export function initPageController() {
 	}
 
 	intervalID = window.setInterval(async () => {
-		const agentHeartbeat = (await chrome.storage.local.get('agentHeartbeat')).agentHeartbeat
-		const now = Date.now()
-		const agentInTouch = typeof agentHeartbeat === 'number' && now - agentHeartbeat < 2_000
+		try {
+			const agentHeartbeat = (await chrome.storage.local.get('agentHeartbeat')).agentHeartbeat
+			const now = Date.now()
+			const agentInTouch = typeof agentHeartbeat === 'number' && now - agentHeartbeat < 2_000
 
-		const isAgentRunning = (await chrome.storage.local.get('isAgentRunning')).isAgentRunning
-		const currentTabId = (await chrome.storage.local.get('currentTabId')).currentTabId
+			const isAgentRunning = (await chrome.storage.local.get('isAgentRunning')).isAgentRunning
+			const currentTabId = (await chrome.storage.local.get('currentTabId')).currentTabId
 
-		const shouldShowMask = isAgentRunning && agentInTouch && currentTabId === (await myTabIdPromise)
+			const shouldShowMask =
+				isAgentRunning && agentInTouch && currentTabId === (await myTabIdPromise)
 
-		if (shouldShowMask) {
-			const pc = getPC()
-			pc.initMask()
-			await pc.showMask()
-		} else {
-			// await getPC().hideMask()
-			if (pageController) {
-				pageController.hideMask()
-				pageController.cleanUpHighlights()
+			if (shouldShowMask) {
+				const pc = getPC()
+				pc.initMask()
+				await pc.showMask()
+			} else {
+				if (pageController) {
+					pageController.hideMask()
+					pageController.cleanUpHighlights()
+				}
 			}
-		}
 
-		if (!isAgentRunning && agentInTouch) {
-			if (pageController) {
-				pageController.dispose()
-				pageController = null
+			if (!isAgentRunning && agentInTouch) {
+				if (pageController) {
+					pageController.dispose()
+					pageController = null
+				}
+			}
+		} catch (e) {
+			// Extension was reloaded — stop the interval to avoid further errors
+			if (e instanceof Error && e.message.includes('Extension context invalidated')) {
+				if (intervalID) window.clearInterval(intervalID)
+				if (pageController) {
+					pageController.dispose()
+					pageController = null
+				}
 			}
 		}
 	}, 500)

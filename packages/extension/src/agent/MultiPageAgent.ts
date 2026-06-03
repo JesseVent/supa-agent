@@ -25,7 +25,7 @@ export class MultiPageAgent extends PageAgentCore {
 		// multi page controller
 		const tabsController = new TabsController()
 		const pageController = new RemotePageController(tabsController)
-		const customTools = createTabTools(tabsController)
+		const tabTools = createTabTools(tabsController)
 
 		// system prompt - auto-detect language if not specified
 		const language = config.language ?? detectLanguage()
@@ -50,7 +50,7 @@ export class MultiPageAgent extends PageAgentCore {
 		super({
 			...config,
 			pageController: pageController as any,
-			customTools: customTools,
+			customTools: { ...config.customTools, ...tabTools },
 			customSystemPrompt: systemPrompt,
 
 			onBeforeTask: async (agent) => {

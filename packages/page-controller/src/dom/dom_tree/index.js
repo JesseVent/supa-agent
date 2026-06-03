@@ -1687,7 +1687,7 @@ export default (
 						}
 					}
 				} catch (e) {
-					console.warn('Unable to access iframe:', e)
+					console.debug('Unable to access iframe:', e)
 				}
 			}
 			// Handle rich text editors and contenteditable elements

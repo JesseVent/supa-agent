@@ -7,6 +7,28 @@ import type { PageAgentTool } from './tools'
 /** Supported UI languages */
 export type SupportedLanguage = 'en-US'
 
+export interface SkillRouterChunk {
+	id: string
+	title: string
+	content: string
+	impact: string
+	relevance_reason: string
+}
+
+export interface SkillRouterResult {
+	request_id: string
+	chunks: SkillRouterChunk[]
+}
+
+/**
+ * Minimal interface for dynamic skill context injection.
+ * Implemented by `SkillRouterClient.asAdapter(skill_name)` from @page-agent/skill-router.
+ */
+export interface SkillRouterAdapter {
+	route(task: string): Promise<SkillRouterResult>
+	feedback(request_id: string, outcome: 'success' | 'failure'): Promise<void>
+}
+
 export interface AgentConfig extends LLMConfig {
 	language?: SupportedLanguage
 
@@ -158,6 +180,18 @@ export interface AgentConfig extends LLMConfig {
 	 * @default 0.4
 	 */
 	stepDelay?: number
+
+	/**
+	 * Skill router for dynamic context retrieval.
+	 * When set, routes each task to find relevant skill chunks and injects them as context
+	 * before every LLM call. Feedback (success/failure) is sent automatically at task end.
+	 *
+	 * @example
+	 * import { SkillRouterClient } from '@page-agent/skill-router'
+	 * const client = new SkillRouterClient(supabaseUrl, anonKey)
+	 * const agent = new PageAgent({ skillRouter: client.asAdapter('my-skill') })
+	 */
+	skillRouter?: SkillRouterAdapter
 }
 
 /**

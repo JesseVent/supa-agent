@@ -41,6 +41,16 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 	const [disableNamedToolChoice, setDisableNamedToolChoice] = useState(
 		config?.disableNamedToolChoice ?? false
 	)
+	const [skillRouterUrl, setSkillRouterUrl] = useState(config?.skillRouterUrl ?? '')
+	const [skillRouterKey, setSkillRouterKey] = useState(config?.skillRouterKey ?? '')
+	const [skillRouterSkill, setSkillRouterSkill] = useState(config?.skillRouterSkill ?? '')
+	const [supabaseMcpProjectRef, setSupabaseMcpProjectRef] = useState(
+		config?.supabaseMcpProjectRef ?? ''
+	)
+	const [supabaseMcpAccessToken, setSupabaseMcpAccessToken] = useState(
+		config?.supabaseMcpAccessToken ?? ''
+	)
+	const [showSupabaseToken, setShowSupabaseToken] = useState(false)
 	const [advancedOpen, setAdvancedOpen] = useState(false)
 	const [saving, setSaving] = useState(false)
 	const [userAuthToken, setUserAuthToken] = useState('')
@@ -60,6 +70,11 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 		setExperimentalLlmsTxt(config?.experimentalLlmsTxt ?? false)
 		setExperimentalIncludeAllTabs(config?.experimentalIncludeAllTabs ?? false)
 		setDisableNamedToolChoice(config?.disableNamedToolChoice ?? false)
+		setSkillRouterUrl(config?.skillRouterUrl ?? '')
+		setSkillRouterKey(config?.skillRouterKey ?? '')
+		setSkillRouterSkill(config?.skillRouterSkill ?? '')
+		setSupabaseMcpProjectRef(config?.supabaseMcpProjectRef ?? '')
+		setSupabaseMcpAccessToken(config?.supabaseMcpAccessToken ?? '')
 	}
 
 	// Poll for user auth token every second until found
@@ -107,6 +122,11 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 				experimentalLlmsTxt,
 				experimentalIncludeAllTabs,
 				disableNamedToolChoice,
+				skillRouterUrl: skillRouterUrl || undefined,
+				skillRouterKey: skillRouterKey || undefined,
+				skillRouterSkill: skillRouterSkill || undefined,
+				supabaseMcpProjectRef: supabaseMcpProjectRef || undefined,
+				supabaseMcpAccessToken: supabaseMcpAccessToken || undefined,
 			})
 		} finally {
 			setSaving(false)
@@ -305,6 +325,60 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 							onCheckedChange={setExperimentalIncludeAllTabs}
 						/>
 					</label>
+
+					<div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+						<span className="text-xs font-medium text-muted-foreground">Skill Router</span>
+						<Input
+							placeholder="https://<project>.supabase.co"
+							value={skillRouterUrl}
+							onChange={(e) => setSkillRouterUrl(e.target.value)}
+							className="text-xs h-8"
+						/>
+						<Input
+							type="password"
+							placeholder="Anon key"
+							value={skillRouterKey}
+							onChange={(e) => setSkillRouterKey(e.target.value)}
+							className="text-xs h-8"
+						/>
+						<Input
+							placeholder="Skill name (e.g. supabase-postgres-best-practices)"
+							value={skillRouterSkill}
+							onChange={(e) => setSkillRouterSkill(e.target.value)}
+							className="text-xs h-8"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+						<span className="text-xs font-medium text-muted-foreground">Supabase MCP</span>
+						<p className="text-[10px] text-muted-foreground">
+							Lets the agent query your Supabase project from any page.
+						</p>
+						<Input
+							placeholder="Project ref (e.g. abcdefghijklmnop)"
+							value={supabaseMcpProjectRef}
+							onChange={(e) => setSupabaseMcpProjectRef(e.target.value)}
+							className="text-xs h-8 font-mono"
+						/>
+						<div className="flex gap-2 items-center">
+							<Input
+								type={showSupabaseToken ? 'text' : 'password'}
+								placeholder="Personal access token (sbp_...)"
+								value={supabaseMcpAccessToken}
+								onChange={(e) => setSupabaseMcpAccessToken(e.target.value)}
+								className="text-xs h-8"
+							/>
+							<Button
+								variant="outline"
+								size="icon"
+								className="h-8 w-8 shrink-0 cursor-pointer"
+								onClick={() => setShowSupabaseToken(!showSupabaseToken)}
+								aria-label={showSupabaseToken ? 'Hide token' : 'Show token'}
+							>
+								{showSupabaseToken ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+							</Button>
+						</div>
+					</div>
 				</>
 			)}
 

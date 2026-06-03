@@ -9,10 +9,12 @@ import type {
 	SupportedLanguage,
 } from '@page-agent/core'
 import type { LLMConfig } from '@page-agent/llms'
+import { SkillRouterClient } from '@page-agent/skill-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { MultiPageAgent } from './MultiPageAgent'
 import { DEMO_CONFIG } from './constants'
+import { createSupabaseMcpTools } from './supabaseMcpTools'
 
 /** Language preference: undefined means follow system */
 export type LanguagePreference = SupportedLanguage | undefined
@@ -23,6 +25,11 @@ export interface AdvancedConfig {
 	experimentalLlmsTxt?: boolean
 	experimentalIncludeAllTabs?: boolean
 	disableNamedToolChoice?: boolean
+	skillRouterUrl?: string
+	skillRouterKey?: string
+	skillRouterSkill?: string
+	supabaseMcpProjectRef?: string
+	supabaseMcpAccessToken?: string
 }
 
 export interface ExtConfig extends LLMConfig, AdvancedConfig {
@@ -50,7 +57,7 @@ export function useAgent(): UseAgentResult {
 
 	useEffect(() => {
 		chrome.storage.local.get(['llmConfig', 'language', 'advancedConfig']).then((result) => {
-			let llmConfig = (result.llmConfig as LLMConfig) ?? DEMO_CONFIG
+			const llmConfig = (result.llmConfig as LLMConfig) ?? DEMO_CONFIG
 			const language = (result.language as SupportedLanguage) || undefined
 			const advancedConfig = (result.advancedConfig as AdvancedConfig) ?? {}
 
@@ -65,10 +72,34 @@ export function useAgent(): UseAgentResult {
 	useEffect(() => {
 		if (!config) return
 
-		const { systemInstruction, ...agentConfig } = config
+		const {
+			systemInstruction,
+			skillRouterUrl,
+			skillRouterKey,
+			skillRouterSkill,
+			supabaseMcpProjectRef,
+			supabaseMcpAccessToken,
+			...agentConfig
+		} = config
+
+		const skillRouter =
+			skillRouterUrl && skillRouterKey && skillRouterSkill
+				? new SkillRouterClient(skillRouterUrl, skillRouterKey).asAdapter(skillRouterSkill)
+				: undefined
+
+		const customTools =
+			supabaseMcpProjectRef && supabaseMcpAccessToken
+				? createSupabaseMcpTools({
+						projectRef: supabaseMcpProjectRef,
+						accessToken: supabaseMcpAccessToken,
+					})
+				: undefined
+
 		const agent = new MultiPageAgent({
 			...agentConfig,
 			instructions: systemInstruction ? { system: systemInstruction } : undefined,
+			skillRouter,
+			customTools,
 		})
 		agentRef.current = agent
 
@@ -122,6 +153,11 @@ export function useAgent(): UseAgentResult {
 			experimentalLlmsTxt,
 			experimentalIncludeAllTabs,
 			disableNamedToolChoice,
+			skillRouterUrl,
+			skillRouterKey,
+			skillRouterSkill,
+			supabaseMcpProjectRef,
+			supabaseMcpAccessToken,
 			...llmConfig
 		}: ExtConfig) => {
 			await chrome.storage.local.set({ llmConfig })
@@ -136,6 +172,11 @@ export function useAgent(): UseAgentResult {
 				experimentalLlmsTxt,
 				experimentalIncludeAllTabs,
 				disableNamedToolChoice,
+				skillRouterUrl,
+				skillRouterKey,
+				skillRouterSkill,
+				supabaseMcpProjectRef,
+				supabaseMcpAccessToken,
 			}
 			await chrome.storage.local.set({ advancedConfig })
 			setConfig({ ...llmConfig, ...advancedConfig, language })
