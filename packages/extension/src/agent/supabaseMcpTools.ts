@@ -36,20 +36,25 @@ async function sqlQuery(ref: string, pat: string, query: string): Promise<string
 	})
 }
 
-// Lazily fetched per-config instance
+const _keysCache = new Map<string, { anon: string; serviceRole: string }>()
+
 async function getProjectKeys(
 	ref: string,
 	pat: string
 ): Promise<{ anon: string; serviceRole: string }> {
+	const key = `${ref}:${pat}`
+	if (_keysCache.has(key)) return _keysCache.get(key)!
 	const res = await fetch(`${MGMT}/projects/${ref}/api-keys`, {
 		headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
 	})
 	if (!res.ok) throw new Error(`Failed to fetch API keys: ${res.status}`)
 	const keys = (await res.json()) as { name: string; api_key: string }[]
-	return {
+	const result = {
 		anon: keys.find((k) => k.name === 'anon')?.api_key ?? '',
 		serviceRole: keys.find((k) => k.name === 'service_role')?.api_key ?? '',
 	}
+	_keysCache.set(key, result)
+	return result
 }
 
 async function projectApi(
@@ -468,14 +473,33 @@ export function createSupabaseMcpTools(config: SupabaseMcpConfig): Record<string
 		},
 
 		supabase_get_advisors: {
-			description: 'Get security and performance recommendations for the project.',
-			inputSchema: z.object({}),
-			execute: async () => {
+			description:
+				'Get actionable security and performance recommendations (WARN/ERROR level only).',
+			inputSchema: z.object({
+				include_info: z
+					.boolean()
+					.optional()
+					.describe('Include INFO-level lints too (default: false, WARN/ERROR only)'),
+			}),
+			execute: async (input) => {
+				const { include_info = false } = input as { include_info?: boolean }
 				const [sec, perf] = await Promise.all([
 					mgmt(`/projects/${ref}/advisors/security`, pat),
 					mgmt(`/projects/${ref}/advisors/performance`, pat),
 				])
-				return JSON.stringify({ security: JSON.parse(sec), performance: JSON.parse(perf) }, null, 2)
+				const filter = (d: unknown) => {
+					const parsed = d as { lints?: { level: string }[] }
+					if (!parsed?.lints) return parsed
+					return {
+						...parsed,
+						lints: include_info ? parsed.lints : parsed.lints.filter((l) => l.level !== 'INFO'),
+					}
+				}
+				return JSON.stringify(
+					{ security: filter(JSON.parse(sec)), performance: filter(JSON.parse(perf)) },
+					null,
+					2
+				)
 			},
 		},
 

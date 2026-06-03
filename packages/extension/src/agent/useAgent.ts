@@ -95,9 +95,16 @@ export function useAgent(): UseAgentResult {
 					})
 				: undefined
 
+		const supabaseHint =
+			supabaseMcpProjectRef && supabaseMcpAccessToken
+				? `You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
+				: undefined
+
+		const systemParts = [systemInstruction, supabaseHint].filter(Boolean)
+
 		const agent = new MultiPageAgent({
 			...agentConfig,
-			instructions: systemInstruction ? { system: systemInstruction } : undefined,
+			instructions: systemParts.length ? { system: systemParts.join('\n\n') } : undefined,
 			skillRouter,
 			customTools,
 		})

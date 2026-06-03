@@ -26625,7 +26625,10 @@ async function sqlQuery(ref, pat, query) {
 		body: JSON.stringify({ query }),
 	})
 }
+var _keysCache = /* @__PURE__ */ new Map()
 async function getProjectKeys(ref, pat) {
+	const key = `${ref}:${pat}`
+	if (_keysCache.has(key)) return _keysCache.get(key)
 	const res = await fetch(`${MGMT}/projects/${ref}/api-keys`, {
 		headers: {
 			Authorization: `Bearer ${pat}`,
@@ -26634,10 +26637,12 @@ async function getProjectKeys(ref, pat) {
 	})
 	if (!res.ok) throw new Error(`Failed to fetch API keys: ${res.status}`)
 	const keys = await res.json()
-	return {
+	const result = {
 		anon: keys.find((k) => k.name === 'anon')?.api_key ?? '',
 		serviceRole: keys.find((k) => k.name === 'service_role')?.api_key ?? '',
 	}
+	_keysCache.set(key, result)
+	return result
 }
 async function projectApi(ref, pat, path, opts = {}) {
 	const { serviceRole } = await getProjectKeys(ref, pat)
@@ -27007,17 +27012,31 @@ function createSupabaseMcpTools(config) {
 			},
 		},
 		supabase_get_advisors: {
-			description: 'Get security and performance recommendations for the project.',
-			inputSchema: object({}),
-			execute: async () => {
+			description:
+				'Get actionable security and performance recommendations (WARN/ERROR level only).',
+			inputSchema: object({
+				include_info: boolean()
+					.optional()
+					.describe('Include INFO-level lints too (default: false, WARN/ERROR only)'),
+			}),
+			execute: async (input) => {
+				const { include_info = false } = input
 				const [sec, perf] = await Promise.all([
 					mgmt(`/projects/${ref}/advisors/security`, pat),
 					mgmt(`/projects/${ref}/advisors/performance`, pat),
 				])
+				const filter = (d) => {
+					const parsed = d
+					if (!parsed?.lints) return parsed
+					return {
+						...parsed,
+						lints: include_info ? parsed.lints : parsed.lints.filter((l) => l.level !== 'INFO'),
+					}
+				}
 				return JSON.stringify(
 					{
-						security: JSON.parse(sec),
-						performance: JSON.parse(perf),
+						security: filter(JSON.parse(sec)),
+						performance: filter(JSON.parse(perf)),
 					},
 					null,
 					2
@@ -27146,9 +27165,15 @@ function useAgent() {
 						accessToken: supabaseMcpAccessToken,
 					})
 				: void 0
+		const systemParts = [
+			systemInstruction,
+			supabaseMcpProjectRef && supabaseMcpAccessToken
+				? `You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
+				: void 0,
+		].filter(Boolean)
 		const agent = new MultiPageAgent({
 			...agentConfig,
-			instructions: systemInstruction ? { system: systemInstruction } : void 0,
+			instructions: systemParts.length ? { system: systemParts.join('\n\n') } : void 0,
 			skillRouter,
 			customTools,
 		})
