@@ -16,7 +16,7 @@ import {
 	g as require_jsx_runtime,
 	E as require_react,
 	l as useAgent,
-} from './assets-D2eJkFib.js'
+} from './assets-BvTVHL8Z.js'
 
 /**
  * @license lucide-react v1.17.0 - ISC
