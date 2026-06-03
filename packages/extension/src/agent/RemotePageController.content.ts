@@ -28,6 +28,13 @@ export function initPageController() {
 	}
 
 	intervalID = window.setInterval(async () => {
+		// chrome.runtime.id becomes undefined when the extension is reloaded
+		if (!chrome.runtime?.id) {
+			if (intervalID) window.clearInterval(intervalID)
+			pageController?.dispose()
+			pageController = null
+			return
+		}
 		try {
 			const agentHeartbeat = (await chrome.storage.local.get('agentHeartbeat')).agentHeartbeat
 			const now = Date.now()

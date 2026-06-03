@@ -3303,6 +3303,12 @@ gl_Position = vec4(aPosition, 0.0, 1.0);
 			return pageController
 		}
 		intervalID = window.setInterval(async () => {
+			if (!chrome.runtime?.id) {
+				if (intervalID) window.clearInterval(intervalID)
+				pageController?.dispose()
+				pageController = null
+				return
+			}
 			try {
 				const agentHeartbeat = (await chrome.storage.local.get('agentHeartbeat')).agentHeartbeat
 				const agentInTouch = typeof agentHeartbeat === 'number' && Date.now() - agentHeartbeat < 2e3
