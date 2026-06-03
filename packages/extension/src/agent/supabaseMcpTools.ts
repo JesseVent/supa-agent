@@ -478,5 +478,93 @@ export function createSupabaseMcpTools(config: SupabaseMcpConfig): Record<string
 				return JSON.stringify({ security: JSON.parse(sec), performance: JSON.parse(perf) }, null, 2)
 			},
 		},
+
+		// ── Evals ───────────────────────────────────────────────────────────────
+
+		supabase_list_evals: {
+			description:
+				'List all active eval test cases. Call at the start of an eval run to get the full task list.',
+			inputSchema: z.object({}),
+			execute: async () => sqlQuery(ref, pat, `SELECT * FROM public.get_active_evals()`),
+		},
+
+		supabase_record_eval_run: {
+			description: 'Record the result of one completed eval task.',
+			inputSchema: z.object({
+				run_id: z.string().describe('UUID shared across all tasks in this eval session'),
+				eval_id: z.string().describe('UUID of the eval case from supabase_list_evals'),
+				tools_called: z.array(z.string()).describe('Tool names called to complete the task'),
+				output: z.string().describe('The final answer or output produced'),
+				steps: z.number().int().describe('Number of steps taken'),
+				success: z.boolean(),
+				duration_ms: z.number().int().optional(),
+			}),
+			execute: async (input) => {
+				const { run_id, eval_id, tools_called, output, steps, success, duration_ms } = input as {
+					run_id: string
+					eval_id: string
+					tools_called: string[]
+					output: string
+					steps: number
+					success: boolean
+					duration_ms?: number
+				}
+				const toolsArr = `ARRAY[${tools_called.map((t) => `'${t}'`).join(',')}]::text[]`
+				return sqlQuery(
+					ref,
+					pat,
+					`SELECT public.save_eval_run(
+						'${run_id}'::uuid, '${eval_id}'::uuid,
+						${toolsArr}, ${escVal(output)}, ${steps}, ${String(success)},
+						${duration_ms ?? 'NULL'}
+					) as run_record_id`
+				)
+			},
+		},
+
+		supabase_score_eval_run: {
+			description: 'Ask the LLM judge to score a recorded eval run result.',
+			inputSchema: z.object({
+				run_id: z.string().describe('The run_record_id returned by supabase_record_eval_run'),
+				eval_id: z.string(),
+				task: z.string(),
+				expected_tool: z.string(),
+				expected_contains: z.array(z.string()),
+				tools_called: z.array(z.string()),
+				output: z.string(),
+				success: z.boolean(),
+			}),
+			execute: async (input) => {
+				const { serviceRole } = await getProjectKeys(ref, pat)
+				const res = await fetch(`https://${ref}.supabase.co/functions/v1/eval-scorer`, {
+					method: 'POST',
+					headers: { Authorization: `Bearer ${serviceRole}`, 'Content-Type': 'application/json' },
+					body: JSON.stringify(input),
+				})
+				const data = await res.json().catch(() => ({ error: res.statusText }))
+				if (!res.ok) return `Error ${res.status}: ${JSON.stringify(data)}`
+				return JSON.stringify(data, null, 2)
+			},
+		},
+
+		supabase_get_eval_summary: {
+			description: 'Get scored results for a completed eval run session.',
+			inputSchema: z.object({
+				run_id: z.string().describe('The run_id shared across all tasks in the session'),
+			}),
+			execute: async (input) => {
+				const { run_id } = input as { run_id: string }
+				return sqlQuery(
+					ref,
+					pat,
+					`SELECT e.name, e.expected_tool, r.tools_called, r.success,
+					        r.score, r.score_reason, r.steps, r.duration_ms
+					 FROM evals.agent_eval_runs r
+					 JOIN evals.agent_evals e ON e.id = r.eval_id
+					 WHERE r.run_id = '${run_id}'::uuid
+					 ORDER BY r.created_at`
+				)
+			},
+		},
 	}
 }
