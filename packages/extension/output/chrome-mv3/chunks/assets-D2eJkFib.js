@@ -26454,7 +26454,6 @@ async function mgmt(path, accessToken, opts = {}) {
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
 			'Content-Type': 'application/json',
-			...(opts.headers ?? {}),
 		},
 	})
 	const data = await res.json().catch(() => ({ error: res.statusText }))
@@ -26484,7 +26483,7 @@ function createSupabaseMcpTools(config) {
 			execute: async (input) => {
 				const { schema } = input
 				return mgmt(
-					`/projects/${ref}/database/tables${schema ? `?included_schemas=${schema}` : ''}`,
+					`/projects/${ref}/pg-meta/v1/tables${schema ? `?included_schemas=${schema}` : ''}`,
 					accessToken
 				)
 			},
@@ -26492,12 +26491,12 @@ function createSupabaseMcpTools(config) {
 		supabase_list_migrations: {
 			description: 'List applied database migrations for the Supabase project.',
 			inputSchema: object({}),
-			execute: async () => mgmt(`/projects/${ref}/database/migrations`, accessToken),
+			execute: async () => mgmt(`/projects/${ref}/pg-meta/v1/migrations`, accessToken),
 		},
 		supabase_list_extensions: {
 			description: 'List installed Postgres extensions in the Supabase project.',
 			inputSchema: object({}),
-			execute: async () => mgmt(`/projects/${ref}/database/extensions`, accessToken),
+			execute: async () => mgmt(`/projects/${ref}/pg-meta/v1/extensions`, accessToken),
 		},
 		supabase_get_logs: {
 			description: 'Fetch recent logs from the Supabase project.',
@@ -26535,7 +26534,7 @@ function useAgent() {
 	const [config, setConfig] = (0, import_react.useState)(null)
 	;(0, import_react.useEffect)(() => {
 		chrome.storage.local.get(['llmConfig', 'language', 'advancedConfig']).then((result) => {
-			let llmConfig = result.llmConfig ?? DEMO_CONFIG
+			const llmConfig = result.llmConfig ?? DEMO_CONFIG
 			const language = result.language || void 0
 			const advancedConfig = result.advancedConfig ?? {}
 			if (!result.llmConfig) chrome.storage.local.set({ llmConfig: DEMO_CONFIG })

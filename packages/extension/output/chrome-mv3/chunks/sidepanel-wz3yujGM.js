@@ -24,7 +24,7 @@ import {
 	E as require_react,
 	o as siGithub,
 	l as useAgent,
-} from './assets-Dpu02r07.js'
+} from './assets-D2eJkFib.js'
 
 /**
  * @license lucide-react v1.17.0 - ISC

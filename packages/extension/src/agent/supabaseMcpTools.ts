@@ -57,20 +57,20 @@ export function createSupabaseMcpTools(config: SupabaseMcpConfig): Record<string
 			execute: async (input) => {
 				const { schema } = input as { schema?: string }
 				const qs = schema ? `?included_schemas=${schema}` : ''
-				return mgmt(`/projects/${ref}/database/tables${qs}`, accessToken)
+				return mgmt(`/projects/${ref}/pg-meta/v1/tables${qs}`, accessToken)
 			},
 		},
 
 		supabase_list_migrations: {
 			description: 'List applied database migrations for the Supabase project.',
 			inputSchema: z.object({}),
-			execute: async () => mgmt(`/projects/${ref}/database/migrations`, accessToken),
+			execute: async () => mgmt(`/projects/${ref}/pg-meta/v1/migrations`, accessToken),
 		},
 
 		supabase_list_extensions: {
 			description: 'List installed Postgres extensions in the Supabase project.',
 			inputSchema: z.object({}),
-			execute: async () => mgmt(`/projects/${ref}/database/extensions`, accessToken),
+			execute: async () => mgmt(`/projects/${ref}/pg-meta/v1/extensions`, accessToken),
 		},
 
 		supabase_get_logs: {
