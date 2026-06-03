@@ -21698,6 +21698,143 @@ function handleIntersectionResults(result, left, right) {
 	result.value = merged.data
 	return result
 }
+var $ZodRecord = /*@__PURE__*/ $constructor('$ZodRecord', (inst, def) => {
+	$ZodType.init(inst, def)
+	inst._zod.parse = (payload, ctx) => {
+		const input = payload.value
+		if (!isPlainObject(input)) {
+			payload.issues.push({
+				expected: 'record',
+				code: 'invalid_type',
+				input,
+				inst,
+			})
+			return payload
+		}
+		const proms = []
+		const values = def.keyType._zod.values
+		if (values) {
+			payload.value = {}
+			const recordKeys = /* @__PURE__ */ new Set()
+			for (const key of values)
+				if (typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol') {
+					recordKeys.add(typeof key === 'number' ? key.toString() : key)
+					const keyResult = def.keyType._zod.run(
+						{
+							value: key,
+							issues: [],
+						},
+						ctx
+					)
+					if (keyResult instanceof Promise)
+						throw new Error('Async schemas not supported in object keys currently')
+					if (keyResult.issues.length) {
+						payload.issues.push({
+							code: 'invalid_key',
+							origin: 'record',
+							issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
+							input: key,
+							path: [key],
+							inst,
+						})
+						continue
+					}
+					const outKey = keyResult.value
+					const result = def.valueType._zod.run(
+						{
+							value: input[key],
+							issues: [],
+						},
+						ctx
+					)
+					if (result instanceof Promise)
+						proms.push(
+							result.then((result) => {
+								if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues))
+								payload.value[outKey] = result.value
+							})
+						)
+					else {
+						if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues))
+						payload.value[outKey] = result.value
+					}
+				}
+			let unrecognized
+			for (const key in input)
+				if (!recordKeys.has(key)) {
+					unrecognized = unrecognized ?? []
+					unrecognized.push(key)
+				}
+			if (unrecognized && unrecognized.length > 0)
+				payload.issues.push({
+					code: 'unrecognized_keys',
+					input,
+					inst,
+					keys: unrecognized,
+				})
+		} else {
+			payload.value = {}
+			for (const key of Reflect.ownKeys(input)) {
+				if (key === '__proto__') continue
+				if (!Object.prototype.propertyIsEnumerable.call(input, key)) continue
+				let keyResult = def.keyType._zod.run(
+					{
+						value: key,
+						issues: [],
+					},
+					ctx
+				)
+				if (keyResult instanceof Promise)
+					throw new Error('Async schemas not supported in object keys currently')
+				if (typeof key === 'string' && number$2.test(key) && keyResult.issues.length) {
+					const retryResult = def.keyType._zod.run(
+						{
+							value: Number(key),
+							issues: [],
+						},
+						ctx
+					)
+					if (retryResult instanceof Promise)
+						throw new Error('Async schemas not supported in object keys currently')
+					if (retryResult.issues.length === 0) keyResult = retryResult
+				}
+				if (keyResult.issues.length) {
+					if (def.mode === 'loose') payload.value[key] = input[key]
+					else
+						payload.issues.push({
+							code: 'invalid_key',
+							origin: 'record',
+							issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
+							input: key,
+							path: [key],
+							inst,
+						})
+					continue
+				}
+				const result = def.valueType._zod.run(
+					{
+						value: input[key],
+						issues: [],
+					},
+					ctx
+				)
+				if (result instanceof Promise)
+					proms.push(
+						result.then((result) => {
+							if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues))
+							payload.value[keyResult.value] = result.value
+						})
+					)
+				else {
+					if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues))
+					payload.value[keyResult.value] = result.value
+				}
+			}
+		}
+		if (proms.length) return Promise.all(proms).then(() => payload)
+		return payload
+	}
+})
 var $ZodEnum = /*@__PURE__*/ $constructor('$ZodEnum', (inst, def) => {
 	$ZodType.init(inst, def)
 	const values = getEnumValues(def.entries)
@@ -23971,6 +24108,28 @@ function intersection(left, right) {
 		type: 'intersection',
 		left,
 		right,
+	})
+}
+var ZodRecord = /*@__PURE__*/ $constructor('ZodRecord', (inst, def) => {
+	$ZodRecord.init(inst, def)
+	ZodType.init(inst, def)
+	inst._zod.processJSONSchema = (ctx, json, params) => recordProcessor(inst, ctx, json, params)
+	inst.keyType = def.keyType
+	inst.valueType = def.valueType
+})
+function record(keyType, valueType, params) {
+	if (!valueType || !valueType._zod)
+		return new ZodRecord({
+			type: 'record',
+			keyType: string(),
+			valueType: keyType,
+			...normalizeParams(valueType),
+		})
+	return new ZodRecord({
+		type: 'record',
+		keyType,
+		valueType,
+		...normalizeParams(params),
 	})
 }
 var ZodEnum = /*@__PURE__*/ $constructor('ZodEnum', (inst, def) => {
@@ -26447,12 +26606,12 @@ var DEMO_CONFIG = {
 }
 //#endregion
 //#region src/agent/supabaseMcpTools.ts
-var BASE = 'https://api.supabase.com/v1'
-async function mgmt(path, accessToken, opts = {}) {
-	const res = await fetch(`${BASE}${path}`, {
+var MGMT = 'https://api.supabase.com/v1'
+async function mgmt(path, pat, opts = {}) {
+	const res = await fetch(`${MGMT}${path}`, {
 		...opts,
 		headers: {
-			Authorization: `Bearer ${accessToken}`,
+			Authorization: `Bearer ${pat}`,
 			'Content-Type': 'application/json',
 		},
 	})
@@ -26460,79 +26619,371 @@ async function mgmt(path, accessToken, opts = {}) {
 	if (!res.ok) return `Error ${res.status}: ${JSON.stringify(data)}`
 	return JSON.stringify(data, null, 2)
 }
-async function sql(ref, accessToken, query) {
-	return mgmt(`/projects/${ref}/database/query`, accessToken, {
+async function sqlQuery(ref, pat, query) {
+	return mgmt(`/projects/${ref}/database/query`, pat, {
 		method: 'POST',
 		body: JSON.stringify({ query }),
 	})
 }
+async function getProjectKeys(ref, pat) {
+	const res = await fetch(`${MGMT}/projects/${ref}/api-keys`, {
+		headers: {
+			Authorization: `Bearer ${pat}`,
+			'Content-Type': 'application/json',
+		},
+	})
+	if (!res.ok) throw new Error(`Failed to fetch API keys: ${res.status}`)
+	const keys = await res.json()
+	return {
+		anon: keys.find((k) => k.name === 'anon')?.api_key ?? '',
+		serviceRole: keys.find((k) => k.name === 'service_role')?.api_key ?? '',
+	}
+}
+async function projectApi(ref, pat, path, opts = {}) {
+	const { serviceRole } = await getProjectKeys(ref, pat)
+	const res = await fetch(`https://${ref}.supabase.co${path}`, {
+		...opts,
+		headers: {
+			Authorization: `Bearer ${serviceRole}`,
+			apikey: serviceRole,
+			'Content-Type': 'application/json',
+			...(opts.headers ?? {}),
+		},
+	})
+	const data = await res.json().catch(() => ({ error: res.statusText }))
+	if (!res.ok) return `Error ${res.status}: ${JSON.stringify(data)}`
+	return JSON.stringify(data, null, 2)
+}
+function buildWhere(filters) {
+	if (!filters?.length) return ''
+	return `WHERE ${filters
+		.map(({ column, operator, value }) => {
+			const v =
+				value === null
+					? 'NULL'
+					: Array.isArray(value)
+						? `(${value.map(escVal).join(', ')})`
+						: escVal(value)
+			if (operator === 'is') return `${column} IS ${v}`
+			if (operator === 'in') return `${column} IN ${v}`
+			return `${column} ${
+				{
+					eq: '=',
+					neq: '!=',
+					gt: '>',
+					gte: '>=',
+					lt: '<',
+					lte: '<=',
+					like: 'LIKE',
+					ilike: 'ILIKE',
+				}[operator] ?? operator
+			} ${v}`
+		})
+		.join(' AND ')}`
+}
+function escVal(v) {
+	if (typeof v === 'string') return `'${v.replace(/'/g, "''")}'`
+	if (v === null || v === void 0) return 'NULL'
+	if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v)
+	return `'${JSON.stringify(v).replace(/'/g, "''")}'`
+}
+var filterSchema = array(
+	object({
+		column: string(),
+		operator: string().describe('eq, neq, gt, gte, lt, lte, like, ilike, is, in'),
+		value: unknown(),
+	})
+).describe('Filter conditions')
 function createSupabaseMcpTools(config) {
-	const { projectRef: ref, accessToken } = config
+	const { projectRef: ref, accessToken: pat } = config
 	return {
 		supabase_execute_sql: {
 			description: 'Execute a SQL query against the Supabase project database.',
 			inputSchema: object({ query: string().describe('SQL query to execute') }),
+			execute: async (input) => sqlQuery(ref, pat, input.query),
+		},
+		supabase_select: {
+			description: 'Query rows from a table with optional filters, columns, order, and limit.',
+			inputSchema: object({
+				table: string().describe('Table name, optionally schema-qualified (schema.table)'),
+				columns: string().optional().describe('Comma-separated columns (default: *)'),
+				filters: filterSchema.optional(),
+				order_by: string().optional().describe('Column to order by'),
+				order_dir: _enum(['ASC', 'DESC']).optional(),
+				limit: number$1().int().positive().optional().describe('Max rows (default: 100)'),
+			}),
 			execute: async (input) => {
-				const { query } = input
-				return sql(ref, accessToken, query)
+				const { table, columns = '*', filters, order_by, order_dir = 'ASC', limit = 100 } = input
+				return sqlQuery(
+					ref,
+					pat,
+					`SELECT ${columns} FROM ${table} ${buildWhere(filters)} ${order_by ? `ORDER BY ${order_by} ${order_dir}` : ''} LIMIT ${limit}`
+				)
+			},
+		},
+		supabase_insert: {
+			description: 'Insert one or more rows into a table and return inserted rows.',
+			inputSchema: object({
+				table: string().describe('Table name, optionally schema-qualified'),
+				rows: array(record(string(), unknown())).describe('Row objects to insert'),
+			}),
+			execute: async (input) => {
+				const { table, rows } = input
+				if (!rows.length) return 'Error: no rows provided'
+				const cols = Object.keys(rows[0])
+				const vals = rows.map((r) => `(${cols.map((c) => escVal(r[c])).join(', ')})`).join(',\n  ')
+				return sqlQuery(
+					ref,
+					pat,
+					`INSERT INTO ${table} (${cols.join(', ')}) VALUES\n  ${vals}\nRETURNING *`
+				)
+			},
+		},
+		supabase_update: {
+			description: 'Update rows matching filters in a table.',
+			inputSchema: object({
+				table: string().describe('Table name, optionally schema-qualified'),
+				updates: record(string(), unknown()).describe('Fields to update'),
+				filters: array(
+					object({
+						column: string(),
+						operator: string(),
+						value: unknown(),
+					})
+				)
+					.min(1)
+					.describe('At least one filter required'),
+			}),
+			execute: async (input) => {
+				const { table, updates, filters } = input
+				return sqlQuery(
+					ref,
+					pat,
+					`UPDATE ${table} SET ${Object.entries(updates)
+						.map(([k, v]) => `${k} = ${escVal(v)}`)
+						.join(', ')} ${buildWhere(filters)} RETURNING *`
+				)
+			},
+		},
+		supabase_delete: {
+			description: 'Delete rows matching filters from a table.',
+			inputSchema: object({
+				table: string().describe('Table name, optionally schema-qualified'),
+				filters: array(
+					object({
+						column: string(),
+						operator: string(),
+						value: unknown(),
+					})
+				)
+					.min(1)
+					.describe('At least one filter required'),
+			}),
+			execute: async (input) => {
+				const { table, filters } = input
+				return sqlQuery(ref, pat, `DELETE FROM ${table} ${buildWhere(filters)} RETURNING *`)
+			},
+		},
+		supabase_rpc: {
+			description: 'Call a Supabase stored procedure.',
+			inputSchema: object({
+				fn: string().describe('Function name, optionally schema-qualified'),
+				params: record(string(), unknown()).optional().describe('Function parameters'),
+			}),
+			execute: async (input) => {
+				const { fn, params } = input
+				return sqlQuery(
+					ref,
+					pat,
+					`SELECT * FROM ${fn}(${
+						params
+							? Object.entries(params)
+									.map(([k, v]) => `${k} => ${escVal(v)}`)
+									.join(', ')
+							: ''
+					})`
+				)
 			},
 		},
 		supabase_list_tables: {
 			description: 'List tables in the Supabase project database.',
 			inputSchema: object({
-				schema: string()
-					.optional()
-					.describe('Schema to filter by (default: all non-system schemas)'),
+				schema: string().optional().describe('Schema to filter (default: all non-system schemas)'),
 			}),
 			execute: async (input) => {
 				const { schema } = input
-				return sql(
+				return sqlQuery(
 					ref,
-					accessToken,
+					pat,
 					`SELECT table_schema, table_name, table_type
 					 FROM information_schema.tables
-					 WHERE true ${schema ? `AND table_schema = '${schema}'` : `AND table_schema NOT IN ('pg_catalog', 'information_schema')`}
+					 WHERE true ${schema ? `AND table_schema = '${schema}'` : `AND table_schema NOT IN ('pg_catalog','information_schema','pg_toast')`}
 					 ORDER BY table_schema, table_name`
 				)
 			},
 		},
-		supabase_list_migrations: {
-			description: 'List applied database migrations for the Supabase project.',
+		supabase_list_schemas: {
+			description: 'List non-system schemas in the Supabase project database.',
 			inputSchema: object({}),
 			execute: async () =>
-				sql(
+				sqlQuery(
 					ref,
-					accessToken,
-					`SELECT version, name, statements
-					 FROM supabase_migrations.schema_migrations
-					 ORDER BY version DESC
-					 LIMIT 50`
+					pat,
+					`SELECT schema_name, schema_owner
+					 FROM information_schema.schemata
+					 WHERE schema_name NOT LIKE 'pg_%'
+					   AND schema_name NOT LIKE 'information_%'
+					   AND schema_name NOT IN ('pg_catalog')
+					 ORDER BY schema_name`
+				),
+		},
+		supabase_list_policies: {
+			description: 'List Row Level Security policies for tables in the database.',
+			inputSchema: object({
+				schema: string().optional().describe('Schema to filter (default: public)'),
+				table: string().optional().describe('Table name to filter'),
+			}),
+			execute: async (input) => {
+				const { schema, table } = input
+				const conditions = [`schemaname = '${schema ?? 'public'}'`]
+				if (table) conditions.push(`tablename = '${table}'`)
+				return sqlQuery(
+					ref,
+					pat,
+					`SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+					 FROM pg_policies
+					 WHERE ${conditions.join(' AND ')}
+					 ORDER BY tablename, policyname`
+				)
+			},
+		},
+		supabase_list_migrations: {
+			description: 'List applied database migrations.',
+			inputSchema: object({}),
+			execute: async () =>
+				sqlQuery(
+					ref,
+					pat,
+					`SELECT version, name FROM supabase_migrations.schema_migrations ORDER BY version DESC LIMIT 50`
 				),
 		},
 		supabase_list_extensions: {
-			description: 'List installed Postgres extensions in the Supabase project.',
+			description: 'List installed Postgres extensions.',
 			inputSchema: object({}),
 			execute: async () =>
-				sql(
+				sqlQuery(
 					ref,
-					accessToken,
+					pat,
 					`SELECT name, default_version, installed_version, comment
-					 FROM pg_available_extensions
-					 WHERE installed_version IS NOT NULL
-					 ORDER BY name`
+					 FROM pg_available_extensions WHERE installed_version IS NOT NULL ORDER BY name`
 				),
 		},
+		supabase_auth_list_users: {
+			description: 'List all users in the project (uses service role key).',
+			inputSchema: object({
+				page: number$1().int().positive().optional(),
+				per_page: number$1().int().positive().optional(),
+			}),
+			execute: async (input) => {
+				const { page = 1, per_page = 50 } = input
+				return projectApi(ref, pat, `/auth/v1/admin/users?page=${page}&per_page=${per_page}`)
+			},
+		},
+		supabase_auth_sign_up: {
+			description: 'Create a new user account.',
+			inputSchema: object({
+				email: string(),
+				password: string().min(6),
+			}),
+			execute: async (input) => {
+				const { anon } = await getProjectKeys(ref, pat)
+				const { email, password } = input
+				const res = await fetch(`https://${ref}.supabase.co/auth/v1/signup`, {
+					method: 'POST',
+					headers: {
+						apikey: anon,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						email,
+						password,
+					}),
+				})
+				return JSON.stringify(await res.json(), null, 2)
+			},
+		},
+		supabase_auth_sign_in: {
+			description: 'Sign in a user with email and password.',
+			inputSchema: object({
+				email: string(),
+				password: string(),
+			}),
+			execute: async (input) => {
+				const { anon } = await getProjectKeys(ref, pat)
+				const { email, password } = input
+				const res = await fetch(`https://${ref}.supabase.co/auth/v1/token?grant_type=password`, {
+					method: 'POST',
+					headers: {
+						apikey: anon,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						email,
+						password,
+					}),
+				})
+				return JSON.stringify(await res.json(), null, 2)
+			},
+		},
+		supabase_storage_list_buckets: {
+			description: 'List all storage buckets in the project.',
+			inputSchema: object({}),
+			execute: async () => projectApi(ref, pat, '/storage/v1/bucket'),
+		},
+		supabase_storage_list_files: {
+			description: 'List files in a storage bucket at an optional path prefix.',
+			inputSchema: object({
+				bucket: string(),
+				path: string().optional().describe('Path prefix (default: root)'),
+				limit: number$1().int().positive().optional(),
+			}),
+			execute: async (input) => {
+				const { bucket, path = '', limit = 100 } = input
+				return projectApi(ref, pat, `/storage/v1/object/list/${bucket}`, {
+					method: 'POST',
+					body: JSON.stringify({
+						prefix: path,
+						limit,
+					}),
+				})
+			},
+		},
+		supabase_storage_get_public_url: {
+			description: 'Get the public URL for a file in a public storage bucket.',
+			inputSchema: object({
+				bucket: string(),
+				path: string(),
+			}),
+			execute: async (input) => {
+				const { bucket, path } = input
+				return JSON.stringify({
+					publicUrl: `https://${ref}.supabase.co/storage/v1/object/public/${bucket}/${path}`,
+				})
+			},
+		},
+		supabase_get_project: {
+			description: 'Get project details (status, region, URLs).',
+			inputSchema: object({}),
+			execute: async () => mgmt(`/projects/${ref}`, pat),
+		},
 		supabase_get_logs: {
-			description: 'Fetch recent logs from the Supabase project (edge functions, API, etc.).',
+			description: 'Fetch recent logs (edge functions, API, auth, storage, postgres).',
 			inputSchema: object({
 				source: _enum(['edge_logs', 'postgres_logs', 'auth_logs', 'storage_logs', 'api_logs'])
 					.optional()
-					.describe('Log table to query (default: edge_logs)'),
+					.describe('Log source (default: edge_logs)'),
 				limit: number$1().int().positive().optional().describe('Max rows (default: 20)'),
-				hours_ago: number$1()
-					.positive()
-					.optional()
-					.describe('How many hours back to look (default: 1)'),
+				hours_ago: number$1().positive().optional().describe('Hours back to search (default: 1)'),
 			}),
 			execute: async (input) => {
 				const { source = 'edge_logs', limit = 20, hours_ago = 1 } = input
@@ -26542,10 +26993,10 @@ function createSupabaseMcpTools(config) {
 					`select timestamp, event_message from ${source} limit ${limit}`
 				)
 				const res = await fetch(
-					`${BASE}/projects/${ref}/analytics/endpoints/logs.all?iso_timestamp_start=${start}&iso_timestamp_end=${end}&sql=${logSql}`,
+					`${MGMT}/projects/${ref}/analytics/endpoints/logs.all?iso_timestamp_start=${start}&iso_timestamp_end=${end}&sql=${logSql}`,
 					{
 						headers: {
-							Authorization: `Bearer ${accessToken}`,
+							Authorization: `Bearer ${pat}`,
 							'Content-Type': 'application/json',
 						},
 					}
@@ -26555,18 +27006,13 @@ function createSupabaseMcpTools(config) {
 				return JSON.stringify(data, null, 2)
 			},
 		},
-		supabase_get_project: {
-			description: 'Get details about the Supabase project (status, region, plan, URLs).',
-			inputSchema: object({}),
-			execute: async () => mgmt(`/projects/${ref}`, accessToken),
-		},
 		supabase_get_advisors: {
-			description: 'Get security and performance advisor recommendations for the Supabase project.',
+			description: 'Get security and performance recommendations for the project.',
 			inputSchema: object({}),
 			execute: async () => {
 				const [sec, perf] = await Promise.all([
-					mgmt(`/projects/${ref}/advisors/security`, accessToken),
-					mgmt(`/projects/${ref}/advisors/performance`, accessToken),
+					mgmt(`/projects/${ref}/advisors/security`, pat),
+					mgmt(`/projects/${ref}/advisors/performance`, pat),
 				])
 				return JSON.stringify(
 					{
