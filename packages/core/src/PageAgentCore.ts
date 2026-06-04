@@ -535,6 +535,24 @@ export class PageAgentCore extends EventTarget {
 		const currentURL = this.#states.browserState?.url || ''
 		if (currentURL !== this.#states.lastURL) {
 			this.pushObservation(`Page navigated to → ${currentURL}`)
+
+			// Re-invoke skill router when the origin changes (different site = different context)
+			if (this.config.skillRouter && this.#states.lastURL) {
+				try {
+					const prevOrigin = new URL(this.#states.lastURL).origin
+					const nextOrigin = new URL(currentURL).origin
+					if (prevOrigin !== nextOrigin) {
+						const refreshed = await this.config.skillRouter.route(this.task).catch(() => null)
+						if (refreshed) {
+							this.#states.skillContext = refreshed
+							this.pushObservation('Skill context refreshed for new page context.')
+						}
+					}
+				} catch {
+					// invalid URL — skip re-route
+				}
+			}
+
 			this.#states.lastURL = currentURL
 			await waitFor(0.5) // wait for page to stabilize
 		}

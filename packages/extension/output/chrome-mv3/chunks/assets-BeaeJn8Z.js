@@ -25920,6 +25920,16 @@ var PageAgentCore = class extends EventTarget {
 		const currentURL = this.#states.browserState?.url || ''
 		if (currentURL !== this.#states.lastURL) {
 			this.pushObservation(`Page navigated to → ${currentURL}`)
+			if (this.config.skillRouter && this.#states.lastURL)
+				try {
+					if (new URL(this.#states.lastURL).origin !== new URL(currentURL).origin) {
+						const refreshed = await this.config.skillRouter.route(this.task).catch(() => null)
+						if (refreshed) {
+							this.#states.skillContext = refreshed
+							this.pushObservation('Skill context refreshed for new page context.')
+						}
+					}
+				} catch {}
 			this.#states.lastURL = currentURL
 			await waitFor(0.5)
 		}
@@ -26706,6 +26716,29 @@ function createSupabaseMcpTools(config) {
 			description: 'Execute a SQL query against the Supabase project database.',
 			inputSchema: object({ query: string().describe('SQL query to execute') }),
 			execute: async (input) => sqlQuery(ref, pat, input.query),
+		},
+		supabase_explain_query: {
+			description:
+				'Run EXPLAIN ANALYZE on a SQL query to get the execution plan, cost estimates, and actual timing. Use this to debug slow queries or understand index usage.',
+			inputSchema: object({
+				query: string().describe('SQL query to explain'),
+				analyze: boolean()
+					.optional()
+					.describe('Execute the query for actual timings (default: true)'),
+				buffers: boolean()
+					.optional()
+					.describe('Include buffer hit/miss statistics (default: true)'),
+			}),
+			execute: async (input) => {
+				const { query, analyze = true, buffers = true } = input
+				return sqlQuery(
+					ref,
+					pat,
+					`EXPLAIN (${['FORMAT JSON', analyze ? 'ANALYZE' : '', buffers && analyze ? 'BUFFERS' : '']
+						.filter(Boolean)
+						.join(', ')}) ${query}`
+				)
+			},
 		},
 		supabase_select: {
 			description: 'Query rows from a table with optional filters, columns, order, and limit.',

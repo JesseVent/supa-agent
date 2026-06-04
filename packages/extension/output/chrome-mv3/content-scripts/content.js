@@ -10131,6 +10131,16 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				const currentURL = this.#states.browserState?.url || ''
 				if (currentURL !== this.#states.lastURL) {
 					this.pushObservation(`Page navigated to → ${currentURL}`)
+					if (this.config.skillRouter && this.#states.lastURL)
+						try {
+							if (new URL(this.#states.lastURL).origin !== new URL(currentURL).origin) {
+								const refreshed = await this.config.skillRouter.route(this.task).catch(() => null)
+								if (refreshed) {
+									this.#states.skillContext = refreshed
+									this.pushObservation('Skill context refreshed for new page context.')
+								}
+							}
+						} catch {}
 					this.#states.lastURL = currentURL
 					await waitFor(0.5)
 				}

@@ -24,7 +24,7 @@ import {
 	E as require_react,
 	o as siGithub,
 	l as useAgent,
-} from './assets-D8rP2uxN.js'
+} from './assets-BeaeJn8Z.js'
 
 /**
  * @license lucide-react v1.17.0 - ISC
@@ -1894,11 +1894,13 @@ var syncDarkMode = () => {
 }
 syncDarkMode()
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncDarkMode)
-import_client.createRoot(document.getElementById('root')).render(
-	/* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.StrictMode, {
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorBoundary, {
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}),
-		}),
-	})
-)
+import_client
+	.createRoot(document.getElementById('root'))
+	.render(
+		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.StrictMode, {
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorBoundary, {
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}),
+			}),
+		})
+	)
 //#endregion

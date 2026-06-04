@@ -141,6 +141,37 @@ export function createSupabaseMcpTools(config: SupabaseMcpConfig): Record<string
 			execute: async (input) => sqlQuery(ref, pat, (input as { query: string }).query),
 		},
 
+		supabase_explain_query: {
+			description:
+				'Run EXPLAIN ANALYZE on a SQL query to get the execution plan, cost estimates, and actual timing. Use this to debug slow queries or understand index usage.',
+			inputSchema: z.object({
+				query: z.string().describe('SQL query to explain'),
+				analyze: z
+					.boolean()
+					.optional()
+					.describe('Execute the query for actual timings (default: true)'),
+				buffers: z
+					.boolean()
+					.optional()
+					.describe('Include buffer hit/miss statistics (default: true)'),
+			}),
+			execute: async (input) => {
+				const {
+					query,
+					analyze = true,
+					buffers = true,
+				} = input as {
+					query: string
+					analyze?: boolean
+					buffers?: boolean
+				}
+				const opts = ['FORMAT JSON', analyze ? 'ANALYZE' : '', buffers && analyze ? 'BUFFERS' : '']
+					.filter(Boolean)
+					.join(', ')
+				return sqlQuery(ref, pat, `EXPLAIN (${opts}) ${query}`)
+			},
+		},
+
 		// ── CRUD ────────────────────────────────────────────────────────────────
 
 		supabase_select: {
