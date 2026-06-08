@@ -29,7 +29,18 @@ export default function App() {
 	const historyRef = useRef<HTMLDivElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-	const { status, history, activity, currentTask, config, execute, stop, configure } = useAgent()
+	const {
+		status,
+		history,
+		activity,
+		currentTask,
+		config,
+		mcpStatus,
+		mcpError,
+		execute,
+		stop,
+		configure,
+	} = useAgent()
 
 	// Persist session when task finishes
 	const prevStatusRef = useRef(status)
@@ -43,9 +54,20 @@ export default function App() {
 			history.length > 0 &&
 			currentTask
 		) {
-			saveSession({ task: currentTask, history, status }).catch((err) =>
-				console.error('[SidePanel] Failed to save session:', err)
-			)
+			saveSession({
+				task: currentTask,
+				history,
+				status,
+				configSnapshot: config
+					? {
+							model: config.model || '',
+							baseURL: config.baseURL || '',
+							projectRef: config.supabaseMcpProjectRef,
+							projectName: config.supabaseMcpProjectName,
+							language: config.language,
+						}
+					: undefined,
+			}).catch((err) => console.error('[SidePanel] Failed to save session:', err))
 		}
 	}, [status, history, currentTask])
 
@@ -97,6 +119,8 @@ export default function App() {
 		return (
 			<ConfigPanel
 				config={config}
+				mcpStatus={mcpStatus}
+				mcpError={mcpError}
 				onSave={async (newConfig) => {
 					await configure(newConfig)
 					setView({ name: 'chat' })

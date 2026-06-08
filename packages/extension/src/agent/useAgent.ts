@@ -13,9 +13,10 @@ import { SkillRouterClient } from '@supa-agent/skill-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { MultiPageAgent } from './MultiPageAgent'
+import { SupabaseMcpClient } from './SupabaseMcpClient'
 import { DEMO_CONFIG } from './constants'
 import { adaptMcpTools } from './mcpToolAdapter'
-import { SupabaseMcpClient } from './SupabaseMcpClient'
+import { SUPABASE_MIGRATION_INSTRUCTION } from './migrationInstruction'
 
 /** Language preference: undefined means follow system */
 export type LanguagePreference = SupportedLanguage | undefined
@@ -30,6 +31,7 @@ export interface AdvancedConfig {
 	skillRouterKey?: string
 	skillRouterSkill?: string
 	supabaseMcpProjectRef?: string
+	supabaseMcpProjectName?: string
 	supabaseMcpAccessToken?: string
 }
 
@@ -43,6 +45,8 @@ export interface UseAgentResult {
 	activity: AgentActivity | null
 	currentTask: string
 	config: ExtConfig | null
+	mcpStatus: 'idle' | 'loading' | 'connected' | 'error'
+	mcpError: string | null
 	execute: (task: string) => Promise<ExecutionResult>
 	stop: () => void
 	configure: (config: ExtConfig) => Promise<void>
@@ -55,6 +59,8 @@ export function useAgent(): UseAgentResult {
 	const [activity, setActivity] = useState<AgentActivity | null>(null)
 	const [currentTask, setCurrentTask] = useState('')
 	const [config, setConfig] = useState<ExtConfig | null>(null)
+	const [mcpStatus, setMcpStatus] = useState<'idle' | 'loading' | 'connected' | 'error'>('idle')
+	const [mcpError, setMcpError] = useState<string | null>(null)
 
 	useEffect(() => {
 		chrome.storage.local.get(['llmConfig', 'language', 'advancedConfig']).then((result) => {
@@ -111,17 +117,31 @@ export function useAgent(): UseAgentResult {
 			let customTools: Record<string, unknown> | undefined
 			let supabaseHint: string | undefined
 
-			if (supabaseMcpProjectRef && supabaseMcpAccessToken) {
+			if (supabaseMcpProjectRef) {
 				try {
 					const client = new SupabaseMcpClient({
 						projectRef: supabaseMcpProjectRef,
-						accessToken: supabaseMcpAccessToken,
+						// When accessToken is omitted, SupabaseMcpClient reads the OAuth
+						// mgmt token from chrome.storage (SupaAgentMgmtToken) and auto-refreshes.
+						accessToken: supabaseMcpAccessToken || undefined,
 					})
 					customTools = await adaptMcpTools(client)
-					supabaseHint = `You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
+					setMcpStatus('connected')
+					setMcpError(null)
+					supabaseHint = [
+						`You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`,
+						SUPABASE_MIGRATION_INSTRUCTION,
+					].join('\n\n')
 				} catch (err) {
+					const mcpErr = err instanceof Error ? err.message : 'MCP connection failed'
 					console.warn('[useAgent] MCP tools unavailable:', err)
+					setMcpStatus('error')
+					setMcpError(mcpErr)
+					supabaseHint = `A Supabase project ("${supabaseMcpProjectRef}") is configured but the MCP tools failed to load (${mcpErr}). You do NOT have supabase_* tools right now. Fall back to browser actions and inform the user that Supabase integration is offline.`
 				}
+			} else {
+				setMcpStatus('idle')
+				setMcpError(null)
 			}
 
 			if (disposed) return
@@ -179,6 +199,7 @@ export function useAgent(): UseAgentResult {
 			skillRouterKey,
 			skillRouterSkill,
 			supabaseMcpProjectRef,
+			supabaseMcpProjectName,
 			supabaseMcpAccessToken,
 			...llmConfig
 		}: ExtConfig) => {
@@ -198,6 +219,7 @@ export function useAgent(): UseAgentResult {
 				skillRouterKey,
 				skillRouterSkill,
 				supabaseMcpProjectRef,
+				supabaseMcpProjectName,
 				supabaseMcpAccessToken,
 			}
 			await chrome.storage.local.set({ advancedConfig })
@@ -212,6 +234,8 @@ export function useAgent(): UseAgentResult {
 		activity,
 		currentTask,
 		config,
+		mcpStatus,
+		mcpError,
 		execute,
 		stop,
 		configure,

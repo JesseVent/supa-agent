@@ -142,6 +142,16 @@ export function HistoryList({
 								<p className="text-[10px] text-muted-foreground">
 									{timeAgo(session.createdAt)} · {session.history.length} steps
 								</p>
+								{session.configSnapshot?.projectRef && (
+									<span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono truncate max-w-[80px] ml-1.5">
+										{session.configSnapshot.projectName || session.configSnapshot.projectRef}
+									</span>
+								)}
+								{session.configSnapshot?.model && (
+									<span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono truncate max-w-[100px] ml-1.5">
+										{session.configSnapshot.model.split('/').pop()}
+									</span>
+								)}
 								<div className="flex items-center gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
 									<button
 										type="button"

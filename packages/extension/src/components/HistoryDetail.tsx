@@ -45,6 +45,21 @@ export function HistoryDetail({
 				<div className="text-xs font-medium" title={session.task}>
 					{session.task}
 				</div>
+				{session.configSnapshot && (
+					<div className="mt-1.5 flex flex-wrap gap-1.5">
+						{session.configSnapshot.projectRef && (
+							<span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">
+								📦 {session.configSnapshot.projectName || session.configSnapshot.projectRef}
+							</span>
+						)}
+						<span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+							🤖 {session.configSnapshot.model.split('/').pop()}
+						</span>
+						<span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+							🔗 {new URL(session.configSnapshot.baseURL).hostname}
+						</span>
+					</div>
+				)}
 				<div className="mt-2 flex items-center gap-2">
 					<button
 						type="button"

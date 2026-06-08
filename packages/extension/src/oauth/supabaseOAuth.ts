@@ -5,6 +5,9 @@
 
 const MGMT_API = 'https://api.supabase.com'
 
+const DEFAULT_SCOPES =
+	'projects:read projects:write organizations:read database:read database:write analytics:read secrets:read edge_functions:read edge_functions:write environment:read environment:write storage:read'
+
 // ── PKCE ─────────────────────────────────────────────────────────────────────
 
 export async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
@@ -55,19 +58,27 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 		body: JSON.stringify({
 			client_name: 'SupaAgent Extension',
 			redirect_uris: [redirectUri],
-			token_endpoint_auth_method: 'none',
+			token_endpoint_auth_method: 'client_secret_post',
 			grant_types: ['authorization_code', 'refresh_token'],
 			response_types: ['code'],
-			scope: 'projects:read projects:write organizations:read database:read database:write analytics:read secrets:read edge_functions:read edge_functions:write environment:read environment:write storage:read',
+			scope: DEFAULT_SCOPES,
 		}),
 	})
 	if (!res.ok) {
 		const text = await res.text().catch(() => '')
 		throw new Error(`Dynamic client registration failed (${res.status}): ${text}`)
 	}
-	const data = (await res.json()) as { client_id: string; client_secret: string; client_id_issued_at?: number }
+	const data = (await res.json()) as {
+		client_id: string
+		client_secret: string
+		client_id_issued_at?: number
+	}
 	if (!data.client_id) throw new Error('Registration response missing client_id')
-	return { client_id: data.client_id, client_secret: data.client_secret ?? '', client_id_issued_at: data.client_id_issued_at }
+	return {
+		client_id: data.client_id,
+		client_secret: data.client_secret ?? '',
+		client_id_issued_at: data.client_id_issued_at,
+	}
 }
 
 // ── Authorize URL ────────────────────────────────────────────────────────────
@@ -114,7 +125,7 @@ export async function exchangeCode(
 		redirect_uri: redirectUri,
 		code_verifier: codeVerifier,
 	})
-	if (clientSecret) params.set('client_secret', clientSecret)
+	if (clientSecret != null) params.set('client_secret', clientSecret)
 	const res = await fetch(`${MGMT_API}/v1/oauth/token`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -142,7 +153,7 @@ export async function refreshAccessToken(
 		client_id: clientId,
 		refresh_token: refreshToken,
 	})
-	if (clientSecret) params.set('client_secret', clientSecret)
+	if (clientSecret != null) params.set('client_secret', clientSecret)
 	const res = await fetch(`${MGMT_API}/v1/oauth/token`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

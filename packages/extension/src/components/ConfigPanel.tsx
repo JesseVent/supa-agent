@@ -33,14 +33,17 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useAuth } from '@/hooks/useAuth'
 import { useSupabaseConnect } from '@/hooks/useSupabaseConnect'
+import { cn } from '@/lib/utils'
 
 interface ConfigPanelProps {
 	config: ExtConfig | null
+	mcpStatus?: 'idle' | 'loading' | 'connected' | 'error'
+	mcpError?: string | null
 	onSave: (config: ExtConfig) => Promise<void>
 	onClose: () => void
 }
 
-export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
+export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: ConfigPanelProps) {
 	const [baseURL, setBaseURL] = useState(config?.baseURL || DEMO_BASE_URL)
 	const [model, setModel] = useState(config?.model || DEMO_MODEL)
 	const [apiKey, setApiKey] = useState(config?.apiKey)
@@ -61,6 +64,9 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 	const [skillRouterSkill, setSkillRouterSkill] = useState(config?.skillRouterSkill ?? '')
 	const [supabaseMcpProjectRef, setSupabaseMcpProjectRef] = useState(
 		config?.supabaseMcpProjectRef ?? ''
+	)
+	const [supabaseMcpProjectName, setSupabaseMcpProjectName] = useState(
+		config?.supabaseMcpProjectName ?? ''
 	)
 	const [supabaseMcpAccessToken, setSupabaseMcpAccessToken] = useState(
 		config?.supabaseMcpAccessToken ?? ''
@@ -89,6 +95,7 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 		setSkillRouterKey(config?.skillRouterKey ?? '')
 		setSkillRouterSkill(config?.skillRouterSkill ?? '')
 		setSupabaseMcpProjectRef(config?.supabaseMcpProjectRef ?? '')
+		setSupabaseMcpProjectName(config?.supabaseMcpProjectName ?? '')
 		setSupabaseMcpAccessToken(config?.supabaseMcpAccessToken ?? '')
 	}
 
@@ -141,6 +148,7 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 				skillRouterKey: skillRouterKey || undefined,
 				skillRouterSkill: skillRouterSkill || undefined,
 				supabaseMcpProjectRef: supabaseMcpProjectRef || undefined,
+				supabaseMcpProjectName: supabaseMcpProjectName || undefined,
 				supabaseMcpAccessToken: supabaseMcpAccessToken || undefined,
 			})
 		} finally {
@@ -223,13 +231,101 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 			</a>
 
 			{/* Connect with Supabase */}
-			<SupabaseConnectDialog
-				onApplyProject={({ ref, name, anonKey }) => {
-					setSupabaseMcpProjectRef(ref)
-					if (anonKey) setSupabaseMcpAccessToken(anonKey)
-					toast.success('Project linked', { description: name })
-				}}
-			/>
+			{supabaseMcpProjectRef ? (
+				<div
+					className={cn(
+						'flex flex-col gap-2 p-3 rounded-md border',
+						mcpStatus === 'error'
+							? 'bg-destructive/10 border-destructive/30'
+							: mcpStatus === 'loading'
+								? 'bg-amber-500/10 border-amber-500/30'
+								: 'bg-emerald-500/10 border-emerald-500/30'
+					)}
+				>
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							<Database
+								className={cn(
+									'size-4',
+									mcpStatus === 'error'
+										? 'text-destructive'
+										: mcpStatus === 'loading'
+											? 'text-amber-400'
+											: 'text-emerald-400'
+								)}
+							/>
+							<div>
+								<div
+									className={cn(
+										'text-sm font-medium',
+										mcpStatus === 'error'
+											? 'text-destructive'
+											: mcpStatus === 'loading'
+												? 'text-amber-300'
+												: 'text-emerald-300'
+									)}
+								>
+									{supabaseMcpProjectName || supabaseMcpProjectRef}
+								</div>
+								<div className="text-[10px] text-emerald-400/70 font-mono">
+									{supabaseMcpProjectRef}
+								</div>
+							</div>
+						</div>
+						<span
+							className={cn(
+								'text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0',
+								mcpStatus === 'error'
+									? 'bg-destructive/20 text-destructive'
+									: mcpStatus === 'loading'
+										? 'bg-amber-500/20 text-amber-300'
+										: 'bg-emerald-500/20 text-emerald-300'
+							)}
+						>
+							{mcpStatus === 'error'
+								? 'Tools Error'
+								: mcpStatus === 'loading'
+									? 'Loading…'
+									: 'Connected'}
+						</span>
+					</div>
+					{mcpStatus === 'error' && mcpError && (
+						<div className="text-[10px] text-destructive/80 leading-relaxed">{mcpError}</div>
+					)}
+					<div className="flex gap-2">
+						<SupabaseConnectDialog
+							onApplyProject={({ ref, name }) => {
+								setSupabaseMcpProjectRef(ref)
+								setSupabaseMcpProjectName(name)
+								toast.success('Project linked', { description: name })
+							}}
+							triggerLabel="Change project"
+							triggerVariant="outline"
+						/>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="text-xs text-muted-foreground hover:text-destructive"
+							onClick={() => {
+								setSupabaseMcpProjectRef('')
+								setSupabaseMcpProjectName('')
+								setSupabaseMcpAccessToken('')
+								toast.info('Project unlinked')
+							}}
+						>
+							Disconnect
+						</Button>
+					</div>
+				</div>
+			) : (
+				<SupabaseConnectDialog
+					onApplyProject={({ ref, name }) => {
+						setSupabaseMcpProjectRef(ref)
+						setSupabaseMcpProjectName(name)
+						toast.success('Project linked', { description: name })
+					}}
+				/>
+			)}
 
 			<div className="flex flex-col gap-1.5">
 				<label htmlFor="base-url" className="text-xs text-muted-foreground">
@@ -474,9 +570,15 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 
 interface SupabaseConnectDialogProps {
 	onApplyProject: (project: { ref: string; name: string; anonKey: string }) => void
+	triggerLabel?: string
+	triggerVariant?: 'default' | 'outline'
 }
 
-function SupabaseConnectDialog({ onApplyProject }: SupabaseConnectDialogProps) {
+function SupabaseConnectDialog({
+	onApplyProject,
+	triggerLabel = 'Connect with Supabase',
+	triggerVariant = 'default',
+}: SupabaseConnectDialogProps) {
 	const { mgmtConnected, disconnectManagement } = useAuth()
 	const [open, setOpen] = useState(false)
 	const [name, setName] = useState('')
@@ -532,20 +634,24 @@ function SupabaseConnectDialog({ onApplyProject }: SupabaseConnectDialogProps) {
 			<DialogTrigger asChild>
 				<button
 					type="button"
-					className="flex items-center justify-between p-3 rounded-md border bg-emerald-500/10 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40 transition-colors cursor-pointer"
+					className={
+						triggerVariant === 'outline'
+							? 'flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:bg-muted/50 hover:border-primary/40 transition-colors cursor-pointer'
+							: 'flex items-center justify-between p-3 rounded-md border bg-emerald-500/10 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40 transition-colors cursor-pointer'
+					}
 				>
 					<span className="flex items-center gap-2">
 						<svg role="img" viewBox="0 0 24 24" className="size-4 fill-current">
 							<path d="M19.944 9.052c-1.59-3.17-4.9-5.252-8.595-5.52L5.263 24h8.986c.4-.035.783-.127 1.147-.274.92-.369 1.674-1.048 2.11-1.91l3.84-7.764a.404.404 0 0 0-.402-.578h-3.84c-.264 0-.4.173-.347.435.147.73.163 1.49.04 2.24-.04.256.16.49.435.49h1.47l-2.47 5.01c-.22.455-.56.836-.98 1.1-.17.11-.354.19-.55.245a2.02 2.02 0 0 1-.52.065H8.64l5.3-10.71a.404.404 0 0 0-.402-.578h-3.84c-.264 0-.4.173-.347.435.147.73.163 1.49.04 2.24-.04.256.16.49.435.49h1.47L7.57 22.15c-.16.32-.48.512-.824.512H4.57l6.37-12.87c.16-.32.48-.512.824-.512h3.16l.39-.78a8.63 8.63 0 0 1 1.26-1.916l.14-.174a.2.2 0 0 1 .21-.072c.08.024.14.087.16.168.04.16.05.32.03.48zM15.66 5.22a9.53 9.53 0 0 0-2.79-.41c-2.64 0-5.05 1.04-6.83 2.74L.59 15.06c-.16.32-.09.71.17.96.26.25.66.28.96.09l5.59-3.61c.11-.07.24-.11.37-.11h2.5c.22 0 .4.18.4.4v2.5c0 .13-.04.26-.11.37l-3.61 5.59c-.19.3-.16.7.09.96.25.26.64.33.96.17l7.51-5.45a9.53 9.53 0 0 0 1.63-14.45z" />
 						</svg>
-						Connect with Supabase
-						{mgmtConnected && (
+						{triggerLabel}
+						{triggerVariant === 'default' && mgmtConnected && (
 							<span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
 								Connected
 							</span>
 						)}
 					</span>
-					<ExternalLink className="size-3" />
+					{triggerVariant === 'default' && <ExternalLink className="size-3" />}
 				</button>
 			</DialogTrigger>
 			<DialogContent>

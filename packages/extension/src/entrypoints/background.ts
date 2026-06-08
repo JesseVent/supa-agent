@@ -13,8 +13,8 @@ import {
 
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
 const MGMT_REFRESH_KEY = 'SupaAgentMgmtRefreshToken'
-const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientId'
-const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecret'
+const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientIdV2'
+const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecretV2'
 
 export default defineBackground(() => {
 	console.log('[Background] Service Worker started')
@@ -92,11 +92,15 @@ async function getOrCreateClientId(): Promise<{ clientId: string; clientSecret: 
 	const stored = await chrome.storage.local.get([MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
 	const existingId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
 	const existingSecret = stored[MGMT_CLIENT_SECRET_KEY] as string | undefined
-	if (existingId && existingSecret) return { clientId: existingId, clientSecret: existingSecret }
+	if (existingId != null && existingSecret != null)
+		return { clientId: existingId, clientSecret: existingSecret }
 
 	const redirectUri = getRedirectUri()
 	const { client_id, client_secret } = await registerDynamicClient(redirectUri)
-	await chrome.storage.local.set({ [MGMT_CLIENT_ID_KEY]: client_id, [MGMT_CLIENT_SECRET_KEY]: client_secret })
+	await chrome.storage.local.set({
+		[MGMT_CLIENT_ID_KEY]: client_id,
+		[MGMT_CLIENT_SECRET_KEY]: client_secret,
+	})
 	return { clientId: client_id, clientSecret: client_secret }
 }
 
@@ -136,7 +140,11 @@ async function handleConnectStart(): Promise<
 
 async function handleRefreshToken(): Promise<{ token?: string; error?: string }> {
 	try {
-		const stored = await chrome.storage.local.get([MGMT_REFRESH_KEY, MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
+		const stored = await chrome.storage.local.get([
+			MGMT_REFRESH_KEY,
+			MGMT_CLIENT_ID_KEY,
+			MGMT_CLIENT_SECRET_KEY,
+		])
 		const refreshToken = stored[MGMT_REFRESH_KEY] as string | undefined
 		const clientId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
 		const clientSecret = stored[MGMT_CLIENT_SECRET_KEY] as string | undefined

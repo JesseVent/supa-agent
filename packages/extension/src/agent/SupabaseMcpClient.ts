@@ -66,18 +66,37 @@ export class SupabaseMcpClient {
 			const headers = new Headers(init?.headers)
 			if (this._token) {
 				headers.set('Authorization', `Bearer ${this._token}`)
+			} else if (this._tokenSource === 'oauth') {
+				throw new Error('No OAuth token available — connect via Settings first')
 			}
 
 			let res = await fetch(url, { ...init, headers })
 
 			// Auto-refresh only for OAuth tokens
 			if (res.status === 401 && this._token && this._tokenSource === 'oauth') {
+				console.log('[SupabaseMcpClient] Token expired (401), refreshing...')
 				const refresh = await chrome.runtime.sendMessage({ type: 'MGMT_REFRESH_TOKEN' })
+				if (refresh?.error) {
+					throw new Error(`Token refresh failed: ${refresh.error}`)
+				}
 				if (refresh?.token) {
 					this._token = refresh.token as string
 					headers.set('Authorization', `Bearer ${this._token}`)
 					res = await fetch(url, { ...init, headers })
+				} else {
+					throw new Error('Token refresh returned no token — please reconnect in Settings')
 				}
+			}
+
+			// Some MCP endpoints return 200 with an error body containing auth failures
+			if (!res.ok) {
+				const body = await res.text().catch(() => '')
+				if (body.includes('JWT failed verification')) {
+					throw new Error(
+						'JWT failed verification — the OAuth token is invalid. Disconnect and reconnect in Settings.'
+					)
+				}
+				throw new Error(`MCP HTTP error (${res.status}): ${body}`)
 			}
 
 			return res
@@ -109,18 +128,23 @@ export class SupabaseMcpClient {
 
 		const authFetch = await this._createAuthFetch()
 
-		this.transport = new StreamableHTTPClientTransport(url, {
-			fetch: authFetch,
-			reconnectionOptions: {
-				initialReconnectionDelay: 1000,
-				maxReconnectionDelay: 30000,
-				reconnectionDelayGrowFactor: 1.5,
-				maxRetries: 2,
-			},
-		})
+		this.transport = new StreamableHTTPClientTransport(url, { fetch: authFetch })
 
 		this.client = new Client({ name: 'supa-agent-ext', version: '1.8.2' })
-		await this.client.connect(this.transport)
+		try {
+			await this.client.connect(this.transport)
+		} catch (err) {
+			// Clean up so the next connect() attempt starts fresh
+			try {
+				await this.transport.close()
+			} catch {
+				// ignore
+			}
+			this.transport = null
+			this.client = null
+			this._connected = false
+			throw err
+		}
 	}
 
 	get isConnected(): boolean {

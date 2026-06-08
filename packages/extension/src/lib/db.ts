@@ -10,6 +10,14 @@ export interface SessionRecord {
 	history: HistoricalEvent[]
 	status: 'completed' | 'error'
 	createdAt: number
+	/** Non-sensitive config snapshot at the time the session ran */
+	configSnapshot?: {
+		model: string
+		baseURL: string
+		projectRef?: string
+		projectName?: string
+		language?: string
+	}
 }
 
 interface PageAgentDB extends DBSchema {
@@ -45,6 +53,13 @@ export async function saveSession(
 	}
 	await db.put('sessions', record)
 	return record
+}
+
+export interface SessionInput {
+	task: string
+	history: HistoricalEvent[]
+	status: 'completed' | 'error'
+	configSnapshot?: SessionRecord['configSnapshot']
 }
 
 /** List sessions, newest first */

@@ -31,10 +31,17 @@ export function handlePageControlMessage(
 			sendResponse(result)
 		})
 		.catch((error) => {
-			console.error(PREFIX, error)
+			const msg = error instanceof Error ? error.message : String(error)
+			// Chrome bfcache kills content-script ports when a page is navigated back/forward.
+			// This is expected — the agent will re-inject on the new page.
+			if (/back\/forward cache|message channel is closed/i.test(msg)) {
+				console.warn(PREFIX, 'Tab entered bfcache, port closed — ignoring', msg)
+			} else {
+				console.error(PREFIX, error)
+			}
 			sendResponse({
 				success: false,
-				error: error instanceof Error ? error.message : String(error),
+				error: msg,
 			})
 		})
 

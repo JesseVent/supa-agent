@@ -7,7 +7,9 @@ import type {
 	RetryEvent,
 } from '@supa-agent/core'
 import {
+	Brain,
 	CheckCircle,
+	ChevronDown,
 	Eye,
 	Globe,
 	Keyboard,
@@ -80,7 +82,7 @@ function ReflectionItem({ icon, value }: { icon: string; value: string }) {
 	)
 }
 
-// Reflection section in step card
+// Reflection section in step card — collapsed by default, user can expand
 function ReflectionSection({
 	reflection,
 }: {
@@ -90,9 +92,11 @@ function ReflectionSection({
 		next_goal?: string
 	}
 }) {
+	const [expanded, setExpanded] = useState(false)
+
 	const items = [
 		{ icon: 'eval', label: 'eval', value: reflection.evaluation_previous_goal },
-		{ icon: 'mem', label: 'memory', value: reflection.memory },
+		{ icon: 'mem', label: 'mem', value: reflection.memory },
 		{ icon: 'goal', label: 'goal', value: reflection.next_goal },
 	].filter((item) => item.value)
 
@@ -100,14 +104,26 @@ function ReflectionSection({
 
 	return (
 		<div className="mb-2">
-			{/* <div className="text-[11px] font-semibold text-foreground uppercase tracking-wide mb-2">
-				Reflection
-			</div> */}
-			<div className="grid grid-cols-[14px_1fr] gap-x-2 gap-y-2">
-				{items.map((item) => (
-					<ReflectionItem key={item.label} icon={item.icon} value={item.value!} />
-				))}
-			</div>
+			<button
+				type="button"
+				onClick={() => setExpanded(!expanded)}
+				className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer mb-1"
+			>
+				<Brain className="size-3" />
+				<span>
+					{expanded
+						? 'Hide reasoning'
+						: `${items.length} reasoning item${items.length > 1 ? 's' : ''}`}
+				</span>
+				<ChevronDown className={cn('size-3 transition-transform', expanded && 'rotate-180')} />
+			</button>
+			{expanded && (
+				<div className="grid grid-cols-[14px_1fr] gap-x-2 gap-y-2">
+					{items.map((item) => (
+						<ReflectionItem key={item.label} icon={item.icon} value={item.value!} />
+					))}
+				</div>
+			)}
 		</div>
 	)
 }
@@ -307,17 +323,15 @@ function ErrorCard({ event }: { event: AgentErrorEvent }) {
 
 // History event card component
 export function EventCard({ event }: { event: HistoricalEvent }) {
-	// Done action - show as result card
+	// Done action — skip the step card (reflection/raw are noise on the final step).
+	// Just show the concise result.
 	if (event.type === 'step' && event.action?.name === 'done') {
 		const input = event.action.input as { text?: string; success?: boolean }
 		return (
-			<>
-				<StepCard event={event as AgentStepEvent} />
-				<ResultCard
-					success={input?.success ?? true}
-					text={input?.text || event.action.output || ''}
-				/>
-			</>
+			<ResultCard
+				success={input?.success ?? true}
+				text={input?.text || event.action.output || ''}
+			/>
 		)
 	}
 
