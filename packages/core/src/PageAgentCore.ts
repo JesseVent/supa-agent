@@ -78,7 +78,7 @@ export class PageAgentCore extends EventTarget {
 	 * If not set, ask_user tool will be disabled
 	 * @example onAskUser: (q) => window.prompt(q) || ''
 	 */
-	onAskUser?: (question: string) => Promise<string>
+	onAskUser?: (question: string, options?: { signal?: AbortSignal }) => Promise<string>
 
 	#status: AgentStatus = 'idle'
 	#llm: LLM
@@ -151,6 +151,11 @@ export class PageAgentCore extends EventTarget {
 	/** Get current agent status */
 	get status(): AgentStatus {
 		return this.#status
+	}
+
+	/** AbortSignal for the current task — tools use this to support cooperative cancellation */
+	get signal(): AbortSignal {
+		return this.#abortController.signal
 	}
 
 	/** Emit statuschange event */
@@ -233,7 +238,7 @@ export class PageAgentCore extends EventTarget {
 		// Fetch skill context once per task — injected into every subsequent LLM call
 		if (this.config.skillRouter) {
 			this.#states.skillContext = await this.config.skillRouter.route(task).catch((err) => {
-				console.warn(chalk.yellow('[PageAgent] Skill router unavailable:'), err.message)
+				console.warn(chalk.yellow('[SupaAgent] Skill router unavailable:'), err.message)
 				return null
 			})
 		}
@@ -488,7 +493,7 @@ export class PageAgentCore extends EventTarget {
 				pageInstructions = instructions.getPageInstructions(url)?.trim()
 			} catch (error) {
 				console.error(
-					chalk.red('[PageAgent] Failed to execute getPageInstructions callback:'),
+					chalk.red('[SupaAgent] Failed to execute getPageInstructions callback:'),
 					error
 				)
 			}
@@ -660,7 +665,7 @@ export class PageAgentCore extends EventTarget {
 		if (!ctx || !this.config.skillRouter) return
 		this.config.skillRouter
 			.feedback(ctx.request_id, success ? 'success' : 'failure')
-			.catch((err) => console.warn(chalk.yellow('[PageAgent] Skill feedback failed:'), err.message))
+			.catch((err) => console.warn(chalk.yellow('[SupaAgent] Skill feedback failed:'), err.message))
 	}
 
 	#getSkillContext(): string {

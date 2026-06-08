@@ -55,7 +55,7 @@ tools.set(
 			const lastTimeUpdate = await this.pageController.getLastUpdateTime()
 			const actualWaitTime = Math.max(0, input.seconds - (Date.now() - lastTimeUpdate) / 1000)
 			console.log(`actualWaitTime: ${actualWaitTime} seconds`)
-			await waitFor(actualWaitTime)
+			await waitFor(actualWaitTime, this.signal)
 
 			return `Done: Waited for ${input.seconds} seconds.`
 		},
@@ -74,7 +74,7 @@ tools.set(
 			if (!this.onAskUser) {
 				throw new Error('ask_user tool requires onAskUser callback to be set')
 			}
-			const answer = await this.onAskUser(input.question)
+			const answer = await this.onAskUser(input.question, { signal: this.signal })
 			return `User answered: ${answer}`
 		},
 	})

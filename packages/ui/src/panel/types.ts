@@ -63,7 +63,7 @@ export interface PanelAgentAdapter extends EventTarget {
 	 * Callback for when agent needs user input.
 	 * Panel will set this to handle user questions via its UI.
 	 */
-	onAskUser?: (question: string) => Promise<string>
+	onAskUser?: (question: string, options?: { signal?: AbortSignal }) => Promise<string>
 
 	/** Execute a task */
 	execute(task: string): Promise<unknown>

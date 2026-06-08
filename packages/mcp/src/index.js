@@ -32,7 +32,7 @@ exec(`${cmd} "${url}"`, (err) => {
 
 // --- MCP server (stdio) ---
 
-const mcpServer = new McpServer({ name: 'page-agent', version })
+const mcpServer = new McpServer({ name: 'supa-agent', version })
 
 mcpServer.registerTool(
 	'execute_task',

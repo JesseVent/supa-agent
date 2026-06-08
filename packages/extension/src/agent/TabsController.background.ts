@@ -45,8 +45,22 @@ export function handleTabControlMessage(
 
 		case 'open_new_tab': {
 			debug('open_new_tab', payload)
+			const url: string = payload.url ?? ''
+			let scheme: string
+			try {
+				scheme = new URL(url).protocol
+			} catch {
+				sendResponse({ error: `open_new_tab: invalid URL: ${url}` })
+				return true
+			}
+			if (scheme !== 'http:' && scheme !== 'https:') {
+				sendResponse({
+					error: `open_new_tab: blocked scheme "${scheme}" — only http/https allowed`,
+				})
+				return true
+			}
 			chrome.tabs
-				.create({ url: payload.url, active: false })
+				.create({ url, active: false })
 				.then((newTab) => {
 					debug('open_new_tab: success', newTab)
 					sendResponse({ success: true, tabId: newTab.id })

@@ -68,7 +68,7 @@ export class Panel {
 		this.#i18n = new I18n(config.language ?? 'en-US')
 
 		// Set up askUser callback on agent
-		this.#agent.onAskUser = (question) => this.#askUser(question)
+		this.#agent.onAskUser = (question, options) => this.#askUser(question, options?.signal)
 
 		// Create UI elements
 		this.#wrapper = this.#createWrapper()
@@ -171,11 +171,27 @@ export class Panel {
 	/**
 	 * Ask for user input (internal, called by agent via onAskUser)
 	 */
-	#askUser(question: string): Promise<string> {
-		return new Promise((resolve) => {
+	#askUser(question: string, signal?: AbortSignal): Promise<string> {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(new Error('AbortError'))
+				return
+			}
+
 			// Set `waiting for user answer` state
 			this.#isWaitingForUserAnswer = true
 			this.#userAnswerResolver = resolve
+
+			// Reject and clean up if the task is stopped while waiting for user input
+			signal?.addEventListener(
+				'abort',
+				() => {
+					this.#isWaitingForUserAnswer = false
+					this.#userAnswerResolver = null
+					reject(new Error('AbortError'))
+				},
+				{ once: true }
+			)
 
 			// Expand history panel
 			if (!this.#isExpanded) {

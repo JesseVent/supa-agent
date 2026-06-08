@@ -23,14 +23,18 @@ export default defineBackground(() => {
 
 	setupTabEventsPort()
 
-	// generate user auth token
+	// generate user auth token (migrate legacy key on first run)
 
-	chrome.storage.local.get('PageAgentExtUserAuthToken').then((result) => {
-		if (result.PageAgentExtUserAuthToken) return
+	chrome.storage.local
+		.get(['SupaAgentExtUserAuthToken', 'PageAgentExtUserAuthToken'])
+		.then((result) => {
+			if (result.SupaAgentExtUserAuthToken) return
 
-		const userAuthToken = crypto.randomUUID()
-		chrome.storage.local.set({ PageAgentExtUserAuthToken: userAuthToken })
-	})
+			const existing = result.PageAgentExtUserAuthToken ?? crypto.randomUUID()
+			chrome.storage.local
+				.set({ SupaAgentExtUserAuthToken: existing })
+				.then(() => chrome.storage.local.remove('PageAgentExtUserAuthToken'))
+		})
 
 	// message proxy
 

@@ -18,6 +18,17 @@ import { DEMO_CONFIG } from './constants'
 import { adaptMcpTools } from './mcpToolAdapter'
 import { SUPABASE_MIGRATION_INSTRUCTION } from './migrationInstruction'
 
+function isMigrationTask(task: string): boolean {
+	return /migrat|region transfer|cutover|move.*project|transfer.*project/i.test(task)
+}
+
+function sanitizeMcpError(raw: string): string {
+	return raw
+		.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
+		.split('\n')[0]
+		.slice(0, 120)
+}
+
 /** Language preference: undefined means follow system */
 export type LanguagePreference = SupportedLanguage | undefined
 
@@ -54,6 +65,7 @@ export interface UseAgentResult {
 
 export function useAgent(): UseAgentResult {
 	const agentRef = useRef<MultiPageAgent | null>(null)
+	const configRef = useRef<ExtConfig | null>(null)
 	const [status, setStatus] = useState<AgentStatus>('idle')
 	const [history, setHistory] = useState<HistoricalEvent[]>([])
 	const [activity, setActivity] = useState<AgentActivity | null>(null)
@@ -82,12 +94,15 @@ export function useAgent(): UseAgentResult {
 		let disposed = false
 		let createdAgent: MultiPageAgent | null = null
 
+		configRef.current = config
+
 		const {
 			systemInstruction,
 			skillRouterUrl,
 			skillRouterKey,
 			skillRouterSkill,
 			supabaseMcpProjectRef,
+			supabaseMcpProjectName,
 			supabaseMcpAccessToken,
 			...agentConfig
 		} = config
@@ -128,16 +143,15 @@ export function useAgent(): UseAgentResult {
 					customTools = await adaptMcpTools(client)
 					setMcpStatus('connected')
 					setMcpError(null)
-					supabaseHint = [
-						`You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`,
-						SUPABASE_MIGRATION_INSTRUCTION,
-					].join('\n\n')
+					const projectLabel = supabaseMcpProjectName || supabaseMcpProjectRef
+					supabaseHint = `You have MCP tools available (execute_sql, list_tables, list_projects, get_project, get_logs, get_advisors, list_edge_functions, get_publishable_keys, etc.) for the Supabase project "${projectLabel}" (ref: ${supabaseMcpProjectRef}). Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
 				} catch (err) {
 					const mcpErr = err instanceof Error ? err.message : 'MCP connection failed'
 					console.warn('[useAgent] MCP tools unavailable:', err)
 					setMcpStatus('error')
 					setMcpError(mcpErr)
-					supabaseHint = `A Supabase project ("${supabaseMcpProjectRef}") is configured but the MCP tools failed to load (${mcpErr}). You do NOT have supabase_* tools right now. Fall back to browser actions and inform the user that Supabase integration is offline.`
+					const safeErr = sanitizeMcpError(mcpErr)
+					supabaseHint = `A Supabase project ("${supabaseMcpProjectRef}") is configured but the MCP tools failed to load (${safeErr}). You do NOT have MCP tools right now. Fall back to browser actions and inform the user that Supabase integration is offline.`
 				}
 			} else {
 				setMcpStatus('idle')
@@ -180,7 +194,15 @@ export function useAgent(): UseAgentResult {
 
 		setCurrentTask(task)
 		setHistory([])
-		return agent.execute(task)
+
+		// Inject migration instruction only when the task is migration-related.
+		// This avoids wasting ~195 lines of tokens on every non-migration task.
+		const effectiveTask =
+			configRef.current?.supabaseMcpProjectRef && isMigrationTask(task)
+				? `${SUPABASE_MIGRATION_INSTRUCTION}\n\n---\n\nUser request: ${task}`
+				: task
+
+		return agent.execute(effectiveTask)
 	}, [])
 
 	const stop = useCallback(() => {

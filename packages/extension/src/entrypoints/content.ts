@@ -12,15 +12,26 @@ export default defineContentScript({
 		console.debug(`${DEBUG_PREFIX} Loaded on ${window.location.href}`)
 		initPageController()
 
+		// Migrate legacy storage key to new brand name
+		chrome.storage.local.get('PageAgentExtUserAuthToken').then((legacy) => {
+			if (legacy.PageAgentExtUserAuthToken) {
+				chrome.storage.local
+					.set({ SupaAgentExtUserAuthToken: legacy.PageAgentExtUserAuthToken })
+					.then(() => chrome.storage.local.remove('PageAgentExtUserAuthToken'))
+			}
+		})
+
 		// if auth token matches, expose agent to page
-		chrome.storage.local.get('PageAgentExtUserAuthToken').then((result) => {
+		chrome.storage.local.get('SupaAgentExtUserAuthToken').then((result) => {
 			// extension side token.
 			// @note this is isolated world. it is safe to assume user script cannot access it
-			const extToken = result.PageAgentExtUserAuthToken
+			const extToken = result.SupaAgentExtUserAuthToken
 			if (!extToken) return
 
 			// page side token
-			const pageToken = localStorage.getItem('PageAgentExtUserAuthToken')
+			const pageToken =
+				localStorage.getItem('SupaAgentExtUserAuthToken') ||
+				localStorage.getItem('PageAgentExtUserAuthToken') // legacy compat
 			if (!pageToken) return
 
 			if (pageToken !== extToken) return

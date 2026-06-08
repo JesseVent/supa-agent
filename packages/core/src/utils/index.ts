@@ -2,8 +2,22 @@ import chalk from 'chalk'
 
 export * from './autoFixer'
 
-export async function waitFor(seconds: number): Promise<void> {
-	await new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+export function waitFor(seconds: number, signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) {
+			reject(new Error('AbortError'))
+			return
+		}
+		const id = setTimeout(resolve, seconds * 1000)
+		signal?.addEventListener(
+			'abort',
+			() => {
+				clearTimeout(id)
+				reject(new Error('AbortError'))
+			},
+			{ once: true }
+		)
+	})
 }
 
 //
