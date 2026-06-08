@@ -238,8 +238,8 @@ export default function CustomUIDocs() {
 				</p>
 				<CodeEditor
 					language="typescript"
-					code={`import { PageAgentCore } from '@page-agent/core'
-import { PageController } from '@page-agent/page-controller'
+					code={`import { PageAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
 // 1. Create PageController
 const pageController = new PageController({ enableMask: true })

@@ -220,7 +220,7 @@ export default function App() {
 								variant="default"
 								onClick={() => handleSubmit()}
 								disabled={!inputValue.trim()}
-								className="size-7 cursor-pointer rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 hover:from-violet-400 hover:to-cyan-400 text-white border-0 disabled:opacity-40 shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+								className="size-7 cursor-pointer rounded-full bg-emerald-500 text-white hover:bg-emerald-600"
 								aria-label="Send"
 								title="Send"
 							>

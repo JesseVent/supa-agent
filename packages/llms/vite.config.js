@@ -7,7 +7,7 @@ import { defineConfig } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-console.log(chalk.cyan(`📦 Building @page-agent/llms`))
+console.log(chalk.cyan(`📦 Building @supa-agent/llms`))
 
 export default defineConfig({
 	clearScreen: false,

@@ -35,7 +35,7 @@ export default function McpServerPage() {
   "mcpServers": {
     "page-agent": {
       "command": "npx",
-      "args": ["-y", "@page-agent/mcp"],
+      "args": ["-y", "@supa-agent/mcp"],
       "env": {
         "LLM_BASE_URL": "https://api.openai.com/v1",
         "LLM_API_KEY": "sk-xxx",

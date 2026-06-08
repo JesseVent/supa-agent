@@ -10,6 +10,7 @@
         "packages/core",
         "packages/supa-agent",
         "packages/mcp",
+        "packages/skill-router",
         "packages/extension",
         "packages/website"
     ],

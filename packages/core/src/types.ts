@@ -1,4 +1,4 @@
-import type { LLMConfig } from '@page-agent/llms'
+import type { LLMConfig } from '@supa-agent/llms'
 
 // @note circular dependency but okay
 import type { PageAgentCore } from './PageAgentCore'
@@ -22,7 +22,7 @@ export interface SkillRouterResult {
 
 /**
  * Minimal interface for dynamic skill context injection.
- * Implemented by `SkillRouterClient.asAdapter(skill_name)` from @page-agent/skill-router.
+ * Implemented by `SkillRouterClient.asAdapter(skill_name)` from @supa-agent/skill-router.
  */
 export interface SkillRouterAdapter {
 	route(task: string): Promise<SkillRouterResult>
@@ -187,7 +187,7 @@ export interface AgentConfig extends LLMConfig {
 	 * before every LLM call. Feedback (success/failure) is sent automatically at task end.
 	 *
 	 * @example
-	 * import { SkillRouterClient } from '@page-agent/skill-router'
+	 * import { SkillRouterClient } from '@supa-agent/skill-router'
 	 * const client = new SkillRouterClient(supabaseUrl, anonKey)
 	 * const agent = new PageAgent({ skillRouter: client.asAdapter('my-skill') })
 	 */

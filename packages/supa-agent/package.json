@@ -3,12 +3,14 @@
     "private": false,
     "version": "1.8.2",
     "type": "module",
-    "main": "./src/PageAgent.ts",
-    "types": "./src/PageAgent.ts",
+    "main": "./dist/esm/page-agent.js",
+    "module": "./dist/esm/page-agent.js",
+    "types": "./dist/esm/PageAgent.d.ts",
     "exports": {
         ".": {
-            "types": "./src/PageAgent.ts",
-            "default": "./src/PageAgent.ts"
+            "types": "./dist/esm/PageAgent.d.ts",
+            "import": "./dist/esm/page-agent.js",
+            "default": "./dist/esm/page-agent.js"
         }
     },
     "publishConfig": {

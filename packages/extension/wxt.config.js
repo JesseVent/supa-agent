@@ -1,11 +1,23 @@
 import tailwindcss from '@tailwindcss/vite'
 import { mkdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'wxt'
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
 const chromeProfile = '.wxt/chrome-data'
 mkdirSync(chromeProfile, { recursive: true })
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+
+// Workspace aliases for monorepo packages (point to source entry files)
+const workspaceAliases = {
+	'@supa-agent/core': join(__dirname, '../core/src/PageAgentCore.ts'),
+	'@supa-agent/llms': join(__dirname, '../llms/src/index.ts'),
+	'@supa-agent/page-controller': join(__dirname, '../page-controller/src/PageController.ts'),
+	'@supa-agent/ui': join(__dirname, '../ui/src/index.ts'),
+	'@supa-agent/skill-router': join(__dirname, '../skill-router/src/client.ts'),
+}
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -18,6 +30,9 @@ export default defineConfig({
 	},
 	vite: () => ({
 		plugins: [tailwindcss()],
+		resolve: {
+			alias: workspaceAliases,
+		},
 		define: {
 			__VERSION__: JSON.stringify(pkg.version),
 		},
@@ -36,15 +51,17 @@ export default defineConfig({
 			},
 		},
 	}),
+	outDir: 'output',
 	zip: {
 		artifactTemplate: 'supa-agent-{{version}}-{{browser}}.zip',
 	},
 	manifest: {
+		default_locale: 'en',
 		key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqbzT0iTYeYlnCvDJIGDnGU8oarJgZILDzSfLi/ufuSxXEPDKuMyD892GhvrMCZNVHS11Sh6NYUOc/PcUOhtaR2urHtcNkrpSJNV10zUamY7fxBdVEkOucfyLu8INVy+teis62MoRWYPaUPkfZUjrLGW8MsZ9aFzARfu9GGDEp2EAYsWDN6w6vyz9LJ82pm542EWnVT4MjmDPgvYFCWGBtaU/dfHD+GAX6URJFapsCvryVURKJ+76c/GO9/I3EX1IBfbY6dec78bLCMvVxiTmiv36KyGPwX1OpakW8IiCpXWdbAxjm+plbYlp5t5zTyyoE3sOSFeXsBH0Kg27o8GcvQIDAQAB',
 		name: '__MSG_extName__',
 		description: '__MSG_extDescription__',
 		homepage_url: 'https://github.com/JesseVent/supa-agent',
-		permissions: ['tabs', 'tabGroups', 'sidePanel', 'storage'],
+		permissions: ['tabs', 'tabGroups', 'sidePanel', 'storage', 'identity'],
 		host_permissions: ['<all_urls>'],
 		icons: {
 			64: 'assets/supa-agent-64.png',

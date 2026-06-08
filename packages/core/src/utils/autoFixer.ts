@@ -1,4 +1,4 @@
-import { InvokeError, InvokeErrorTypes } from '@page-agent/llms'
+import { InvokeError, InvokeErrorTypes } from '@supa-agent/llms'
 import chalk from 'chalk'
 import * as z from 'zod/v4'
 

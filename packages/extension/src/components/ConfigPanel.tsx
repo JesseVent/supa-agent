@@ -1,23 +1,38 @@
 import {
 	Copy,
 	CornerUpLeft,
+	Database,
 	ExternalLink,
 	Eye,
 	EyeOff,
+	FileText,
 	FoldVertical,
 	HatGlasses,
 	Home,
 	Loader2,
+	Plug,
 	UnfoldVertical,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { siGithub } from 'simple-icons'
+import { toast } from 'sonner'
 
 import { DEMO_BASE_URL, DEMO_MODEL } from '@/agent/constants'
 import type { ExtConfig, LanguagePreference } from '@/agent/useAgent'
 import { Button } from '@/components/ui/button'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { useAuth } from '@/hooks/useAuth'
+import { useSupabaseConnect } from '@/hooks/useSupabaseConnect'
 
 interface ConfigPanelProps {
 	config: ExtConfig | null
@@ -207,6 +222,15 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 				<ExternalLink className="size-3" />
 			</a>
 
+			{/* Connect with Supabase */}
+			<SupabaseConnectDialog
+				onApplyProject={({ ref, name, anonKey }) => {
+					setSupabaseMcpProjectRef(ref)
+					if (anonKey) setSupabaseMcpAccessToken(anonKey)
+					toast.success('Project linked', { description: name })
+				}}
+			/>
+
 			<div className="flex flex-col gap-1.5">
 				<label htmlFor="base-url" className="text-xs text-muted-foreground">
 					Base URL
@@ -389,7 +413,7 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 				<Button
 					onClick={handleSave}
 					disabled={saving}
-					className="flex-1 h-8 text-xs cursor-pointer rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 hover:from-violet-400 hover:to-cyan-400 text-white border-0 shadow-[0_0_16px_rgba(139,92,246,0.25)]"
+					className="flex-1 h-8 text-xs cursor-pointer rounded-md bg-emerald-500 text-white hover:bg-emerald-600"
 				>
 					{saving ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
 				</Button>
@@ -445,5 +469,262 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 				</span>
 			</div>
 		</div>
+	)
+}
+
+interface SupabaseConnectDialogProps {
+	onApplyProject: (project: { ref: string; name: string; anonKey: string }) => void
+}
+
+function SupabaseConnectDialog({ onApplyProject }: SupabaseConnectDialogProps) {
+	const { mgmtConnected, disconnectManagement } = useAuth()
+	const [open, setOpen] = useState(false)
+	const [name, setName] = useState('')
+	const [url, setUrl] = useState('')
+	const [publishableKey, setPublishableKey] = useState('')
+	const [secretKey, setSecretKey] = useState('')
+	const [accessToken, setAccessToken] = useState('')
+	const [isCreating, setIsCreating] = useState(false)
+
+	const {
+		isOAuthConnecting,
+		oauthProjects,
+		setOauthProjects,
+		createError,
+		setCreateError,
+		connectWithOAuth,
+		applyOAuthProject,
+		prefillFromEnv,
+		reset,
+	} = useSupabaseConnect({
+		onApplyProject: (project) => {
+			onApplyProject(project)
+			setOpen(false)
+			reset()
+		},
+	})
+
+	const handleOpenChange = (next: boolean) => {
+		setOpen(next)
+		if (!next) reset()
+	}
+
+	const handleManualConnect = async () => {
+		setIsCreating(true)
+		setCreateError(null)
+		try {
+			if (!name.trim() || !url.trim()) {
+				throw new Error('Name and Supabase URL are required')
+			}
+			const ref = /https:\/\/([^.]+)\.supabase\.co/.exec(url)?.[1]
+			if (ref) onApplyProject({ ref, name, anonKey: publishableKey })
+			setOpen(false)
+			reset()
+		} catch (err) {
+			setCreateError(err instanceof Error ? err.message : 'Failed to create connection')
+		} finally {
+			setIsCreating(false)
+		}
+	}
+
+	return (
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogTrigger asChild>
+				<button
+					type="button"
+					className="flex items-center justify-between p-3 rounded-md border bg-emerald-500/10 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40 transition-colors cursor-pointer"
+				>
+					<span className="flex items-center gap-2">
+						<svg role="img" viewBox="0 0 24 24" className="size-4 fill-current">
+							<path d="M19.944 9.052c-1.59-3.17-4.9-5.252-8.595-5.52L5.263 24h8.986c.4-.035.783-.127 1.147-.274.92-.369 1.674-1.048 2.11-1.91l3.84-7.764a.404.404 0 0 0-.402-.578h-3.84c-.264 0-.4.173-.347.435.147.73.163 1.49.04 2.24-.04.256.16.49.435.49h1.47l-2.47 5.01c-.22.455-.56.836-.98 1.1-.17.11-.354.19-.55.245a2.02 2.02 0 0 1-.52.065H8.64l5.3-10.71a.404.404 0 0 0-.402-.578h-3.84c-.264 0-.4.173-.347.435.147.73.163 1.49.04 2.24-.04.256.16.49.435.49h1.47L7.57 22.15c-.16.32-.48.512-.824.512H4.57l6.37-12.87c.16-.32.48-.512.824-.512h3.16l.39-.78a8.63 8.63 0 0 1 1.26-1.916l.14-.174a.2.2 0 0 1 .21-.072c.08.024.14.087.16.168.04.16.05.32.03.48zM15.66 5.22a9.53 9.53 0 0 0-2.79-.41c-2.64 0-5.05 1.04-6.83 2.74L.59 15.06c-.16.32-.09.71.17.96.26.25.66.28.96.09l5.59-3.61c.11-.07.24-.11.37-.11h2.5c.22 0 .4.18.4.4v2.5c0 .13-.04.26-.11.37l-3.61 5.59c-.19.3-.16.7.09.96.25.26.64.33.96.17l7.51-5.45a9.53 9.53 0 0 0 1.63-14.45z" />
+						</svg>
+						Connect with Supabase
+						{mgmtConnected && (
+							<span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+								Connected
+							</span>
+						)}
+					</span>
+					<ExternalLink className="size-3" />
+				</button>
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<div className="flex items-center justify-between">
+						<DialogTitle>Connect to Supabase</DialogTitle>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={prefillFromEnv}
+							className="gap-1.5 text-xs h-7"
+						>
+							<FileText className="size-3" />
+							Prefill from .env
+						</Button>
+					</div>
+					<DialogDescription>
+						Sign in to your Supabase account to autofill project credentials
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="flex flex-col gap-4 py-2">
+					{createError && (
+						<div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+							{createError}
+						</div>
+					)}
+
+					{oauthProjects ? (
+						<div className="flex flex-col gap-2">
+							<p className="text-xs text-muted-foreground">Select a project to connect:</p>
+							{oauthProjects.map((p) => (
+								<Button
+									key={p.ref}
+									variant="outline"
+									className="justify-start gap-2 h-auto py-2.5"
+									disabled={isOAuthConnecting}
+									onClick={async () => {
+										const stored = await chrome.storage.local.get('SupaAgentMgmtToken')
+										const token = stored.SupaAgentMgmtToken as string | undefined
+										if (token) await applyOAuthProject(p, token)
+									}}
+								>
+									{isOAuthConnecting ? (
+										<Loader2 className="size-3.5 shrink-0 animate-spin" />
+									) : (
+										<Database className="size-3.5 shrink-0" />
+									)}
+									<div className="text-left">
+										<div className="text-sm font-medium">{p.name}</div>
+										<div className="text-xs text-muted-foreground">
+											{p.ref} · {p.region}
+										</div>
+									</div>
+								</Button>
+							))}
+							<Button
+								variant="ghost"
+								size="sm"
+								className="mt-1"
+								onClick={() => {
+									setOauthProjects(null)
+								}}
+							>
+								← Back
+							</Button>
+						</div>
+					) : (
+						<>
+							{/* Primary: OAuth */}
+							<Button
+								onClick={connectWithOAuth}
+								disabled={isOAuthConnecting}
+								className="w-full gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
+							>
+								{isOAuthConnecting ? (
+									<Loader2 className="size-4 animate-spin" />
+								) : (
+									<svg
+										className="size-4"
+										viewBox="0 0 24 24"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path d="M21.362 9.354H12V.396a.396.396 0 0 0-.716-.233L2.203 12.424l-.401.562a.396.396 0 0 0 .32.625H12v8.958a.396.396 0 0 0 .716.233l9.081-12.261.401-.562a.396.396 0 0 0-.32-.625z" />
+									</svg>
+								)}
+								{isOAuthConnecting ? 'Connecting…' : 'Connect with Supabase'}
+							</Button>
+
+							{/* Disconnect when connected (re-sign-in path) */}
+							{mgmtConnected && (
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={disconnectManagement}
+									className="text-xs text-muted-foreground"
+								>
+									Disconnect current account
+								</Button>
+							)}
+
+							<div className="flex items-center gap-3">
+								<div className="flex-1 h-px bg-border" />
+								<span className="text-xs text-muted-foreground">or enter manually</span>
+								<div className="flex-1 h-px bg-border" />
+							</div>
+
+							{/* Manual fallback */}
+							<div className="flex flex-col gap-1.5">
+								<Label>Connection Name</Label>
+								<Input
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									placeholder="My Project"
+									className="text-xs h-8"
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label>Supabase URL</Label>
+								<Input
+									value={url}
+									onChange={(e) => setUrl(e.target.value)}
+									placeholder="https://yourproject.supabase.co"
+									className="text-xs h-8"
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label>Publishable Key</Label>
+								<Input
+									type="password"
+									value={publishableKey}
+									onChange={(e) => setPublishableKey(e.target.value)}
+									placeholder="sb_publishable_..."
+									className="text-xs h-8"
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<div className="flex items-center gap-2">
+									<Label>Secret Key</Label>
+									<span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+										Local only
+									</span>
+								</div>
+								<Input
+									type="password"
+									value={secretKey}
+									onChange={(e) => setSecretKey(e.target.value)}
+									placeholder="Bypasses RLS — use with caution"
+									className="text-xs h-8"
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<div className="flex items-center gap-2">
+									<Label>Management API Token</Label>
+									<span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+										Local only
+									</span>
+								</div>
+								<Input
+									type="password"
+									value={accessToken}
+									onChange={(e) => setAccessToken(e.target.value)}
+									placeholder="sbp_..."
+									className="text-xs h-8"
+								/>
+							</div>
+							<Button onClick={handleManualConnect} disabled={isCreating} className="w-full">
+								{isCreating ? (
+									<Loader2 className="mr-2 size-4 animate-spin" />
+								) : (
+									<Plug className="mr-2 size-4" />
+								)}
+								Connect
+							</Button>
+						</>
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
 	)
 }

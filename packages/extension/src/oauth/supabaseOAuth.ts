@@ -1,0 +1,234 @@
+// Supabase Management API OAuth for browser extensions (DCR + PKCE).
+// Registers its own OAuth client at runtime via RFC 7591 — no pre-registered
+// app, no client secret. Runs entirely in the extension (background service
+// worker or sidepanel — both expose crypto.subtle and chrome.identity).
+
+const MGMT_API = 'https://api.supabase.com'
+
+export interface OAuthProject {
+	id: string
+	ref: string
+	name: string
+	region: string
+	status: string
+}
+
+export interface ProjectKeys {
+	anon: string
+	serviceRole: string
+}
+
+// ── PKCE ─────────────────────────────────────────────────────────────────────
+
+export async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+	const array = new Uint8Array(32)
+	crypto.getRandomValues(array)
+	const codeVerifier = btoa(String.fromCharCode(...array))
+		.replace(/\+/g, '-')
+		.replace(/\//g, '_')
+		.replace(/=/g, '')
+
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier))
+	const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+		.replace(/\+/g, '-')
+		.replace(/\//g, '_')
+		.replace(/=/g, '')
+
+	return { codeVerifier, codeChallenge }
+}
+
+// ── Redirect URI (MV3-friendly) ──────────────────────────────────────────────
+
+/**
+ * Stable extension URL for the OAuth callback. Chrome's launchWebAuthFlow
+ * intercepts this and hands the `?code=…` back to us as the redirect URL.
+ */
+export function getRedirectUri(): string {
+	return chrome.identity.getRedirectURL('supabase')
+}
+
+// ── Dynamic Client Registration (RFC 7591) ───────────────────────────────────
+
+export interface DynamicClient {
+	client_id: string
+	client_id_issued_at?: number
+}
+
+/**
+ * Register a new public OAuth client for this extension. The result is cached
+ * in chrome.storage so we only register once per browser install — the
+ * service worker can be killed and restarted at any time in MV3, so the
+ * client_id must persist.
+ */
+export async function registerDynamicClient(redirectUri: string): Promise<DynamicClient> {
+	const res = await fetch(`${MGMT_API}/platform/oauth/apps/register`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			client_name: 'SupaAgent Extension',
+			redirect_uris: [redirectUri],
+			token_endpoint_auth_method: 'none',
+			grant_types: ['authorization_code', 'refresh_token'],
+			response_types: ['code'],
+			scope: 'projects:read projects:write organizations:read',
+		}),
+	})
+	if (!res.ok) {
+		const text = await res.text().catch(() => '')
+		throw new Error(`Dynamic client registration failed (${res.status}): ${text}`)
+	}
+	const data = (await res.json()) as { client_id: string; client_id_issued_at?: number }
+	if (!data.client_id) throw new Error('Registration response missing client_id')
+	return { client_id: data.client_id, client_id_issued_at: data.client_id_issued_at }
+}
+
+// ── Authorize URL ────────────────────────────────────────────────────────────
+
+export function buildAuthorizeUrl(
+	clientId: string,
+	redirectUri: string,
+	codeChallenge: string,
+	state: string
+): string {
+	const url = new URL(`${MGMT_API}/v1/oauth/authorize`)
+	url.searchParams.set('client_id', clientId)
+	url.searchParams.set('redirect_uri', redirectUri)
+	url.searchParams.set('response_type', 'code')
+	url.searchParams.set('code_challenge', codeChallenge)
+	url.searchParams.set('code_challenge_method', 'S256')
+	url.searchParams.set('state', state)
+	return url.toString()
+}
+
+// ── Token Exchange (direct — no client secret in DCR) ────────────────────────
+
+export interface TokenResponse {
+	accessToken: string
+	refreshToken?: string
+	expiresIn?: number
+}
+
+/**
+ * Exchange the authorization code for an access token. With
+ * `token_endpoint_auth_method: 'none'`, no client_secret is sent.
+ */
+export async function exchangeCode(
+	clientId: string,
+	code: string,
+	codeVerifier: string,
+	redirectUri: string
+): Promise<TokenResponse> {
+	const res = await fetch(`${MGMT_API}/v1/oauth/token`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({
+			grant_type: 'authorization_code',
+			client_id: clientId,
+			code,
+			redirect_uri: redirectUri,
+			code_verifier: codeVerifier,
+		}),
+	})
+	if (!res.ok) {
+		const text = await res.text().catch(() => '')
+		throw new Error(`Token exchange failed (${res.status}): ${text}`)
+	}
+	const data = await res.json()
+	return {
+		accessToken: data.access_token,
+		refreshToken: data.refresh_token,
+		expiresIn: data.expires_in,
+	}
+}
+
+export async function refreshAccessToken(
+	clientId: string,
+	refreshToken: string
+): Promise<TokenResponse> {
+	const res = await fetch(`${MGMT_API}/v1/oauth/token`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: refreshToken,
+		}),
+	})
+	if (!res.ok) {
+		const text = await res.text().catch(() => '')
+		throw new Error(`Token refresh failed (${res.status}): ${text}`)
+	}
+	const data = await res.json()
+	return {
+		accessToken: data.access_token,
+		refreshToken: data.refresh_token,
+		expiresIn: data.expires_in,
+	}
+}
+
+// ── Management API helpers (used by the project picker) ──────────────────────
+
+export async function listProjects(accessToken: string): Promise<OAuthProject[]> {
+	const res = await fetch(`${MGMT_API}/v1/projects`, {
+		headers: { Authorization: `Bearer ${accessToken}` },
+	})
+	if (!res.ok) {
+		const text = await res.text().catch(() => '')
+		throw new Error(`Failed to list projects (${res.status}): ${text}`)
+	}
+	return (await res.json()) as OAuthProject[]
+}
+
+/**
+ * Fetch API keys for a project. Requires the OAuth app to have the
+ * `secrets:read` scope. If the user-authorized scopes don't include it,
+ * Supabase returns 403 — callers should fall back to manual entry.
+ */
+export async function getProjectKeys(ref: string, accessToken: string): Promise<ProjectKeys> {
+	const res = await fetch(`${MGMT_API}/v1/projects/${ref}/api-keys`, {
+		headers: { Authorization: `Bearer ${accessToken}` },
+	})
+	if (res.status === 403) {
+		throw new Error(
+			'OAuth app missing "Secrets" scope — paste your anon/service_role keys manually below.'
+		)
+	}
+	if (!res.ok) {
+		const text = await res.text().catch(() => '')
+		throw new Error(`Failed to fetch API keys (${res.status}): ${text}`)
+	}
+	const keys = (await res.json()) as { name: string; api_key: string }[]
+	return {
+		anon: keys.find((k) => k.name === 'anon')?.api_key ?? '',
+		serviceRole: keys.find((k) => k.name === 'service_role')?.api_key ?? '',
+	}
+}
+
+/**
+ * Open the browser-level Supabase auth page. Returns the redirect URL on
+ * success (contains `?code=…&state=…`) or null if the user closed the popup
+ * or no result was returned.
+ */
+export async function launchAuthFlow(authorizeUrl: string): Promise<string | null> {
+	try {
+		const result = await chrome.identity.launchWebAuthFlow({
+			url: authorizeUrl,
+			interactive: true,
+		})
+		return result ?? null
+	} catch (err) {
+		if (err instanceof Error && /user closed|window closed/i.test(err.message)) return null
+		throw err
+	}
+}
+
+/** Extract the authorization `code` from a launchWebAuthFlow redirect URL. */
+export function extractCode(redirectUrl: string): string {
+	const url = new URL(redirectUrl)
+	const code = url.searchParams.get('code')
+	if (!code) {
+		const err = url.searchParams.get('error_description') || url.searchParams.get('error')
+		throw new Error(err || 'No authorization code in redirect URL')
+	}
+	return code
+}

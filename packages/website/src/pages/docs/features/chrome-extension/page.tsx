@@ -192,7 +192,7 @@ localStorage.setItem('PageAgentExtUserAuthToken', '<your-token-from-extension>')
 	AgentStatus,
 	ExecutionResult,
 	HistoricalEvent
-} from '@page-agent/core'
+} from '@supa-agent/core'
 
 interface ExecuteConfig {
 	baseURL: string   // LLM API endpoint

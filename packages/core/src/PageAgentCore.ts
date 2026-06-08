@@ -3,8 +3,8 @@
  * Copyright (C) 2026 SimonLuvRamen
  * All rights reserved.
  */
-import { InvokeError, LLM, type Tool } from '@page-agent/llms'
-import type { BrowserState, PageController } from '@page-agent/page-controller'
+import { InvokeError, LLM, type Tool } from '@supa-agent/llms'
+import type { BrowserState, PageController } from '@supa-agent/page-controller'
 import chalk from 'chalk'
 import * as z from 'zod/v4'
 

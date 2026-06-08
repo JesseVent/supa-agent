@@ -47,8 +47,8 @@ const agent = new PageAgent({
 				</p>
 				<CodeEditor
 					language="typescript"
-					code={`import { PageAgentCore } from '@page-agent/core'
-import { PageController } from '@page-agent/page-controller'
+					code={`import { PageAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
 const pageController = new PageController({
   enableMask: true,
@@ -270,8 +270,8 @@ const agent = new PageAgentCore({
 				</p>
 				<CodeEditor
 					language="typescript"
-					code={`import { PageAgentCore } from '@page-agent/core'
-import type { PageController } from '@page-agent/page-controller'
+					code={`import { PageAgentCore } from '@supa-agent/core'
+import type { PageController } from '@supa-agent/page-controller'
 
 class PuppeteerPageController implements PageController {
   async getBrowserState() { /* ... */ }

@@ -9,7 +9,7 @@ import { defineConfig } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pageAgentPkg = JSON.parse(
-	readFileSync(resolve(__dirname, '../page-agent/package.json'), 'utf-8')
+	readFileSync(resolve(__dirname, '../supa-agent/package.json'), 'utf-8')
 )
 
 // Load .env from repo root
@@ -93,6 +93,7 @@ export default defineConfig(({ mode }) => ({
 	resolve: {
 		alias: {
 			'@': resolve(__dirname, 'src'),
+			'page-agent': resolve(__dirname, '../supa-agent/src/PageAgent.ts'),
 		},
 	},
 	define: {

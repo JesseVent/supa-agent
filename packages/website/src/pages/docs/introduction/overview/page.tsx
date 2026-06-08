@@ -79,7 +79,7 @@ export default function Overview() {
 
 					<div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
 						<h3 className="text-lg font-semibold mb-2 text-purple-900 dark:text-purple-300">
-							{isZh ? '安全可控' : 'Secure '🔒 Secure & Controllable' Controllable'}
+							{isZh ? '安全可控' : 'Secure & Controllable'}
 						</h3>
 						<p className="text-gray-700 dark:text-gray-300">
 							{isZh
