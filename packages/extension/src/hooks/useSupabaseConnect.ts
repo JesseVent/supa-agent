@@ -19,7 +19,7 @@ export interface OAuthProject {
  *   1. `connectWithOAuth()` → sends MGMT_CONNECT_START to the SW, which
  *      runs the full DCR + PKCE + launchWebAuthFlow + token exchange
  *      and stores the access token in chrome.storage.local.
- *   2. Lists projects via MCP `supabase_list_projects` (account-level, no project_ref).
+ *   2. Lists projects via MCP `list_projects` (account-level, no project_ref).
  *   3. `applyOAuthProject(p)` fetches the publishable key via project-scoped MCP.
  */
 export function useSupabaseConnect(opts: {
