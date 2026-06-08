@@ -5,19 +5,6 @@
 
 const MGMT_API = 'https://api.supabase.com'
 
-export interface OAuthProject {
-	id: string
-	ref: string
-	name: string
-	region: string
-	status: string
-}
-
-export interface ProjectKeys {
-	anon: string
-	serviceRole: string
-}
-
 // ── PKCE ─────────────────────────────────────────────────────────────────────
 
 export async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
@@ -51,6 +38,7 @@ export function getRedirectUri(): string {
 
 export interface DynamicClient {
 	client_id: string
+	client_secret: string
 	client_id_issued_at?: number
 }
 
@@ -70,16 +58,16 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 			token_endpoint_auth_method: 'none',
 			grant_types: ['authorization_code', 'refresh_token'],
 			response_types: ['code'],
-			scope: 'projects:read projects:write organizations:read',
+			scope: 'projects:read projects:write organizations:read database:read database:write analytics:read secrets:read edge_functions:read edge_functions:write environment:read environment:write storage:read',
 		}),
 	})
 	if (!res.ok) {
 		const text = await res.text().catch(() => '')
 		throw new Error(`Dynamic client registration failed (${res.status}): ${text}`)
 	}
-	const data = (await res.json()) as { client_id: string; client_id_issued_at?: number }
+	const data = (await res.json()) as { client_id: string; client_secret: string; client_id_issued_at?: number }
 	if (!data.client_id) throw new Error('Registration response missing client_id')
-	return { client_id: data.client_id, client_id_issued_at: data.client_id_issued_at }
+	return { client_id: data.client_id, client_secret: data.client_secret ?? '', client_id_issued_at: data.client_id_issued_at }
 }
 
 // ── Authorize URL ────────────────────────────────────────────────────────────
@@ -116,18 +104,21 @@ export async function exchangeCode(
 	clientId: string,
 	code: string,
 	codeVerifier: string,
-	redirectUri: string
+	redirectUri: string,
+	clientSecret?: string
 ): Promise<TokenResponse> {
+	const params = new URLSearchParams({
+		grant_type: 'authorization_code',
+		client_id: clientId,
+		code,
+		redirect_uri: redirectUri,
+		code_verifier: codeVerifier,
+	})
+	if (clientSecret) params.set('client_secret', clientSecret)
 	const res = await fetch(`${MGMT_API}/v1/oauth/token`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'authorization_code',
-			client_id: clientId,
-			code,
-			redirect_uri: redirectUri,
-			code_verifier: codeVerifier,
-		}),
+		body: params,
 	})
 	if (!res.ok) {
 		const text = await res.text().catch(() => '')
@@ -143,16 +134,19 @@ export async function exchangeCode(
 
 export async function refreshAccessToken(
 	clientId: string,
-	refreshToken: string
+	refreshToken: string,
+	clientSecret?: string
 ): Promise<TokenResponse> {
+	const params = new URLSearchParams({
+		grant_type: 'refresh_token',
+		client_id: clientId,
+		refresh_token: refreshToken,
+	})
+	if (clientSecret) params.set('client_secret', clientSecret)
 	const res = await fetch(`${MGMT_API}/v1/oauth/token`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'refresh_token',
-			client_id: clientId,
-			refresh_token: refreshToken,
-		}),
+		body: params,
 	})
 	if (!res.ok) {
 		const text = await res.text().catch(() => '')
@@ -163,44 +157,6 @@ export async function refreshAccessToken(
 		accessToken: data.access_token,
 		refreshToken: data.refresh_token,
 		expiresIn: data.expires_in,
-	}
-}
-
-// ── Management API helpers (used by the project picker) ──────────────────────
-
-export async function listProjects(accessToken: string): Promise<OAuthProject[]> {
-	const res = await fetch(`${MGMT_API}/v1/projects`, {
-		headers: { Authorization: `Bearer ${accessToken}` },
-	})
-	if (!res.ok) {
-		const text = await res.text().catch(() => '')
-		throw new Error(`Failed to list projects (${res.status}): ${text}`)
-	}
-	return (await res.json()) as OAuthProject[]
-}
-
-/**
- * Fetch API keys for a project. Requires the OAuth app to have the
- * `secrets:read` scope. If the user-authorized scopes don't include it,
- * Supabase returns 403 — callers should fall back to manual entry.
- */
-export async function getProjectKeys(ref: string, accessToken: string): Promise<ProjectKeys> {
-	const res = await fetch(`${MGMT_API}/v1/projects/${ref}/api-keys`, {
-		headers: { Authorization: `Bearer ${accessToken}` },
-	})
-	if (res.status === 403) {
-		throw new Error(
-			'OAuth app missing "Secrets" scope — paste your anon/service_role keys manually below.'
-		)
-	}
-	if (!res.ok) {
-		const text = await res.text().catch(() => '')
-		throw new Error(`Failed to fetch API keys (${res.status}): ${text}`)
-	}
-	const keys = (await res.json()) as { name: string; api_key: string }[]
-	return {
-		anon: keys.find((k) => k.name === 'anon')?.api_key ?? '',
-		serviceRole: keys.find((k) => k.name === 'service_role')?.api_key ?? '',
 	}
 }
 

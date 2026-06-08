@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { SupabaseMcpClient } from '@/agent/SupabaseMcpClient'
+
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
-const MGMT_API = 'https://api.supabase.com/v1'
 
 export interface SupabaseProject {
 	id: string
@@ -9,6 +10,7 @@ export interface SupabaseProject {
 	organization_id: string
 	status: string
 	region: string
+	ref?: string
 }
 
 export function useManagementApi(connected: boolean) {
@@ -24,14 +26,11 @@ export function useManagementApi(connected: boolean) {
 		setLoading(true)
 		setError(null)
 		try {
-			const res = await fetch(`${MGMT_API}/projects`, {
-				headers: { Authorization: `Bearer ${token}` },
-			})
-			if (!res.ok) {
-				const text = await res.text()
-				throw new Error(`API error ${res.status}: ${text}`)
-			}
-			const data: SupabaseProject[] = await res.json()
+			// Account-level MCP connection (no project_ref) to call list_projects
+			const client = new SupabaseMcpClient({ accessToken: token })
+			const raw = await client.callTool('list_projects', {})
+			const parsed = JSON.parse(raw) as { projects?: SupabaseProject[] } | SupabaseProject[]
+			const data = Array.isArray(parsed) ? parsed : (parsed?.projects ?? [])
 			setProjects(data)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to fetch projects')

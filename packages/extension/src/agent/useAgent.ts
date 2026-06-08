@@ -14,7 +14,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { MultiPageAgent } from './MultiPageAgent'
 import { DEMO_CONFIG } from './constants'
-import { createSupabaseMcpTools } from './supabaseMcpTools'
+import { adaptMcpTools } from './mcpToolAdapter'
+import { SupabaseMcpClient } from './SupabaseMcpClient'
 
 /** Language preference: undefined means follow system */
 export type LanguagePreference = SupportedLanguage | undefined
@@ -72,6 +73,9 @@ export function useAgent(): UseAgentResult {
 	useEffect(() => {
 		if (!config) return
 
+		let disposed = false
+		let createdAgent: MultiPageAgent | null = null
+
 		const {
 			systemInstruction,
 			skillRouterUrl,
@@ -87,55 +91,66 @@ export function useAgent(): UseAgentResult {
 				? new SkillRouterClient(skillRouterUrl, skillRouterKey).asAdapter(skillRouterSkill)
 				: undefined
 
-		const customTools =
-			supabaseMcpProjectRef && supabaseMcpAccessToken
-				? createSupabaseMcpTools({
-						projectRef: supabaseMcpProjectRef,
-						accessToken: supabaseMcpAccessToken,
-					})
-				: undefined
-
-		const supabaseHint =
-			supabaseMcpProjectRef && supabaseMcpAccessToken
-				? `You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
-				: undefined
-
-		const systemParts = [systemInstruction, supabaseHint].filter(Boolean)
-
-		const agent = new MultiPageAgent({
-			...agentConfig,
-			instructions: systemParts.length ? { system: systemParts.join('\n\n') } : undefined,
-			skillRouter,
-			customTools,
-		})
-		agentRef.current = agent
-
-		const handleStatusChange = (e: Event) => {
+		const handleStatusChange = () => {
+			const agent = createdAgent
+			if (!agent) return
 			const newStatus = agent.status as AgentStatus
 			setStatus(newStatus)
 			if (newStatus === 'idle' || newStatus === 'completed' || newStatus === 'error') {
 				setActivity(null)
 			}
 		}
-
-		const handleHistoryChange = (e: Event) => {
-			setHistory([...agent.history])
+		const handleHistoryChange = () => {
+			if (createdAgent) setHistory([...createdAgent.history])
 		}
-
 		const handleActivity = (e: Event) => {
-			const newActivity = (e as CustomEvent).detail as AgentActivity
-			setActivity(newActivity)
+			setActivity((e as CustomEvent).detail as AgentActivity)
 		}
 
-		agent.addEventListener('statuschange', handleStatusChange)
-		agent.addEventListener('historychange', handleHistoryChange)
-		agent.addEventListener('activity', handleActivity)
+		;(async () => {
+			let customTools: Record<string, unknown> | undefined
+			let supabaseHint: string | undefined
+
+			if (supabaseMcpProjectRef && supabaseMcpAccessToken) {
+				try {
+					const client = new SupabaseMcpClient({
+						projectRef: supabaseMcpProjectRef,
+						accessToken: supabaseMcpAccessToken,
+					})
+					customTools = await adaptMcpTools(client)
+					supabaseHint = `You have supabase_* tools available for the project "${supabaseMcpProjectRef}". Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
+				} catch (err) {
+					console.warn('[useAgent] MCP tools unavailable:', err)
+				}
+			}
+
+			if (disposed) return
+
+			const systemParts = [systemInstruction, supabaseHint].filter(Boolean)
+
+			const agent = new MultiPageAgent({
+				...agentConfig,
+				instructions: systemParts.length ? { system: systemParts.join('\n\n') } : undefined,
+				skillRouter,
+				customTools,
+			})
+			createdAgent = agent
+			agentRef.current = agent
+
+			agent.addEventListener('statuschange', handleStatusChange)
+			agent.addEventListener('historychange', handleHistoryChange)
+			agent.addEventListener('activity', handleActivity)
+		})()
 
 		return () => {
-			agent.removeEventListener('statuschange', handleStatusChange)
-			agent.removeEventListener('historychange', handleHistoryChange)
-			agent.removeEventListener('activity', handleActivity)
-			agent.dispose()
+			disposed = true
+			if (createdAgent) {
+				createdAgent.removeEventListener('statuschange', handleStatusChange)
+				createdAgent.removeEventListener('historychange', handleHistoryChange)
+				createdAgent.removeEventListener('activity', handleActivity)
+				createdAgent.dispose()
+				agentRef.current = null
+			}
 		}
 	}, [config])
 

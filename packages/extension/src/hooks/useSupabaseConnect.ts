@@ -1,8 +1,16 @@
 import { useCallback, useState } from 'react'
 
-import { type OAuthProject, getProjectKeys, listProjects } from '@/oauth/supabaseOAuth'
+import { SupabaseMcpClient } from '@/agent/SupabaseMcpClient'
 
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
+
+export interface OAuthProject {
+	id: string
+	ref: string
+	name: string
+	region: string
+	status: string
+}
 
 /**
  * Hook that wraps the Supabase OAuth DCR flow for the sidepanel modal.
@@ -11,15 +19,8 @@ const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
  *   1. `connectWithOAuth()` → sends MGMT_CONNECT_START to the SW, which
  *      runs the full DCR + PKCE + launchWebAuthFlow + token exchange
  *      and stores the access token in chrome.storage.local.
- *   2. The hook then fetches /v1/projects with the new token and either
- *      auto-applies the single project or surfaces a picker.
- *   3. `applyOAuthProject(p)` fetches /v1/projects/{ref}/api-keys to
- *      pre-fill the connection form.
- *
- * The hook never sees the access token directly — it reads it from
- * chrome.storage via `getStoredToken()` for the project-list / key
- * fetch helpers, then calls `onApplyProject(ref, anonKey)` to bubble
- * the result back to the caller (ConfigPanel writes it into ExtConfig).
+ *   2. Lists projects via MCP `supabase_list_projects` (account-level, no project_ref).
+ *   3. `applyOAuthProject(p)` fetches the publishable key via project-scoped MCP.
  */
 export function useSupabaseConnect(opts: {
 	onApplyProject: (project: { ref: string; name: string; anonKey: string }) => void
@@ -54,13 +55,17 @@ export function useSupabaseConnect(opts: {
 			const accessToken = await getStoredToken()
 			if (!accessToken) throw new Error('Token not found in storage after OAuth')
 
-			const projects = await listProjects(accessToken)
+			// List projects via MCP (account-level, no project_ref)
+			const client = new SupabaseMcpClient({ accessToken })
+			const raw = await client.callTool('list_projects', {})
+			const parsed = JSON.parse(raw) as { projects?: OAuthProject[] } | OAuthProject[]
+			const projects = Array.isArray(parsed) ? parsed : (parsed?.projects ?? [])
+
 			if (projects.length === 0) {
 				throw new Error('No Supabase projects found in this account.')
 			}
 
 			if (projects.length === 1) {
-				// Auto-apply the only project.
 				await applyOAuthProject(projects[0], accessToken)
 			} else {
 				setOauthProjects(projects)
@@ -70,7 +75,8 @@ export function useSupabaseConnect(opts: {
 		} finally {
 			setIsOAuthConnecting(false)
 		}
-	}, [getStoredToken])
+		// applyOAuthProject is defined below but stable (useCallback with [opts])
+	}, [getStoredToken]) // eslint-disable-line react-hooks/exhaustive-deps
 
 	const applyOAuthProject = useCallback(
 		async (project: OAuthProject, accessToken: string) => {
@@ -79,11 +85,25 @@ export function useSupabaseConnect(opts: {
 			try {
 				let anonKey = ''
 				try {
-					const keys = await getProjectKeys(project.ref, accessToken)
-					anonKey = keys.anon
+					// Fetch publishable (anon) key via project-scoped MCP
+					const client = new SupabaseMcpClient({ projectRef: project.ref, accessToken })
+					const keyRaw = await client.callTool('get_publishable_keys', {})
+					// Response may be plain text or JSON
+					try {
+						const parsed = JSON.parse(keyRaw)
+						if (Array.isArray(parsed?.keys)) {
+							const anon = parsed.keys.find((k: any) => k.name === 'anon' || k.type === 'legacy')
+							anonKey = anon?.api_key ?? ''
+						} else if (typeof parsed === 'string') {
+							anonKey = parsed
+						} else {
+							anonKey = parsed?.key ?? parsed?.anon_key ?? ''
+						}
+					} catch {
+						anonKey = keyRaw.trim()
+					}
 				} catch {
-					// Missing Secrets scope or transient API error — caller will
-					// show the toast and the user can paste keys manually.
+					// Non-fatal — user can paste the key manually
 				}
 				opts.onApplyProject({ ref: project.ref, name: project.name, anonKey })
 				setOauthProjects(null)
@@ -96,11 +116,6 @@ export function useSupabaseConnect(opts: {
 		[opts]
 	)
 
-	/**
-	 * Stub for the "Prefill from .env" button. The devtool reads from
-	 * `process.env.SEED_*`; the extension has no equivalent yet, so the
-	 * button surfaces a hint instead of silently doing nothing.
-	 */
 	const prefillFromEnv = useCallback(() => {
 		setCreateError('No .env prefill configured for the extension — paste values manually.')
 	}, [])

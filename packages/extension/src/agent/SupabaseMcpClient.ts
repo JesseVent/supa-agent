@@ -26,13 +26,14 @@ export class SupabaseMcpClient {
 	private _connected = false
 
 	constructor(opts: {
-		projectRef: string
+		/** Project ref scopes the MCP connection. Omit for account-level tools (e.g. list_projects). */
+		projectRef?: string
 		readOnly?: boolean
 		features?: string[]
 		/** Explicit access token (e.g. manual PAT). When omitted, reads from chrome.storage. */
 		accessToken?: string
 	}) {
-		this.projectRef = opts.projectRef
+		this.projectRef = opts.projectRef ?? ''
 		this.readOnly = opts.readOnly
 		this.features = opts.features
 		if (opts.accessToken) {
@@ -102,7 +103,7 @@ export class SupabaseMcpClient {
 
 	private async _doConnect(): Promise<void> {
 		const url = new URL(MCP_BASE_URL)
-		url.searchParams.set('project_ref', this.projectRef)
+		if (this.projectRef) url.searchParams.set('project_ref', this.projectRef)
 		if (this.readOnly) url.searchParams.set('read_only', 'true')
 		if (this.features?.length) url.searchParams.set('features', this.features.join(','))
 

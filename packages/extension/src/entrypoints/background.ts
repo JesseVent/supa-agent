@@ -14,6 +14,7 @@ import {
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
 const MGMT_REFRESH_KEY = 'SupaAgentMgmtRefreshToken'
 const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientId'
+const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecret'
 
 export default defineBackground(() => {
 	console.log('[Background] Service Worker started')
@@ -87,15 +88,16 @@ async function openOrFocusHubTab(wsPort: number) {
 
 // ── Supabase Management API OAuth (hosted MCP DCR) ───────────────────────────
 
-async function getOrCreateClientId(): Promise<string> {
-	const stored = await chrome.storage.local.get(MGMT_CLIENT_ID_KEY)
-	const existing = stored[MGMT_CLIENT_ID_KEY] as string | undefined
-	if (existing) return existing
+async function getOrCreateClientId(): Promise<{ clientId: string; clientSecret: string }> {
+	const stored = await chrome.storage.local.get([MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
+	const existingId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
+	const existingSecret = stored[MGMT_CLIENT_SECRET_KEY] as string | undefined
+	if (existingId && existingSecret) return { clientId: existingId, clientSecret: existingSecret }
 
 	const redirectUri = getRedirectUri()
-	const { client_id } = await registerDynamicClient(redirectUri)
-	await chrome.storage.local.set({ [MGMT_CLIENT_ID_KEY]: client_id })
-	return client_id
+	const { client_id, client_secret } = await registerDynamicClient(redirectUri)
+	await chrome.storage.local.set({ [MGMT_CLIENT_ID_KEY]: client_id, [MGMT_CLIENT_SECRET_KEY]: client_secret })
+	return { clientId: client_id, clientSecret: client_secret }
 }
 
 async function handleConnectStart(): Promise<
@@ -103,7 +105,7 @@ async function handleConnectStart(): Promise<
 > {
 	try {
 		const redirectUri = getRedirectUri()
-		const clientId = await getOrCreateClientId()
+		const { clientId, clientSecret } = await getOrCreateClientId()
 		const { codeVerifier, codeChallenge } = await generatePKCE()
 		const state = crypto.randomUUID()
 		const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
@@ -120,7 +122,7 @@ async function handleConnectStart(): Promise<
 		}
 
 		const code = extractCode(redirectUrl)
-		const tokens = await exchangeCode(clientId, code, codeVerifier, redirectUri)
+		const tokens = await exchangeCode(clientId, code, codeVerifier, redirectUri, clientSecret)
 
 		const update: Record<string, string> = { [MGMT_TOKEN_KEY]: tokens.accessToken }
 		if (tokens.refreshToken) update[MGMT_REFRESH_KEY] = tokens.refreshToken
@@ -134,13 +136,14 @@ async function handleConnectStart(): Promise<
 
 async function handleRefreshToken(): Promise<{ token?: string; error?: string }> {
 	try {
-		const stored = await chrome.storage.local.get([MGMT_REFRESH_KEY, MGMT_CLIENT_ID_KEY])
+		const stored = await chrome.storage.local.get([MGMT_REFRESH_KEY, MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
 		const refreshToken = stored[MGMT_REFRESH_KEY] as string | undefined
 		const clientId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
+		const clientSecret = stored[MGMT_CLIENT_SECRET_KEY] as string | undefined
 		if (!refreshToken) return { error: 'No refresh token — please reconnect' }
 		if (!clientId) return { error: 'No client_id — please reconnect' }
 
-		const tokens = await refreshAccessToken(clientId, refreshToken)
+		const tokens = await refreshAccessToken(clientId, refreshToken, clientSecret)
 		const update: Record<string, string> = { [MGMT_TOKEN_KEY]: tokens.accessToken }
 		if (tokens.refreshToken) update[MGMT_REFRESH_KEY] = tokens.refreshToken
 		await chrome.storage.local.set(update)
