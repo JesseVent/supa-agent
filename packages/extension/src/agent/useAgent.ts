@@ -7,9 +7,9 @@ import type {
 	ExecutionResult,
 	HistoricalEvent,
 	SupportedLanguage,
-} from '@page-agent/core'
-import type { LLMConfig } from '@page-agent/llms'
-import { SkillRouterClient } from '@page-agent/skill-router'
+} from '@supa-agent/core'
+import type { LLMConfig } from '@supa-agent/llms'
+import { SkillRouterClient } from '@supa-agent/skill-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { MultiPageAgent } from './MultiPageAgent'

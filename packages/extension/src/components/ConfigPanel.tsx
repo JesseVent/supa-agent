@@ -403,7 +403,7 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 					</span>
 
 					<a
-						href="https://github.com/supabase/supabase"
+						href="https://github.com/JesseVent/supa-agent"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="flex items-center gap-1 hover:text-foreground"
@@ -427,7 +427,7 @@ export function ConfigPanel({ config, onSave, onClose }: ConfigPanelProps) {
 					</a>
 
 					<a
-						href="https://github.com/supabase/supabase/blob/main/docs/terms-and-privacy.md"
+						href="https://github.com/JesseVent/supa-agent/blob/main/docs/terms-and-privacy.md"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="flex items-center gap-1 hover:text-foreground"

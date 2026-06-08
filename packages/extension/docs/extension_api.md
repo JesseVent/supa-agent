@@ -12,12 +12,12 @@ Primary channel:
 
 Latest updates are often published earlier on:
 
-- GitHub Releases: https://github.com/alibaba/page-agent/releases
+- GitHub Releases: https://github.com/JesseVent/supa-agent/releases
 
 ### 2. Install type definitions (recommended)
 
 ```bash
-npm install @page-agent/core --save-dev
+npm install @supa-agent/core --save-dev
 ```
 
 ### 3. Authorization (Token)
@@ -42,7 +42,7 @@ localStorage.setItem('PageAgentExtUserAuthToken', 'your-token')
 ## Quick Start
 
 ```typescript
-import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@page-agent/core'
+import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@supa-agent/core'
 
 // Wait for extension injection (up to 1 second)
 async function waitForExtension(timeout = 1000): Promise<boolean> {
@@ -98,10 +98,10 @@ Stop the current task.
 
 ## Types
 
-Install `@page-agent/core` for complete types:
+Install `@supa-agent/core` for complete types:
 
 ```typescript
-import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@page-agent/core'
+import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@supa-agent/core'
 
 export interface ExecuteConfig {
     baseURL: string
@@ -192,10 +192,10 @@ window.PAGE_AGENT_EXT!.stop()
 
 ## Window Type Declaration
 
-If you are not importing `@page-agent/core`, add:
+If you are not importing `@supa-agent/core`, add:
 
 ```typescript
-import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@page-agent/core'
+import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@supa-agent/core'
 
 interface ExecuteConfig {
     baseURL: string

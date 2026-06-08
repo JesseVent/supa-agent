@@ -1,4 +1,4 @@
-import type { HistoricalEvent } from '@page-agent/core'
+import type { HistoricalEvent } from '@supa-agent/core'
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 
 const DB_NAME = 'supa-agent'

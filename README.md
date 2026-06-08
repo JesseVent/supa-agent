@@ -49,7 +49,7 @@ npm install page-agent
 ```
 
 ```ts
-import { PageAgentCore } from '@page-agent/core'
+import { PageAgentCore } from '@supa-agent/core'
 
 const agent = new PageAgentCore({
   baseURL: 'https://openrouter.ai/api/v1',

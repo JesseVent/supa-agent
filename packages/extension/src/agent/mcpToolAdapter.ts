@@ -1,0 +1,238 @@
+/**
+ * Convert JSON Schema (as returned by MCP tools/list) to a Zod schema.
+ *
+ * This is a focused converter for the schemas used by the Supabase MCP
+ * server — it handles strings, numbers, booleans, arrays, objects,
+ * enums, unions (anyOf), and optionality. It does NOT aim to be a
+ * full JSON Schema → Zod converter.
+ */
+import type { PageAgentTool } from '@supa-agent/core'
+import * as z from 'zod/v4'
+
+import type { SupabaseMcpClient } from './SupabaseMcpClient'
+
+function jsonSchemaToZod(schema: unknown, required = true): z.ZodType {
+	if (schema === null || schema === undefined) {
+		return z.any()
+	}
+
+	const s = schema as Record<string, unknown>
+
+	// Handle anyOf / oneOf as z.union
+	const anyOf = (s.anyOf ?? s.oneOf) as Record<string, unknown>[] | undefined
+	if (anyOf?.length) {
+		const variants = anyOf.map((v) => jsonSchemaToZod(v, true))
+		let type: z.ZodType = z.union(variants as [z.ZodType, z.ZodType, ...z.ZodType[]])
+		type = applyMeta(type, s)
+		return required ? type : type.optional()
+	}
+
+	// Handle enum
+	const enumValues = s.enum as (string | number)[] | undefined
+	if (enumValues?.length && s.type === 'string') {
+		let type: z.ZodType = z.enum(enumValues as [string, ...string[]])
+		type = applyMeta(type, s)
+		return required ? type : type.optional()
+	}
+
+	let type: z.ZodType
+
+	switch (s.type) {
+		case 'string':
+			type = z.string()
+			break
+		case 'number':
+		case 'integer':
+			type = z.number()
+			break
+		case 'boolean':
+			type = z.boolean()
+			break
+		case 'array': {
+			const itemSchema = jsonSchemaToZod(s.items, true)
+			type = z.array(itemSchema)
+			break
+		}
+		case 'object': {
+			const props = (s.properties ?? {}) as Record<string, unknown>
+			const requiredKeys = new Set((s.required as string[]) ?? [])
+			const shape: Record<string, z.ZodType> = {}
+			for (const [key, val] of Object.entries(props)) {
+				shape[key] = jsonSchemaToZod(val, requiredKeys.has(key))
+			}
+			type = z.object(shape)
+			break
+		}
+		case 'null':
+			type = z.null()
+			break
+		default:
+			// Unknown / composite type — fall back to z.any()
+			type = z.any()
+			break
+	}
+
+	type = applyMeta(type, s)
+
+	if (s.nullable === true) {
+		type = z.union([type, z.null()])
+	}
+
+	return required ? type : type.optional()
+}
+
+function applyMeta(zodType: z.ZodType, schema: Record<string, unknown>): z.ZodType {
+	if (typeof schema.description === 'string') {
+		zodType = zodType.describe(schema.description)
+	}
+	if (schema.default !== undefined) {
+		// zod/v4 .default() is not available on all types; guard it
+		try {
+			zodType = (zodType as any).default(schema.default)
+		} catch {
+			// ignore if the type doesn't support .default()
+		}
+	}
+	return zodType
+}
+
+/**
+ * Convert a list of MCP tool definitions into PageAgentTool objects.
+ *
+ * Each tool's execute function calls back into the provided SupabaseMcpClient.
+ */
+export async function adaptMcpTools(
+	client: SupabaseMcpClient
+): Promise<Record<string, PageAgentTool>> {
+	const mcpTools = await client.listTools()
+	const adapted: Record<string, PageAgentTool> = {}
+
+	for (const tool of mcpTools) {
+		const inputSchema = jsonSchemaToZod(tool.inputSchema, true)
+		const name = tool.name
+
+		adapted[name] = {
+			description: tool.description ?? '',
+			inputSchema,
+			execute: async function (args: unknown): Promise<string> {
+				return client.callTool(name, args as Record<string, unknown>)
+			},
+		}
+	}
+
+	return adapted
+}
+
+/**
+ * Pick only the MCP tool names that are relevant for a given task.
+ *
+ * Uses a simple keyword heuristic matched against the tool name.
+ */
+export function selectMcpToolsForTask(
+	task: string,
+	allTools: Record<string, PageAgentTool>
+): Record<string, PageAgentTool> {
+	const t = task.toLowerCase()
+	const selected: Record<string, PageAgentTool> = {}
+
+	const keywords: Record<string, string[]> = {
+		supabase_execute_sql: [
+			'sql',
+			'query',
+			'select',
+			'insert',
+			'update',
+			'delete',
+			'schema',
+			'table',
+			'column',
+			'database',
+			'row',
+			'rows',
+			'run query',
+			'execute query',
+			'list tables',
+			'describe table',
+		],
+		supabase_explain_query: ['explain', 'slow', 'performance', 'index', 'plan', 'cost'],
+		supabase_select: ['select', 'query', 'fetch', 'get rows', 'find', 'lookup'],
+		supabase_insert: ['insert', 'add row', 'create row', 'new record'],
+		supabase_update: ['update', 'modify', 'change', 'set column'],
+		supabase_delete: ['delete', 'remove', 'drop row'],
+		supabase_rpc: ['rpc', 'function', 'stored procedure', 'call'],
+		supabase_list_tables: ['list tables', 'show tables', 'what tables', 'tables in', 'schema'],
+		supabase_list_schemas: ['schemas', 'list schemas', 'database schemas'],
+		supabase_list_policies: ['rls', 'policy', 'policies', 'row level security'],
+		supabase_list_migrations: ['migrations', 'migration', 'schema history'],
+		supabase_list_extensions: ['extensions', 'extension', 'postgis', 'pgvector'],
+		supabase_auth_list_users: ['users', 'auth users', 'list users'],
+		supabase_auth_sign_up: ['sign up', 'create user', 'register user'],
+		supabase_auth_sign_in: ['sign in', 'login', 'authenticate user'],
+		supabase_storage_list_buckets: ['buckets', 'storage buckets', 'list buckets'],
+		supabase_storage_list_files: ['files', 'storage files', 'list files'],
+		supabase_storage_get_public_url: ['public url', 'file url', 'storage url'],
+		supabase_get_project: ['project details', 'project info', 'project status'],
+		supabase_get_logs: ['logs', 'error logs', 'debug', 'trace', 'edge logs', 'postgres logs'],
+		supabase_get_advisors: [
+			'advisors',
+			'lint',
+			'security check',
+			'performance check',
+			'recommendations',
+		],
+		supabase_list_evals: ['evals', 'tests', 'benchmarks'],
+		supabase_record_eval_run: ['record eval', 'save eval', 'eval result'],
+		supabase_score_eval_run: ['score eval', 'grade eval', 'eval judge'],
+		supabase_get_eval_summary: ['eval summary', 'eval results', 'eval report'],
+		supabase_list_organizations: ['organizations', 'orgs', 'list orgs'],
+		supabase_list_projects: ['projects', 'list projects', 'all projects'],
+		supabase_create_project: ['create project', 'new project', 'spin up'],
+		supabase_pause_project: ['pause project', 'stop project'],
+		supabase_restore_project: ['restore project', 'unpause'],
+		supabase_get_project_url: ['project url', 'api url', 'connection url'],
+		supabase_get_publishable_key: ['api key', 'anon key', 'publishable key'],
+		supabase_apply_migration: ['migration', 'ddl', 'create table', 'alter table', 'schema change'],
+		supabase_generate_typescript_types: ['typescript types', 'generate types', 'type definitions'],
+		supabase_list_edge_functions: ['edge functions', 'list functions', 'serverless functions'],
+		supabase_get_edge_function: ['edge function', 'function details'],
+		supabase_deploy_edge_function: ['deploy function', 'update function', 'edge function code'],
+		supabase_delete_edge_function: ['delete function', 'remove function'],
+		supabase_list_secrets: ['secrets', 'env vars', 'environment variables'],
+		supabase_set_secrets: ['set secrets', 'add secrets', 'env var'],
+		supabase_delete_secrets: ['delete secrets', 'remove secrets'],
+		supabase_transfer_pgsodium_key: [
+			'pgsodium',
+			'encryption key',
+			'vault key',
+			'migrate encryption',
+		],
+		supabase_get_migration_commands: ['migration commands', 'pg_dump', 'dump', 'restore'],
+		supabase_export_vault_secrets: ['vault secrets', 'export vault', 'column encryption'],
+	}
+
+	for (const [toolName, tool] of Object.entries(allTools)) {
+		const toolKeywords = keywords[toolName]
+		if (!toolKeywords) {
+			// No heuristic — include if the task mentions "supabase" or the tool name
+			if (t.includes('supabase') || t.includes(toolName.replace(/_/g, ' '))) {
+				selected[toolName] = tool
+			}
+			continue
+		}
+
+		if (toolKeywords.some((kw) => t.includes(kw))) {
+			selected[toolName] = tool
+		}
+	}
+
+	// Always include a few core diagnostic tools
+	const alwaysInclude = ['supabase_get_project', 'supabase_list_tables']
+	for (const name of alwaysInclude) {
+		if (allTools[name] && !selected[name]) {
+			selected[name] = allTools[name]
+		}
+	}
+
+	// If nothing matched, return all tools so the model can choose
+	return Object.keys(selected).length > 0 ? selected : allTools
+}

@@ -1,4 +1,4 @@
-import type { AgentStatus } from '@page-agent/core'
+import type { AgentStatus } from '@supa-agent/core'
 import { BookOpen, Globe } from 'lucide-react'
 import { siGithub } from 'simple-icons'
 
@@ -114,7 +114,7 @@ export function EmptyState() {
 			</div>
 			<div className="flex items-center gap-3 mt-1 text-muted-foreground">
 				<a
-					href="https://github.com/supabase/supabase"
+					href="https://github.com/JesseVent/supa-agent"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="hover:text-foreground transition-colors"

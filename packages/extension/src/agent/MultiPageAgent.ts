@@ -1,4 +1,4 @@
-import { type AgentConfig, PageAgentCore } from '@page-agent/core'
+import { type AgentConfig, PageAgentCore } from '@supa-agent/core'
 
 import { RemotePageController } from './RemotePageController'
 import { TabsController } from './TabsController'

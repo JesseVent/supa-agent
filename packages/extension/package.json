@@ -1,5 +1,5 @@
 {
-    "name": "@page-agent/ext",
+    "name": "@supa-agent/ext",
     "private": true,
     "version": "1.8.2",
     "type": "module",
@@ -38,11 +38,11 @@
         "wxt": "^0.20.26"
     },
     "dependencies": {
-        "@page-agent/core": "1.8.2",
-        "@page-agent/llms": "1.8.2",
-        "@page-agent/page-controller": "1.8.2",
-        "@page-agent/skill-router": "0.1.0",
-        "@page-agent/ui": "1.8.2",
+        "@supa-agent/core": "1.8.2",
+        "@supa-agent/llms": "1.8.2",
+        "@supa-agent/page-controller": "1.8.2",
+        "@supa-agent/skill-router": "0.1.0",
+        "@supa-agent/ui": "1.8.2",
         "ai-motion": "^0.4.8",
         "chalk": "^5.6.2"
     },

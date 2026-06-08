@@ -1,4 +1,4 @@
-import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@page-agent/core'
+import type { AgentActivity, AgentStatus, ExecutionResult, HistoricalEvent } from '@supa-agent/core'
 
 export type Execute = (task: string, config: ExecuteConfig) => Promise<ExecutionResult>
 

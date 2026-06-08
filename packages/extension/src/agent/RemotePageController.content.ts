@@ -1,7 +1,7 @@
 /**
  * content script for RemotePageController
  */
-import { PageController } from '@page-agent/page-controller'
+import { PageController } from '@supa-agent/page-controller'
 
 export function initPageController() {
 	let pageController: PageController | null = null

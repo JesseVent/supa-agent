@@ -1,5 +1,5 @@
 {
-    "name": "@page-agent/ui",
+    "name": "@supa-agent/ui",
     "version": "1.8.2",
     "type": "module",
     "main": "./src/index.ts",
@@ -27,19 +27,19 @@
     ],
     "description": "UI components for page-agent - Panel and i18n",
     "keywords": [
-        "page-agent",
+        "supa-agent",
         "ui",
         "panel",
         "i18n"
     ],
-    "author": "SupaAgent",
+    "author": "Jesse Vent",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/supabase/supabase.git",
+        "url": "https://github.com/JesseVent/supa-agent.git",
         "directory": "packages/ui"
     },
-    "homepage": "https://supabase.com",
+    "homepage": "https://github.com/JesseVent/supa-agent",
     "scripts": {
         "build": "vite build",
         "prepublishOnly": "node ../../scripts/pre-publish.js",

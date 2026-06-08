@@ -39,3 +39,12 @@ package.json.bak
 # AI
 .cursor
 .gemini
+# Claude Code / agent tooling (local dev only)
+.claude/
+.agents/
+.remember/
+skills-lock.json
+static-analysis.datadog.yml
+
+# Supabase CLI temp state (contains local project refs)
+supabase/.temp/

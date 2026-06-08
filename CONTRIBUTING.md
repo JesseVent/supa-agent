@@ -1,12 +1,10 @@
-# Contributing to PageAgent
+# Contributing to SupaAgent
 
 ♥️ We welcome contributions from everyone.
 
 For local development workflows, setup, local LLM config, extension development, testing on other websites, and more details, see [docs/developer-guide.md](docs/developer-guide.md).
 
 ## 🤝 How to Contribute
-
-> **[Maintainer's Note](https://github.com/alibaba/page-agent/issues/349)**
 
 ### Opening Issues
 
@@ -44,4 +42,4 @@ By contributing to this project, you agree that your contributions will be licen
 
 ---
 
-Thank you for helping make PageAgent better! 🎉
+Thank you for helping make SupaAgent better! 🎉

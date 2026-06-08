@@ -1,4 +1,4 @@
-import type { HistoricalEvent } from '@page-agent/core'
+import type { HistoricalEvent } from '@supa-agent/core'
 
 const EXPORT_FILE_PREFIX = 'supa-agent-history'
 const MAX_TASK_SLUG_LENGTH = 40

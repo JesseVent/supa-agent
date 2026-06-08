@@ -5,7 +5,7 @@ import type {
 	HistoricalEvent,
 	ObservationEvent,
 	RetryEvent,
-} from '@page-agent/core'
+} from '@supa-agent/core'
 import {
 	CheckCircle,
 	Eye,

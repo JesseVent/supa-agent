@@ -55,7 +55,7 @@ export default function App() {
 						<p>
 							Check out the official{' '}
 							<a
-								href="https://github.com/supabase/supabase"
+								href="https://github.com/JesseVent/supa-agent"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="underline hover:text-foreground"

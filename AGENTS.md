@@ -4,13 +4,13 @@
 
 This is a **monorepo** with npm workspaces:
 
-- **Page Agent** (`packages/page-agent/`) - Main entry with built-in UI Panel, published as `page-agent` on npm
+- **Page Agent** (`packages/supa-agent/`) - Main entry with built-in UI Panel, published as `page-agent` on npm
 - **Extension** (`packages/extension/`) - Browser extension (WXT + React)
 - **Website** (`packages/website/`) - React docs and landing page. **When working on website, follow `packages/website/AGENTS.md`**
 
 Internal packages:
 
-- **Core** (`packages/core/`) - PageAgentCore without UI (npm: `@page-agent/core`)
+- **Core** (`packages/core/`) - PageAgentCore without UI (npm: `@supa-agent/core`)
 - **LLMs** (`packages/llms/`) - LLM client with reflection-before-action mental model
 - **Page Controller** (`packages/page-controller/`) - DOM operations and visual feedback (SimulatorMask), independent of LLM
 - **UI** (`packages/ui/`) - Panel and i18n. Decoupled from PageAgent
@@ -34,21 +34,21 @@ Source-first monorepo: library `package.json` exports point to `src/*.ts` during
 
 ```
 packages/
-├── core/                    # npm: "@page-agent/core" ⭐ Core agent logic (headless)
-├── page-agent/              # npm: "page-agent" entry class (with UI + controller + demo builds)
-├── website/                 # @page-agent/website (private)
-├── llms/                    # @page-agent/llms
+├── core/                    # npm: "@supa-agent/core" ⭐ Core agent logic (headless)
+├── page-agent/              # npm: "supa-agent" entry class (with UI + controller + demo builds)
+├── website/                 # @supa-agent/website (private)
+├── llms/                    # @supa-agent/llms
 ├── extension/               # Browser extension
-├── page-controller/         # @page-agent/page-controller
-└── ui/                      # @page-agent/ui
+├── page-controller/         # @supa-agent/page-controller
+└── ui/                      # @supa-agent/ui
 ```
 
 `workspaces` in `package.json` must be in topological order.
 
 ### Module Boundaries
 
-- **Page Agent**: Main entry with UI. Extends PageAgentCore and adds Panel. Imports from `@page-agent/core`, `@page-agent/ui`
-- **Core**: PageAgentCore without UI. Imports from `@page-agent/llms`, `@page-agent/page-controller`
+- **Page Agent**: Main entry with UI. Extends PageAgentCore and adds Panel. Imports from `@supa-agent/core`, `@supa-agent/ui`
+- **Core**: PageAgentCore without UI. Imports from `@supa-agent/llms`, `@supa-agent/page-controller`
 - **LLMs**: LLM client with MacroToolInput contract. No dependency on page-agent
 - **UI**: Panel and i18n. Decoupled from PageAgent via PanelAgentAdapter interface
 - **Page Controller**: DOM operations with optional visual feedback (SimulatorMask). No LLM dependency. Enable mask via `enableMask: true` config
@@ -78,7 +78,7 @@ const pageInfo = await this.pageController.getPageInfo()
 
 ## Key Files Reference
 
-### Page Agent (`packages/page-agent/`)
+### Page Agent (`packages/supa-agent/`)
 
 | File               | Description                                  |
 | ------------------ | -------------------------------------------- |

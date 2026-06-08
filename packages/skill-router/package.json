@@ -1,5 +1,5 @@
 {
-    "name": "@page-agent/skill-router",
+    "name": "@supa-agent/skill-router",
     "private": true,
     "version": "0.1.0",
     "type": "module",

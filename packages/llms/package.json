@@ -1,5 +1,5 @@
 {
-    "name": "@page-agent/llms",
+    "name": "@supa-agent/llms",
     "version": "1.8.2",
     "type": "module",
     "main": "./src/index.ts",
@@ -27,20 +27,20 @@
     ],
     "description": "LLM client with reflection-before-action mental model for page-agent",
     "keywords": [
-        "page-agent",
+        "supa-agent",
         "llm",
         "openai",
         "tool-calling",
         "agent"
     ],
-    "author": "SupaAgent",
+    "author": "Jesse Vent",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/supabase/supabase.git",
+        "url": "https://github.com/JesseVent/supa-agent.git",
         "directory": "packages/llms"
     },
-    "homepage": "https://supabase.com",
+    "homepage": "https://github.com/JesseVent/supa-agent",
     "scripts": {
         "build": "vite build",
         "prepublishOnly": "node ../../scripts/pre-publish.js",

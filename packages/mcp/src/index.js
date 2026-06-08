@@ -27,7 +27,7 @@ await hub.start()
 const url = `http://localhost:${port}`
 const cmd = platform() === 'darwin' ? 'open' : platform() === 'win32' ? 'start ""' : 'xdg-open'
 exec(`${cmd} "${url}"`, (err) => {
-	if (err) console.error(`[page-agent-mcp] Could not open browser: ${err.message}`)
+	if (err) console.error(`[supa-agent-mcp] Could not open browser: ${err.message}`)
 })
 
 // --- MCP server (stdio) ---
@@ -97,4 +97,4 @@ mcpServer.registerTool(
 
 const transport = new StdioServerTransport()
 await mcpServer.connect(transport)
-console.error('[page-agent-mcp] MCP server ready (stdio)')
+console.error('[supa-agent-mcp] MCP server ready (stdio)')
