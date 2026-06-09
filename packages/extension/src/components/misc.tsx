@@ -24,7 +24,11 @@ export function StatusDot({ status }: { status: AgentStatus }) {
 	return (
 		<div className="flex items-center gap-1.5 mr-2">
 			<span
-				className={cn('size-2 rounded-full', colorClass, status === 'running' && 'animate-pulse')}
+				className={cn(
+					'size-2 rounded-full',
+					colorClass,
+					status === 'running' && 'animate-pulse'
+				)}
 			/>
 			<span className="text-xs text-muted-foreground">{label}</span>
 		</div>
@@ -74,7 +78,9 @@ export function HeaderStatus({
 				<span
 					className={cn(
 						'flex items-center gap-1 text-xs rounded px-1.5 py-0.5 shrink-0',
-						hasModel ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+						hasModel
+							? 'text-emerald-600 dark:text-emerald-400'
+							: 'text-muted-foreground'
 					)}
 				>
 					<span
@@ -152,7 +158,12 @@ export function EmptyState() {
 					className="hover:text-foreground transition-colors"
 					title="GitHub"
 				>
-					<svg role="img" viewBox="0 0 24 24" className="size-4 fill-current">
+					<svg
+						role="img"
+						aria-label="GitHub"
+						viewBox="0 0 24 24"
+						className="size-4 fill-current"
+					>
 						<path d={siGithub.path} />
 					</svg>
 				</a>

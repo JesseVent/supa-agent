@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { WebSocketServer } from 'ws'
 
 const EXT_ID = 'akldabonmimlicnjlflnapfeklbfemhj'
-const STORE_URL = `https://chromewebstore.google.com/detail/page-agent-ext/${EXT_ID}`
+const STORE_URL = `https://chromewebstore.google.com/detail/supa-agent-ext/${EXT_ID}`
 const LOOPBACK_HOST = 'localhost'
 
 const launcherTemplate = readFileSync(
@@ -55,7 +55,9 @@ export class HubBridge {
 			this.#httpServer.on('error', (/** @type {NodeJS.ErrnoException} */ err) => {
 				if (err.code === 'EADDRINUSE') {
 					reject(
-						new Error(`Port ${this.port} is in use. Another Page Agent MCP server may be running.`)
+						new Error(
+							`Port ${this.port} is in use. Another SupaAgent MCP server may be running.`
+						)
 					)
 				} else {
 					reject(err)

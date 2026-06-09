@@ -4,12 +4,12 @@ PageController handles DOM extraction and element interaction, independent of LL
 
 ## Basic Usage
 
-PageAgent accepts PageController options:
+SupaAgent accepts PageController options:
 
 ```typescript
-import { PageAgent } from 'page-agent'
+import { SupaAgent } from 'supa-agent'
 
-const agent = new PageAgent({
+const agent = new SupaAgent({
   baseURL: 'https://api.openai.com/v1',
   apiKey: 'your-api-key',
   model: 'gpt-5.2',
@@ -20,18 +20,18 @@ const agent = new PageAgent({
 })
 ```
 
-PageAgentCore accepts a PageController instance:
+SupaAgentCore accepts a PageController instance:
 
 ```typescript
-import { PageAgentCore } from '@page-agent/core'
-import { PageController } from '@page-agent/page-controller'
+import { SupaAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
 const pageController = new PageController({
   enableMask: true,
   viewportExpansion: -1,  // extract full page
 })
 
-const agent = new PageAgentCore({
+const agent = new SupaAgentCore({
   pageController,
   baseURL: 'https://api.openai.com/v1',
   apiKey: 'your-api-key',
@@ -47,7 +47,7 @@ const agent = new PageAgentCore({
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `enableMask` | `boolean` | `false` | Enable visual mask overlay that blocks user interaction during automation. Defaults to `true` when created via PageAgent. |
+| `enableMask` | `boolean` | `false` | Enable visual mask overlay that blocks user interaction during automation. Defaults to `true` when created via SupaAgent. |
 | `viewportExpansion` | `number` | `0` | Pixels to expand extraction beyond viewport. Set to `-1` to extract the entire page. |
 | `interactiveBlacklist` | `(Element \| (() => Element))[]` | | Elements to exclude from interaction. Supports element references or functions returning elements (lazy evaluation). |
 | `interactiveWhitelist` | `(Element \| (() => Element))[]` | | Elements to force include for interaction. Supports element references or functions returning elements. |
@@ -121,8 +121,8 @@ interface ActionResult {
 In non-browser environments (e.g. Puppeteer, Playwright), you can implement a custom PageController. Implement the core methods used by the agent:
 
 ```typescript
-import { PageAgentCore } from '@page-agent/core'
-import type { PageController } from '@page-agent/page-controller'
+import { SupaAgentCore } from '@supa-agent/core'
+import type { PageController } from '@supa-agent/page-controller'
 
 class PuppeteerPageController implements PageController {
   async getBrowserState() { /* ... */ }
@@ -132,7 +132,7 @@ class PuppeteerPageController implements PageController {
   // ... other methods
 }
 
-const agent = new PageAgentCore({
+const agent = new SupaAgentCore({
   pageController: new PuppeteerPageController(),
   baseURL: 'https://api.openai.com/v1',
   apiKey: 'your-api-key',

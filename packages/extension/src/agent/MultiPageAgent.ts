@@ -1,8 +1,8 @@
-import { type AgentConfig, PageAgentCore } from '@supa-agent/core'
+import { type AgentConfig, SupaAgentCore } from '@supa-agent/core'
 
 import { RemotePageController } from './RemotePageController'
-import { TabsController } from './TabsController'
 import SYSTEM_PROMPT from './system_prompt.md?raw'
+import { TabsController } from './TabsController'
 import { createTabTools } from './tabTools'
 
 /** Detect user language from browser settings */
@@ -20,7 +20,7 @@ interface MultiPageAgentConfig extends AgentConfig {
  * - use with extension
  * - can be used from a side panel or a content script
  */
-export class MultiPageAgent extends PageAgentCore {
+export class MultiPageAgent extends SupaAgentCore {
 	constructor(config: MultiPageAgentConfig) {
 		// multi page controller
 		const tabsController = new TabsController()
@@ -54,7 +54,10 @@ export class MultiPageAgent extends PageAgentCore {
 			customSystemPrompt: systemPrompt,
 
 			onBeforeTask: async (agent) => {
-				await tabsController.init(agent.task, { includeInitialTab, experimentalIncludeAllTabs })
+				await tabsController.init(agent.task, {
+					includeInitialTab,
+					experimentalIncludeAllTabs,
+				})
 
 				heartBeatInterval = window.setInterval(() => {
 					chrome.storage.local.set({
@@ -78,7 +81,7 @@ export class MultiPageAgent extends PageAgentCore {
 				})
 			},
 
-			onBeforeStep: async (agent) => {
+			onBeforeStep: async (_agent) => {
 				if (!tabsController.currentTabId) return
 				// make sure the current tab is loaded before the step starts
 				await tabsController.waitUntilTabLoaded(tabsController.currentTabId!)

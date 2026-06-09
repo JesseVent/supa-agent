@@ -1,16 +1,16 @@
-import { OpenAIClient } from './OpenAIClient'
 import { DEFAULT_TEMPERATURE, LLM_MAX_RETRIES } from './constants'
 import { InvokeError, InvokeErrorTypes } from './errors'
+import { OpenAIClient } from './OpenAIClient'
 import type { InvokeOptions, InvokeResult, LLMClient, LLMConfig, Message, Tool } from './types'
 
-export { InvokeError, InvokeErrorTypes }
 export type { InvokeOptions, InvokeResult, LLMClient, LLMConfig, Message, Tool }
+export { InvokeError, InvokeErrorTypes }
 
 export function parseLLMConfig(config: LLMConfig): Required<LLMConfig> {
 	// Runtime validation as defensive programming (types already guarantee these)
 	if (!config.baseURL || !config.model) {
 		throw new Error(
-			'[PageAgent] LLM configuration required. Please provide: baseURL, model. ' +
+			'[SupaAgent] LLM configuration required. Please provide: baseURL, model. ' +
 				'See: https://supabase.com/docs'
 		)
 	}
@@ -64,7 +64,9 @@ export class LLM extends EventTarget {
 				maxRetries: this.config.maxRetries,
 				onRetry: (attempt: number) => {
 					this.dispatchEvent(
-						new CustomEvent('retry', { detail: { attempt, maxAttempts: this.config.maxRetries } })
+						new CustomEvent('retry', {
+							detail: { attempt, maxAttempts: this.config.maxRetries },
+						})
 					)
 				},
 				onError: (error: Error) => {

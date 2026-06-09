@@ -1,8 +1,8 @@
 import type { LLMConfig } from '@supa-agent/llms'
 
 // @note circular dependency but okay
-import type { PageAgentCore } from './PageAgentCore'
-import type { PageAgentTool } from './tools'
+import type { SupaAgentCore } from './SupaAgentCore'
+import type { SupaAgentTool } from './tools'
 
 /** Supported UI languages */
 export type SupportedLanguage = 'en-US'
@@ -39,15 +39,15 @@ export interface AgentConfig extends LLMConfig {
 	maxSteps?: number
 
 	/**
-	 * Custom tools to extend PageAgent capabilities
+	 * Custom tools to extend SupaAgent capabilities
 	 * @experimental
 	 * @note You can also override or remove internal tools by using the same name.
-	 * @see PageAgentTool
+	 * @see SupaAgentTool
 	 *
 	 * @example
 	 * // override internal tool
 	 * import { z } from 'zod/v4'
-	 * import { tool } from 'page-agent'
+	 * import { tool } from 'supa-agent'
 	 * const customTools = {
 	 * ask_user: tool({
 	 * 	description:
@@ -55,7 +55,7 @@ export interface AgentConfig extends LLMConfig {
 	 * 	inputSchema: z.object({
 	 * 		question: z.string(),
 	 * 	}),
-	 * 	execute: async function (this: PageAgent, input) {
+	 * 	execute: async function (this: SupaAgent, input) {
 	 * 		const answer = await do_some_thing(input.question)
 	 * 		return "Done: Received user answer: " + answer
 	 * 	},
@@ -68,7 +68,7 @@ export interface AgentConfig extends LLMConfig {
 	 * 	ask_user: null // never ask user questions
 	 * }
 	 */
-	customTools?: Record<string, PageAgentTool | null>
+	customTools?: Record<string, SupaAgentTool | null>
 
 	/**
 	 * Instructions to guide the agent's behavior
@@ -98,42 +98,42 @@ export interface AgentConfig extends LLMConfig {
 	/**
 	 * Called before each step execution.
 	 * @experimental
-	 * @param agent - The PageAgentCore instance
+	 * @param agent - The SupaAgentCore instance
 	 * @param stepCount - Current step number (0-indexed)
 	 */
-	onBeforeStep?: (agent: PageAgentCore, stepCount: number) => Promise<void> | void
+	onBeforeStep?: (agent: SupaAgentCore, stepCount: number) => Promise<void> | void
 
 	/**
 	 * Called after each step execution.
 	 * @experimental
-	 * @param agent - The PageAgentCore instance
+	 * @param agent - The SupaAgentCore instance
 	 * @param history - Current history of events
 	 */
-	onAfterStep?: (agent: PageAgentCore, history: HistoricalEvent[]) => Promise<void> | void
+	onAfterStep?: (agent: SupaAgentCore, history: HistoricalEvent[]) => Promise<void> | void
 
 	/**
 	 * Called before task execution starts.
 	 * @experimental
-	 * @param agent - The PageAgentCore instance
+	 * @param agent - The SupaAgentCore instance
 	 */
-	onBeforeTask?: (agent: PageAgentCore) => Promise<void> | void
+	onBeforeTask?: (agent: SupaAgentCore) => Promise<void> | void
 
 	/**
 	 * Called after task execution completes (success or failure).
 	 * @experimental
-	 * @param agent - The PageAgentCore instance
+	 * @param agent - The SupaAgentCore instance
 	 * @param result - The execution result
 	 */
-	onAfterTask?: (agent: PageAgentCore, result: ExecutionResult) => Promise<void> | void
+	onAfterTask?: (agent: SupaAgentCore, result: ExecutionResult) => Promise<void> | void
 
 	/**
 	 * Called when the agent is disposed.
 	 * @experimental
 	 * @note This hook can block the disposal process if it's async.
-	 * @param agent - The PageAgentCore instance
+	 * @param agent - The SupaAgentCore instance
 	 * @param reason - Optional reason for disposal
 	 */
-	onDispose?: (agent: PageAgentCore, reason?: string) => void
+	onDispose?: (agent: SupaAgentCore, reason?: string) => void
 
 	// page behavior hooks
 
@@ -189,7 +189,7 @@ export interface AgentConfig extends LLMConfig {
 	 * @example
 	 * import { SkillRouterClient } from '@supa-agent/skill-router'
 	 * const client = new SkillRouterClient(supabaseUrl, anonKey)
-	 * const agent = new PageAgent({ skillRouter: client.asAdapter('my-skill') })
+	 * const agent = new SupaAgent({ skillRouter: client.asAdapter('my-skill') })
 	 */
 	skillRouter?: SkillRouterAdapter
 }

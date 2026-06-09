@@ -1,12 +1,12 @@
 # Custom UI
 
-PageAgent core logic (PageAgentCore) is fully decoupled from UI through events. You can replace the built-in Panel with your own UI.
+SupaAgent core logic (SupaAgentCore) is fully decoupled from UI through events. You can replace the built-in Panel with your own UI.
 
 ## Architecture
 
-PageAgent consists of three independent modules that can be freely combined:
+SupaAgent consists of three independent modules that can be freely combined:
 
-- **PageAgentCore** — Core agent logic, no UI
+- **SupaAgentCore** — Core agent logic, no UI
 - **PageController** — DOM operations and visual feedback
 - **UI (Panel)** — User interface, replaceable with custom implementation
 
@@ -16,7 +16,7 @@ PageAgent consists of three independent modules that can be freely combined:
 
 ### Two Event Streams
 
-PageAgentCore provides two distinct event streams for UI rendering:
+SupaAgentCore provides two distinct event streams for UI rendering:
 
 | | Historical Events | Activity Events |
 |---|---|---|
@@ -69,7 +69,7 @@ type AgentActivity =
 Listen to events and update React state:
 
 ```tsx
-function useAgent(agent: PageAgentCore) {
+function useAgent(agent: SupaAgentCore) {
   const [status, setStatus] = useState(agent.status)
   const [history, setHistory] = useState(agent.history)
   const [activity, setActivity] = useState<AgentActivity | null>(null)
@@ -100,17 +100,17 @@ function useAgent(agent: PageAgentCore) {
 
 ### Assembling Core + Controller + Custom UI
 
-Following the built-in PageAgent pattern, replace Panel with custom UI:
+Following the built-in SupaAgent pattern, replace Panel with custom UI:
 
 ```typescript
-import { PageAgentCore } from '@page-agent/core'
-import { PageController } from '@page-agent/page-controller'
+import { SupaAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
 // 1. Create PageController
 const pageController = new PageController({ enableMask: true })
 
-// 2. Create PageAgentCore with controller
-const agent = new PageAgentCore({
+// 2. Create SupaAgentCore with controller
+const agent = new SupaAgentCore({
   pageController,
   baseURL: 'https://api.openai.com/v1',
   apiKey: 'your-api-key',

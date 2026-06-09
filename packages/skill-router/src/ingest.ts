@@ -1,7 +1,7 @@
-import matter from 'gray-matter'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import matter from 'gray-matter'
 import OpenAI from 'openai'
 import pg from 'pg'
 
@@ -74,7 +74,6 @@ async function main() {
 
 	try {
 		const chunks = parseChunks(config.skillsDir, config.skill)
-		console.log(`Found ${chunks.length} reference files for skill: ${config.skill}`)
 
 		// Fetch existing content hashes for incremental ingestion
 		const { rows: existing } = await pool.query<{ id: string; content_hash: string }>(
@@ -84,10 +83,8 @@ async function main() {
 		const existingMap = new Map(existing.map((r) => [r.id, r.content_hash]))
 
 		const toEmbed = chunks.filter((c) => existingMap.get(c.id) !== c.content_hash)
-		console.log(`${toEmbed.length} to embed, ${chunks.length - toEmbed.length} unchanged`)
 
 		if (toEmbed.length === 0) {
-			console.log('Nothing to do.')
 			return
 		}
 
@@ -143,8 +140,6 @@ async function main() {
 				process.stdout.write(`\r  [${done}/${toEmbed.length}] ${chunk.id}`)
 			}
 		}
-
-		console.log(`\nDone. ${done} chunks upserted.`)
 	} finally {
 		await pool.end()
 	}

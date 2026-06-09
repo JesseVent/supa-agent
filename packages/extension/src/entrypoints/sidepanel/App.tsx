@@ -2,9 +2,9 @@ import { History, Send, Settings, Square } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ConfigPanel } from '@/components/ConfigPanel'
+import { ActivityCard, EventCard } from '@/components/cards'
 import { HistoryDetail } from '@/components/HistoryDetail'
 import { HistoryList } from '@/components/HistoryList'
-import { ActivityCard, EventCard } from '@/components/cards'
 import { EmptyState, HeaderStatus, MotionOverlay } from '@/components/misc'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,7 +44,11 @@ export default function App() {
 		clearConversation,
 	} = useAgent()
 
-	// Persist session when task finishes
+	// Persist session when task finishes.
+	// `config` is held in a ref so the effect only re-runs on task state changes
+	// (the snapshot is only used at the moment a task transitions to terminal state).
+	const configRef = useRef(config)
+	configRef.current = config
 	const prevStatusRef = useRef(status)
 	useEffect(() => {
 		const prev = prevStatusRef.current
@@ -56,17 +60,18 @@ export default function App() {
 			history.length > 0 &&
 			currentTask
 		) {
+			const cfg = configRef.current
 			saveSession({
 				task: currentTask,
 				history,
 				status,
-				configSnapshot: config
+				configSnapshot: cfg
 					? {
-							model: config.model || '',
-							baseURL: config.baseURL || '',
-							projectRef: config.supabaseMcpProjectRef,
-							projectName: config.supabaseMcpProjectName,
-							language: config.language,
+							model: cfg.model || '',
+							baseURL: cfg.baseURL || '',
+							projectRef: cfg.supabaseMcpProjectRef,
+							projectName: cfg.supabaseMcpProjectName,
+							language: cfg.language,
 						}
 					: undefined,
 			}).catch((err) => console.error('[SidePanel] Failed to save session:', err))
@@ -78,7 +83,7 @@ export default function App() {
 		if (historyRef.current) {
 			historyRef.current.scrollTop = historyRef.current.scrollHeight
 		}
-	}, [history, activity])
+	}, [])
 
 	const runTask = useCallback(
 		(task: string) => {
@@ -94,7 +99,9 @@ export default function App() {
 				.request({ origins: ['<all_urls>'] })
 				.then((granted) => {
 					if (!granted) {
-						console.warn('[SidePanel] Host permission denied — agent may not reach all pages.')
+						console.warn(
+							'[SidePanel] Host permission denied — agent may not reach all pages.'
+						)
 					}
 					return execute(normalizedTask)
 				})
@@ -114,7 +121,6 @@ export default function App() {
 	)
 
 	const handleStop = useCallback(() => {
-		console.log('[SidePanel] Stopping task...')
 		stop()
 	}, [stop])
 
@@ -217,7 +223,9 @@ export default function App() {
 				{/* Current task */}
 				{currentTask && (
 					<div className="border-b px-3 py-2 bg-muted/30">
-						<div className="text-[10px] text-muted-foreground uppercase tracking-wide">Task</div>
+						<div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+							Task
+						</div>
 						<div className="text-xs font-medium truncate" title={currentTask}>
 							{currentTask}
 						</div>

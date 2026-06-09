@@ -2,7 +2,7 @@ import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { type SessionRecord, deleteSession, getSession } from '@/lib/db'
+import { deleteSession, getSession, type SessionRecord } from '@/lib/db'
 
 import { EventCard } from './cards'
 
@@ -41,7 +41,9 @@ export function HistoryDetail({
 
 			{/* Task */}
 			<div className="border-b px-3 py-2 bg-muted/30">
-				<div className="text-[10px] text-muted-foreground uppercase tracking-wide">Task</div>
+				<div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+					Task
+				</div>
 				<div className="text-xs font-medium" title={session.task}>
 					{session.task}
 				</div>
@@ -49,7 +51,9 @@ export function HistoryDetail({
 					<div className="mt-1.5 flex flex-wrap gap-1.5">
 						{session.configSnapshot.projectRef && (
 							<span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">
-								📦 {session.configSnapshot.projectName || session.configSnapshot.projectRef}
+								📦{' '}
+								{session.configSnapshot.projectName ||
+									session.configSnapshot.projectRef}
 							</span>
 						)}
 						<span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">

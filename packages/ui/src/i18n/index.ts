@@ -1,9 +1,9 @@
 import {
+	locales,
 	type SupportedLanguage,
 	type TranslationKey,
 	type TranslationParams,
 	type TranslationSchema,
-	locales,
 } from './locales'
 
 export class I18n {
@@ -46,5 +46,5 @@ export class I18n {
 }
 
 // Export types and factory function
-export type { TranslationKey, SupportedLanguage, TranslationParams }
+export type { SupportedLanguage, TranslationKey, TranslationParams }
 export { locales }

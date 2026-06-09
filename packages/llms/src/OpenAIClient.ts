@@ -80,7 +80,8 @@ export class OpenAIClient implements LLMClient {
 		if (!response.ok) {
 			const errorData = await response.json().catch()
 			const errorMessage =
-				(errorData as { error?: { message?: string } }).error?.message || response.statusText
+				(errorData as { error?: { message?: string } }).error?.message ||
+				response.statusText
 
 			if (response.status === 401 || response.status === 403) {
 				throw new InvokeError(

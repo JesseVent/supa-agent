@@ -10,7 +10,10 @@ function hasDarkModeClass() {
 
 	// Check class names on <html> and <body>
 	for (const className of DEFAULT_DARK_MODE_CLASSES) {
-		if (htmlElement.classList.contains(className) || bodyElement?.classList.contains(className)) {
+		if (
+			htmlElement.classList.contains(className) ||
+			bodyElement?.classList.contains(className)
+		) {
 			return true
 		}
 	}
@@ -35,9 +38,9 @@ function parseRgbColor(colorString: string) {
 		return null // Not a valid rgb/rgba string
 	}
 	return {
-		r: parseInt(rgbMatch[1]),
-		g: parseInt(rgbMatch[2]),
-		b: parseInt(rgbMatch[3]),
+		r: parseInt(rgbMatch[1], 10),
+		g: parseInt(rgbMatch[2], 10),
+		b: parseInt(rgbMatch[3], 10),
 	}
 }
 
@@ -48,7 +51,11 @@ function parseRgbColor(colorString: string) {
  * @returns {boolean} - True if the color is considered dark.
  */
 function isColorDark(colorString: string, threshold = 128) {
-	if (!colorString || colorString === 'transparent' || colorString.startsWith('rgba(0, 0, 0, 0)')) {
+	if (
+		!colorString ||
+		colorString === 'transparent' ||
+		colorString.startsWith('rgba(0, 0, 0, 0)')
+	) {
 		return false // Transparent is not dark
 	}
 

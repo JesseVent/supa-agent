@@ -1,13 +1,13 @@
 import type { PageController } from '../PageController'
 
-// Find common React root elements and add data-page-agent-not-interactive attribute
-export function patchReact(pageController: PageController) {
+// Find common React root elements and add data-supa-agent-not-interactive attribute
+export function patchReact(_pageController: PageController) {
 	const reactRootElements = document.querySelectorAll(
 		'[data-reactroot], [data-reactid], [data-react-checksum], #root, #app, [id^="root-"], [id^="app-"], #adex-wrapper, #adex-root'
 	)
 
 	for (const element of reactRootElements) {
-		element.setAttribute('data-page-agent-not-interactive', 'true')
+		element.setAttribute('data-supa-agent-not-interactive', 'true')
 	}
 }
 

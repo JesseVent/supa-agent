@@ -5,7 +5,7 @@ MCP server that lets AI agent clients (Claude Desktop, Copilot, etc.) control yo
 ## Prerequisites
 
 - Node.js >= 20
-- [SupaAgent Extension](https://chromewebstore.google.com/detail/page-agent-ext/akldabonmimlicnjlflnapfeklbfemhj) installed in Chrome
+- [SupaAgent Extension](https://chromewebstore.google.com/detail/supa-agent-ext/akldabonmimlicnjlflnapfeklbfemhj) installed in Chrome
 - An LLM API key (OpenAI-compatible)
 
 ## Installation

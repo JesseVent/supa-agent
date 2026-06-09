@@ -47,9 +47,9 @@ npm install supa-agent
 ```
 
 ```ts
-import { PageAgent } from 'supa-agent'
+import { SupaAgent } from 'supa-agent'
 
-const agent = new PageAgent({
+const agent = new SupaAgent({
   baseURL: 'https://openrouter.ai/api/v1',
   model: 'google/gemini-2.5-flash',
   apiKey: 'your-openrouter-key',
@@ -62,9 +62,9 @@ await agent.execute('Find all tables in my Supabase project and summarise the sc
 ### Headless (no UI)
 
 ```ts
-import { PageAgentCore } from '@supa-agent/core'
+import { SupaAgentCore } from '@supa-agent/core'
 
-const agent = new PageAgentCore({
+const agent = new SupaAgentCore({
   baseURL: 'https://openrouter.ai/api/v1',
   model: 'anthropic/claude-sonnet-4-6',
   apiKey: 'your-openrouter-key',
@@ -109,7 +109,7 @@ Any OpenRouter-compatible model works. Well-tested options:
 ```
 packages/
   core/           # @supa-agent/core — headless agent logic, tools, prompts
-  supa-agent/     # supa-agent — PageAgent class with built-in UI panel
+  supa-agent/     # supa-agent — SupaAgent class with built-in UI panel
   extension/      # Chrome extension (WXT + React)
   llms/           # @supa-agent/llms — OpenAI-compatible LLM client
   page-controller/# @supa-agent/page-controller — DOM extraction & element interaction
@@ -163,7 +163,7 @@ Full documentation is in [`docs/`](./docs/README.md):
 - [Custom Tools](docs/features/custom-tools.md)
 - [Custom Instructions](docs/features/custom-instructions.md)
 - [Models](docs/features/models.md)
-- [PageAgentCore API](docs/advanced/page-agent-core.md)
+- [SupaAgentCore API](docs/advanced/supa-agent-core.md)
 - [Changelog](docs/CHANGELOG.md)
 
 ## Contributing

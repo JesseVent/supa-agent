@@ -24,7 +24,7 @@ export function waitFor(seconds: number, signal?: AbortSignal): Promise<void> {
 
 export function truncate(text: string, maxLength: number): string {
 	if (text.length > maxLength) {
-		return text.substring(0, maxLength) + '...'
+		return `${text.substring(0, maxLength)}...`
 	}
 	return text
 }
@@ -89,13 +89,11 @@ export async function fetchLlmsTxt(url: string): Promise<string | null> {
 	const endpoint = `${origin}/llms.txt`
 	let result: string | null = null
 	try {
-		console.log(chalk.gray(`[llms.txt] Fetching ${endpoint}`))
 		const res = await fetch(endpoint, { signal: AbortSignal.timeout(3000) })
 		if (res.ok) {
 			result = await res.text()
-			console.log(chalk.green(`[llms.txt] Found (${result.length} chars)`))
+
 			if (result.length > 1000) {
-				console.log(chalk.yellow(`[llms.txt] Truncating to 1000 chars`))
 				result = truncate(result, 1000)
 			}
 		} else {

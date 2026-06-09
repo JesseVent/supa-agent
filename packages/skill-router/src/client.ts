@@ -21,17 +21,22 @@ export class SkillRouterClient {
 
 	/**
 	 * Returns a SkillRouterAdapter bound to a specific skill_name.
-	 * Pass the result directly to PageAgent/PageAgentCore config as `skillRouter`.
+	 * Pass the result directly to SupaAgent/SupaAgentCore config as `skillRouter`.
 	 *
 	 * @example
-	 * const agent = new PageAgent({
+	 * const agent = new SupaAgent({
 	 *   skillRouter: new SkillRouterClient(url, key).asAdapter('supabase-postgres-best-practices')
 	 * })
 	 */
 	asAdapter(skill_name: string, top_k = 5) {
 		return {
 			route: async (task: string) => {
-				const res = await this.route({ prompt: task, skill_name, top_k, include_preview: true })
+				const res = await this.route({
+					prompt: task,
+					skill_name,
+					top_k,
+					include_preview: true,
+				})
 				return { request_id: res.request_id, chunks: res.chunks }
 			},
 			feedback: async (request_id: string, outcome: 'success' | 'failure') => {

@@ -62,7 +62,8 @@ export class SupabaseMcpClient {
 		await this._loadToken()
 
 		return async (input, init?) => {
-			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+			const url =
+				typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
 			const headers = new Headers(init?.headers)
 			if (this._token) {
 				headers.set('Authorization', `Bearer ${this._token}`)
@@ -74,7 +75,6 @@ export class SupabaseMcpClient {
 
 			// Auto-refresh only for OAuth tokens
 			if (res.status === 401 && this._token && this._tokenSource === 'oauth') {
-				console.log('[SupabaseMcpClient] Token expired (401), refreshing...')
 				const refresh = await chrome.runtime.sendMessage({ type: 'MGMT_REFRESH_TOKEN' })
 				if (refresh?.error) {
 					throw new Error(`Token refresh failed: ${refresh.error}`)
@@ -84,7 +84,9 @@ export class SupabaseMcpClient {
 					headers.set('Authorization', `Bearer ${this._token}`)
 					res = await fetch(url, { ...init, headers })
 				} else {
-					throw new Error('Token refresh returned no token — please reconnect in Settings')
+					throw new Error(
+						'Token refresh returned no token — please reconnect in Settings'
+					)
 				}
 			}
 

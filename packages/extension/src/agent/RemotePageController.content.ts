@@ -92,7 +92,7 @@ export function initPageController() {
 		}
 	}, 500)
 
-	chrome.runtime.onMessage.addListener((message, sender, sendResponse): true | undefined => {
+	chrome.runtime.onMessage.addListener((message, _sender, sendResponse): true | undefined => {
 		if (message.type !== 'PAGE_CONTROL') {
 			// sendResponse({
 			// 	success: false,
@@ -122,7 +122,8 @@ export function initPageController() {
 					if (!allowed) {
 						sendResponse({
 							success: false,
-							message: 'Operation blocked: current domain is not in the allowed list.',
+							message:
+								'Operation blocked: current domain is not in the allowed list.',
 						})
 						return
 					}

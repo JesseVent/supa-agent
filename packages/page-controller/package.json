@@ -25,7 +25,7 @@
     "files": [
         "dist/"
     ],
-    "description": "Page controller for page-agent - DOM operations and element interactions",
+    "description": "Page controller for SupaAgent - DOM operations and element interactions",
     "keywords": [
         "supa-agent",
         "dom",
@@ -42,7 +42,7 @@
     "homepage": "https://github.com/JesseVent/supa-agent",
     "scripts": {
         "build": "vite build",
-        "prepublishOnly": "node ../../scripts/pre-publish.js",
+        "prepublishOnly": "node ../../scripts/publish-guard.js && node ../../scripts/pre-publish.js",
         "postpublish": "node ../../scripts/post-publish.js"
     },
     "dependencies": {

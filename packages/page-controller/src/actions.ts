@@ -208,9 +208,9 @@ export async function inputTextElement(element: HTMLElement, text: string) {
 			selection?.removeAllRanges()
 			selection?.addRange(range)
 
-			// eslint-disable-next-line @typescript-eslint/no-deprecated
+			// `execCommand` is deprecated but still the most reliable way to
+			// dispatch an `input` event that React's synthetic onChange listens for.
 			doc.execCommand('delete', false)
-			// eslint-disable-next-line @typescript-eslint/no-deprecated
 			doc.execCommand('insertText', false, text)
 		}
 
@@ -362,7 +362,11 @@ export async function scrollVertically(scroll_amount: number, element?: HTMLElem
 			(document.scrollingElement as HTMLElement) ||
 			(document.documentElement as HTMLElement)
 
-	if (el === document.scrollingElement || el === document.documentElement || el === document.body) {
+	if (
+		el === document.scrollingElement ||
+		el === document.documentElement ||
+		el === document.body
+	) {
 		// Page-level scroll
 		const scrollBefore = window.scrollY
 		const scrollMax = document.documentElement.scrollHeight - window.innerHeight
@@ -381,14 +385,14 @@ export async function scrollVertically(scroll_amount: number, element?: HTMLElem
 		const reachedBottom = dy > 0 && scrollAfter >= scrollMax - 1
 		const reachedTop = dy < 0 && scrollAfter <= 1
 
-		if (reachedBottom) return `Done: Scrolled page by ${scrolled}px. Reached the bottom of the page.`
+		if (reachedBottom)
+			return `Done: Scrolled page by ${scrolled}px. Reached the bottom of the page.`
 		if (reachedTop) return `Done: Scrolled page by ${scrolled}px. Reached the top of the page.`
 		return `Done: Scrolled page by ${scrolled}px.`
 	} else {
 		// Container scroll
 
 		const warningMsg = `The document is not scrollable. Falling back to container scroll.`
-		console.log(`[PageController] ${warningMsg}`)
 
 		const scrollBefore = el!.scrollTop
 		const scrollMax = el!.scrollHeight - el!.clientHeight
@@ -497,7 +501,11 @@ export async function scrollHorizontally(scroll_amount: number, element?: HTMLEl
 			(document.scrollingElement as HTMLElement) ||
 			(document.documentElement as HTMLElement)
 
-	if (el === document.scrollingElement || el === document.documentElement || el === document.body) {
+	if (
+		el === document.scrollingElement ||
+		el === document.documentElement ||
+		el === document.body
+	) {
 		// Page-level scroll
 		const scrollBefore = window.scrollX
 		const scrollMax = document.documentElement.scrollWidth - window.innerWidth
@@ -518,12 +526,12 @@ export async function scrollHorizontally(scroll_amount: number, element?: HTMLEl
 
 		if (reachedRight)
 			return `Done: Scrolled page by ${scrolled}px. Reached the right edge of the page.`
-		if (reachedLeft) return `Done: Scrolled page by ${scrolled}px. Reached the left edge of the page.`
+		if (reachedLeft)
+			return `Done: Scrolled page by ${scrolled}px. Reached the left edge of the page.`
 		return `Done: Scrolled page horizontally by ${scrolled}px.`
 	} else {
 		// Container scroll
 		const warningMsg = `The document is not scrollable. Falling back to container scroll.`
-		console.log(`[PageController] ${warningMsg}`)
 
 		const scrollBefore = el!.scrollLeft
 		const scrollMax = el!.scrollWidth - el!.clientWidth

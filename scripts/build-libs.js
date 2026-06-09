@@ -5,9 +5,9 @@
  * Reads the workspace list from root package.json, filters to those with a
  * "build" script, and runs them all concurrently via parallelTask.
  */
-import { readFileSync } from 'fs'
-import { dirname, join } from 'path'
-import { fileURLToPath } from 'url'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { parallelTask } from './parallel-task.js'
 

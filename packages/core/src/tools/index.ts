@@ -1,31 +1,31 @@
 /**
- * Internal tools for PageAgent.
+ * Internal tools for SupaAgent.
  * @note Adapted from browser-use
  */
 import * as z from 'zod/v4'
 
-import type { PageAgentCore } from '../PageAgentCore'
+import type { SupaAgentCore } from '../SupaAgentCore'
 import { waitFor } from '../utils'
 
 /**
- * Internal tool definition that has access to PageAgent `this` context
+ * Internal tool definition that has access to SupaAgent `this` context
  */
-export interface PageAgentTool<TParams = any> {
+export interface SupaAgentTool<TParams = any> {
 	// name: string
 	description: string
 	inputSchema: z.ZodType<TParams>
-	execute: (this: PageAgentCore, args: TParams) => Promise<string>
+	execute: (this: SupaAgentCore, args: TParams) => Promise<string>
 }
 
-export function tool<TParams>(options: PageAgentTool<TParams>): PageAgentTool<TParams> {
+export function tool<TParams>(options: SupaAgentTool<TParams>): SupaAgentTool<TParams> {
 	return options
 }
 
 /**
- * Internal tools for PageAgent.
+ * Internal tools for SupaAgent.
  * Note: Using any to allow different parameter types for each tool
  */
-export const tools = new Map<string, PageAgentTool>()
+export const tools = new Map<string, SupaAgentTool>()
 
 tools.set(
 	'done',
@@ -36,7 +36,7 @@ tools.set(
 			text: z.string(),
 			success: z.boolean().default(true),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, _input) {
 			// @note main loop will handle this one
 			return Promise.resolve('Task completed')
 		},
@@ -46,15 +46,16 @@ tools.set(
 tools.set(
 	'wait',
 	tool({
-		description: 'Wait for x seconds. Can be used to wait until the page or data is fully loaded.',
+		description:
+			'Wait for x seconds. Can be used to wait until the page or data is fully loaded.',
 		inputSchema: z.object({
 			seconds: z.number().min(1).max(10).default(1),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			// try to subtract LLM calling time from the actual wait time
 			const lastTimeUpdate = await this.pageController.getLastUpdateTime()
 			const actualWaitTime = Math.max(0, input.seconds - (Date.now() - lastTimeUpdate) / 1000)
-			console.log(`actualWaitTime: ${actualWaitTime} seconds`)
+
 			await waitFor(actualWaitTime, this.signal)
 
 			return `Done: Waited for ${input.seconds} seconds.`
@@ -70,7 +71,7 @@ tools.set(
 		inputSchema: z.object({
 			question: z.string(),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			if (!this.onAskUser) {
 				throw new Error('ask_user tool requires onAskUser callback to be set')
 			}
@@ -87,7 +88,7 @@ tools.set(
 		inputSchema: z.object({
 			index: z.int().min(0),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			const result = await this.pageController.clickElement(input.index)
 			return result.message
 		},
@@ -102,7 +103,7 @@ tools.set(
 			index: z.int().min(0),
 			text: z.string(),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			const result = await this.pageController.inputText(input.index, input.text)
 			return result.message
 		},
@@ -118,7 +119,7 @@ tools.set(
 			index: z.int().min(0),
 			text: z.string(),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			const result = await this.pageController.selectOption(input.index, input.text)
 			return result.message
 		},
@@ -139,7 +140,7 @@ tools.set(
 			pixels: z.number().int().min(0).optional(),
 			index: z.number().int().min(0).optional(),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			const result = await this.pageController.scroll({
 				...input,
 				numPages: input.num_pages,
@@ -162,7 +163,7 @@ tools.set(
 			pixels: z.number().int().min(0),
 			index: z.number().int().min(0).optional(),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			const result = await this.pageController.scrollHorizontally(input)
 			return result.message
 		},
@@ -177,7 +178,7 @@ tools.set(
 		inputSchema: z.object({
 			script: z.string(),
 		}),
-		execute: async function (this: PageAgentCore, input) {
+		execute: async function (this: SupaAgentCore, input) {
 			const result = await this.pageController.executeJavascript(input.script)
 			return result.message
 		},

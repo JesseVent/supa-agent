@@ -11,21 +11,21 @@
         }
     },
     "publishConfig": {
-        "main": "./dist/lib/page-agent-llms.js",
-        "module": "./dist/lib/page-agent-llms.js",
+        "main": "./dist/lib/supa-agent-llms.js",
+        "module": "./dist/lib/supa-agent-llms.js",
         "types": "./dist/lib/index.d.ts",
         "exports": {
             ".": {
                 "types": "./dist/lib/index.d.ts",
-                "import": "./dist/lib/page-agent-llms.js",
-                "default": "./dist/lib/page-agent-llms.js"
+                "import": "./dist/lib/supa-agent-llms.js",
+                "default": "./dist/lib/supa-agent-llms.js"
             }
         }
     },
     "files": [
         "dist/"
     ],
-    "description": "LLM client with reflection-before-action mental model for page-agent",
+    "description": "LLM client with reflection-before-action mental model for SupaAgent",
     "keywords": [
         "supa-agent",
         "llm",
@@ -43,7 +43,7 @@
     "homepage": "https://github.com/JesseVent/supa-agent",
     "scripts": {
         "build": "vite build",
-        "prepublishOnly": "node ../../scripts/pre-publish.js",
+        "prepublishOnly": "node ../../scripts/publish-guard.js && node ../../scripts/pre-publish.js",
         "postpublish": "node ../../scripts/post-publish.js"
     },
     "dependencies": {

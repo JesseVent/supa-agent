@@ -1,16 +1,8 @@
 #!/usr/bin/env node
-/**
- * Sync version from root package.json to all packages
- *
- * Usage:
- *   node scripts/sync-version.js        # Sync current version from root
- *   node scripts/sync-version.js 0.1.0  # Set root version, then sync all packages
- */
-import chalk from 'chalk'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs'
-import { dirname, join } from 'path'
-import { exit } from 'process'
-import { fileURLToPath } from 'url'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { exit } from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
@@ -24,22 +16,14 @@ const oldVersion = rootPkg.version
 const newVersion = versionArg ?? rootPkg.version
 
 if (!newVersion) {
-	console.log(chalk.yellow('⚠️  No version found in root package.json.\n'))
 	exit(1)
 }
-
-console.log(chalk.cyan.bold('\n📦 Syncing version\n'))
 
 // Update root package.json if new version specified
 if (versionArg) {
 	rootPkg.version = newVersion
-	writeFileSync(rootPkgPath, JSON.stringify(rootPkg, null, '    ') + '\n')
-	console.log(
-		chalk.green('✓') +
-			` ${chalk.bold('root')}: ${chalk.dim(oldVersion)} → ${chalk.yellow(newVersion)}`
-	)
+	writeFileSync(rootPkgPath, `${JSON.stringify(rootPkg, null, '    ')}\n`)
 } else {
-	console.log(chalk.dim('  root:') + ` ${chalk.yellow(newVersion)} ${chalk.dim('(source)')}`)
 }
 
 // Sync to all packages
@@ -92,15 +76,11 @@ for (const pkg of packages) {
 	}
 
 	if (!pkgChanged) {
-		console.log(chalk.dim(`  ${pkgJson.name}: ${newVersion} (unchanged)`))
 		continue
 	}
 
-	writeFileSync(pkgPath, JSON.stringify(pkgJson, null, '    ') + '\n')
-	console.log(
-		chalk.green('✓') +
-			` ${chalk.bold(pkgJson.name)}: ${chalk.dim(oldVersion)} → ${chalk.yellow(newVersion)}`
-	)
+	writeFileSync(pkgPath, `${JSON.stringify(pkgJson, null, '    ')}\n`)
+
 	hasChanges = true
 }
 
@@ -124,21 +104,12 @@ for (const relPath of filesToUpdateCdn) {
 
 	if (content !== original) {
 		writeFileSync(filePath, content)
-		console.log(chalk.green('✓') + ` ${chalk.bold(relPath)}: CDN URLs updated`)
+
 		hasChanges = true
 	}
 }
 
-console.log(chalk.green.bold(`\n✓ Version synced: ${newVersion}\n`))
-
 // Show git commands hint
 if (hasChanges) {
 	const tagName = `v${newVersion}`
-	console.log(chalk.cyan.bold('📋 Next steps:\n'))
-	console.log(chalk.blueBright(`npm i`))
-	console.log(
-		chalk.blueBright(`git add . && git commit -m "chore(version): bump version to ${newVersion}"`)
-	)
-	console.log(chalk.blueBright(`git tag -a ${tagName} -m "${tagName}"`))
-	console.log(chalk.blueBright(`git push && git push origin ${tagName}\n`))
 }

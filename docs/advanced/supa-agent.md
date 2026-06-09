@@ -1,10 +1,10 @@
-# PageAgent
+# SupaAgent
 
-PageAgent is the complete Agent class with built-in UI panel. It extends PageAgentCore and automatically creates an interactive panel and PageController.
+SupaAgent is the complete Agent class with built-in UI panel. It extends SupaAgentCore and automatically creates an interactive panel and PageController.
 
-## When to Use PageAgent
+## When to Use SupaAgent
 
-In most cases, you should use PageAgent. It provides a complete out-of-the-box experience:
+In most cases, you should use SupaAgent. It provides a complete out-of-the-box experience:
 
 - Automatically creates PageController for DOM extraction and element actions
 - Built-in UI panel showing task progress, agent thinking, and action results
@@ -13,9 +13,9 @@ In most cases, you should use PageAgent. It provides a complete out-of-the-box e
 ## Basic Usage
 
 ```typescript
-import { PageAgent } from 'page-agent'
+import { SupaAgent } from 'supa-agent'
 
-const agent = new PageAgent({
+const agent = new SupaAgent({
   // LLM Configuration (required)
   baseURL: 'https://api.openai.com/v1',
   apiKey: 'your-api-key',
@@ -36,18 +36,18 @@ console.log(result.history) // Full execution history
 ## Class Definition
 
 ```typescript
-class PageAgent extends PageAgentCore {
+class SupaAgent extends SupaAgentCore {
   panel: Panel
   pageController: PageController
-  constructor(config: PageAgentConfig)
+  constructor(config: SupaAgentConfig)
 }
 ```
 
-PageAgent extends PageAgentCore. All core methods and events are available. Config merges AgentConfig, PanelConfig, and PageControllerConfig.
+SupaAgent extends SupaAgentCore. All core methods and events are available. Config merges AgentConfig, PanelConfig, and PageControllerConfig.
 
 ## UI Panel
 
-PageAgent automatically creates a Panel instance. You can control the UI via the `panel` property:
+SupaAgent automatically creates a Panel instance. You can control the UI via the `panel` property:
 
 ```typescript
 // Show/hide the panel
@@ -65,9 +65,9 @@ agent.panel.reset()
 agent.panel.dispose()
 ```
 
-## PageAgent vs PageAgentCore
+## SupaAgent vs SupaAgentCore
 
-| | PageAgent | PageAgentCore |
+| | SupaAgent | SupaAgentCore |
 |---|---|---|
 | UI Panel | ✓ | - |
 | Auto-creates PageController | ✓ | - |

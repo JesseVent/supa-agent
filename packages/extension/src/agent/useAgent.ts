@@ -13,12 +13,11 @@ import { SkillRouterClient } from '@supa-agent/skill-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { writeLog } from '@/lib/db'
-
-import { MultiPageAgent } from './MultiPageAgent'
-import { SupabaseMcpClient } from './SupabaseMcpClient'
 import { DEMO_CONFIG } from './constants'
+import { MultiPageAgent } from './MultiPageAgent'
 import { adaptMcpTools } from './mcpToolAdapter'
 import { SUPABASE_MIGRATION_INSTRUCTION } from './migrationInstruction'
+import { SupabaseMcpClient } from './SupabaseMcpClient'
 
 function isMigrationTask(task: string): boolean {
 	return /\b(migrat(e|ion)|region transfer|cutover|move project|transfer project)\b/i.test(task)
@@ -157,7 +156,7 @@ export function useAgent(): UseAgentResult {
 		}
 
 		;(async () => {
-			let customTools: Record<string, import('@supa-agent/core').PageAgentTool> | undefined
+			let customTools: Record<string, import('@supa-agent/core').SupaAgentTool> | undefined
 			let supabaseHint: string | undefined
 
 			if (supabaseMcpProjectRef) {
@@ -241,7 +240,9 @@ export function useAgent(): UseAgentResult {
 
 		if (priorTurns.length > 0) {
 			const contextLines = priorTurns
-				.map((t, i) => `[Turn ${i + 1}] ${t.success ? '✓' : '✗'} "${t.task}" → ${t.summary}`)
+				.map(
+					(t, i) => `[Turn ${i + 1}] ${t.success ? '✓' : '✗'} "${t.task}" → ${t.summary}`
+				)
 				.join('\n')
 			effectiveTask = `<conversation_history>\n${contextLines}\n</conversation_history>\n\nCurrent request: ${task}`
 		}
@@ -258,7 +259,8 @@ export function useAgent(): UseAgentResult {
 			const result = await agent.execute(effectiveTask)
 
 			// Append this turn so the next message has context
-			const summary = result.data?.slice(0, 300) || (result.success ? 'Completed.' : 'Failed.')
+			const summary =
+				result.data?.slice(0, 300) || (result.success ? 'Completed.' : 'Failed.')
 			conversationRef.current = [...priorTurns, { task, summary, success: result.success }]
 			setConversationTurnCount(conversationRef.current.length)
 

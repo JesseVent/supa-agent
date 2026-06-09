@@ -24,10 +24,10 @@ import type {
 } from './types'
 import { assert, fetchLlmsTxt, normalizeResponse, uid, waitFor } from './utils'
 
-export { tool, type PageAgentTool } from './tools'
+export { type SupaAgentTool, tool } from './tools'
 export type * from './types'
 
-export type PageAgentCoreConfig = AgentConfig & { pageController: PageController }
+export type SupaAgentCoreConfig = AgentConfig & { pageController: PageController }
 
 /**
  * AI agent for browser automation.
@@ -59,9 +59,9 @@ export type PageAgentCoreConfig = AgentConfig & { pageController: PageController
  *    - NOT included in LLM context
  *    - Types: thinking, executing, executed, retrying, error
  */
-export class PageAgentCore extends EventTarget {
+export class SupaAgentCore extends EventTarget {
 	readonly id = uid()
-	readonly config: PageAgentCoreConfig & { maxSteps: number }
+	readonly config: SupaAgentCoreConfig & { maxSteps: number }
 	readonly tools: typeof tools
 	/** PageController for DOM operations */
 	readonly pageController: PageController
@@ -97,7 +97,7 @@ export class PageAgentCore extends EventTarget {
 		skillContext: null as SkillRouterResult | null,
 	}
 
-	constructor(config: PageAgentCoreConfig) {
+	constructor(config: SupaAgentCoreConfig) {
 		super()
 
 		this.config = { ...config, maxSteps: config.maxSteps ?? 40 }
@@ -202,7 +202,7 @@ export class PageAgentCore extends EventTarget {
 	}
 
 	async execute(task: string): Promise<ExecutionResult> {
-		if (this.disposed) throw new Error('PageAgent has been disposed. Create a new instance.')
+		if (this.disposed) throw new Error('SupaAgent has been disposed. Create a new instance.')
 		if (!task) throw new Error('Task is required')
 		this.task = task
 		this.taskId = uid()
@@ -247,13 +247,7 @@ export class PageAgentCore extends EventTarget {
 
 		while (true) {
 			try {
-				console.group(`step: ${step}`)
-
 				await onBeforeStep?.(this, step)
-
-				// observe
-
-				console.log(chalk.blue.bold('👀 Observing...'))
 
 				this.#states.browserState = await this.pageController.getBrowserState()
 				await this.#handleObservations(step)
@@ -267,15 +261,17 @@ export class PageAgentCore extends EventTarget {
 
 				const macroTool = { AgentOutput: this.#packMacroTool() }
 
-				// invoke LLM
-
-				console.log(chalk.blue.bold('mem Thinking...'))
 				this.#emitActivity({ type: 'thinking' })
 
-				const result = await this.#llm.invoke(messages, macroTool, this.#abortController.signal, {
-					toolChoiceName: 'AgentOutput',
-					normalizeResponse: (res) => normalizeResponse(res, this.tools),
-				})
+				const result = await this.#llm.invoke(
+					messages,
+					macroTool,
+					this.#abortController.signal,
+					{
+						toolChoiceName: 'AgentOutput',
+						normalizeResponse: (res) => normalizeResponse(res, this.tools),
+					}
+				)
 
 				// assemble history
 
@@ -309,14 +305,12 @@ export class PageAgentCore extends EventTarget {
 
 				await onAfterStep?.(this, this.history)
 
-				console.groupEnd()
-
 				// finish task if done
 
 				if (actionName === 'done') {
 					const success = action.input?.success ?? false
 					const text = action.input?.text || 'no text provided'
-					console.log(chalk.green.bold('Task completed'), success, text)
+
 					this.#onDone(success)
 					const result: ExecutionResult = {
 						success,
@@ -328,7 +322,6 @@ export class PageAgentCore extends EventTarget {
 					return result
 				}
 			} catch (error: unknown) {
-				console.groupEnd() // to prevent nested groups
 				const isAbortError = (error as any)?.rawError?.name === 'AbortError'
 
 				console.error('Task failed', error)
@@ -383,7 +376,9 @@ export class PageAgentCore extends EventTarget {
 			return z.object({ [toolName]: tool.inputSchema }).describe(tool.description)
 		})
 
-		const actionSchema = z.union(actionSchemas as unknown as [z.ZodType, z.ZodType, ...z.ZodType[]])
+		const actionSchema = z.union(
+			actionSchemas as unknown as [z.ZodType, z.ZodType, ...z.ZodType[]]
+		)
 
 		const macroToolSchema = z.object({
 			// thinking: z.string().optional(),
@@ -400,7 +395,6 @@ export class PageAgentCore extends EventTarget {
 				// abort
 				if (this.#abortController.signal.aborted) throw new Error('AbortError')
 
-				console.log(chalk.blue.bold('MacroTool input'), input)
 				const action = input.action
 
 				const toolName = Object.keys(action)[0]
@@ -416,25 +410,21 @@ export class PageAgentCore extends EventTarget {
 				const reflectionText = reflectionLines.length > 0 ? reflectionLines.join('\n') : ''
 
 				if (reflectionText) {
-					console.log(reflectionText)
 				}
 
 				// Find the corresponding tool
 				const tool = tools.get(toolName)
 				assert(tool, `Tool ${toolName} not found`)
 
-				console.log(chalk.blue.bold(`Executing tool: ${toolName}`), toolInput)
-
 				// Emit executing activity
 				this.#emitActivity({ type: 'executing', tool: toolName, input: toolInput })
 
 				const startTime = Date.now()
 
-				// Execute tool, bind `this` to PageAgent
+				// Execute tool, bind `this` to SupaAgent
 				const result = await tool.execute.bind(this)(toolInput)
 
 				const duration = Date.now() - startTime
-				console.log(chalk.green.bold(`Tool (${toolName}) executed for ${duration}ms`), result)
 
 				// Emit executed activity
 				this.#emitActivity({
@@ -547,7 +537,9 @@ export class PageAgentCore extends EventTarget {
 					const prevOrigin = new URL(this.#states.lastURL).origin
 					const nextOrigin = new URL(currentURL).origin
 					if (prevOrigin !== nextOrigin) {
-						const refreshed = await this.config.skillRouter.route(this.task).catch(() => null)
+						const refreshed = await this.config.skillRouter
+							.route(this.task)
+							.catch(() => null)
 						if (refreshed) {
 							this.#states.skillContext = refreshed
 							this.pushObservation('Skill context refreshed for new page context.')
@@ -579,7 +571,6 @@ export class PageAgentCore extends EventTarget {
 		if (this.#observations.length > 0) {
 			for (const content of this.#observations) {
 				this.history.push({ type: 'observation', content })
-				console.log(chalk.cyan('Observation:'), content)
 			}
 			this.#observations = []
 			this.#emitHistoryChange()
@@ -652,9 +643,9 @@ export class PageAgentCore extends EventTarget {
 		}
 
 		prompt += '<browser_state>\n'
-		prompt += browserState.header + '\n'
-		prompt += pageContent + '\n'
-		prompt += browserState.footer + '\n\n'
+		prompt += `${browserState.header}\n`
+		prompt += `${pageContent}\n`
+		prompt += `${browserState.footer}\n\n`
 		prompt += '</browser_state>\n\n'
 
 		return prompt
@@ -665,7 +656,9 @@ export class PageAgentCore extends EventTarget {
 		if (!ctx || !this.config.skillRouter) return
 		this.config.skillRouter
 			.feedback(ctx.request_id, success ? 'success' : 'failure')
-			.catch((err) => console.warn(chalk.yellow('[SupaAgent] Skill feedback failed:'), err.message))
+			.catch((err) =>
+				console.warn(chalk.yellow('[SupaAgent] Skill feedback failed:'), err.message)
+			)
 	}
 
 	#getSkillContext(): string {
@@ -690,7 +683,6 @@ export class PageAgentCore extends EventTarget {
 	}
 
 	dispose() {
-		console.log('Disposing PageAgent...')
 		this.disposed = true
 		this.pageController.dispose()
 		// this.history = []

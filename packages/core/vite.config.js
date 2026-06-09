@@ -1,7 +1,7 @@
 // @ts-check
-import { dirname, resolve } from 'path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import dts from 'unplugin-dts/vite'
-import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js'
 
@@ -25,9 +25,9 @@ export default defineConfig({
 	publicDir: false,
 	build: {
 		lib: {
-			entry: resolve(__dirname, 'src/PageAgentCore.ts'),
-			name: 'PageAgentCore',
-			fileName: 'page-agent-core',
+			entry: resolve(__dirname, 'src/SupaAgentCore.ts'),
+			name: 'SupaAgentCore',
+			fileName: 'supa-agent-core',
 			formats: ['es'],
 		},
 		outDir: resolve(__dirname, 'dist', 'esm'),
@@ -37,7 +37,7 @@ export default defineConfig({
 				'zod',
 				'zod/v4',
 				// all the internal packages
-				/^@page-agent\//,
+				/^@supa-agent\//,
 			],
 		},
 		minify: false,

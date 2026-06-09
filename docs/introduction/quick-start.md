@@ -28,9 +28,9 @@ pnpm add supa-agent
 ```
 
 ```ts
-import { PageAgent } from 'supa-agent'
+import { SupaAgent } from 'supa-agent'
 
-const agent = new PageAgent({
+const agent = new SupaAgent({
   baseURL: 'https://openrouter.ai/api/v1',
   model: 'google/gemini-2.5-flash',
   apiKey: 'YOUR_OPENROUTER_KEY',
@@ -54,12 +54,12 @@ npm install @supa-agent/core @supa-agent/page-controller
 ```
 
 ```ts
-import { PageAgentCore } from '@supa-agent/core'
+import { SupaAgentCore } from '@supa-agent/core'
 import { PageController } from '@supa-agent/page-controller'
 
 const pageController = new PageController()
 
-const agent = new PageAgentCore({
+const agent = new SupaAgentCore({
   baseURL: 'https://openrouter.ai/api/v1',
   model: 'anthropic/claude-sonnet-4-6',
   apiKey: 'YOUR_OPENROUTER_KEY',

@@ -10,15 +10,15 @@ export function createMotion() {
 		wrapper.appendChild(colorWrapper)
 
 		const layerA = document.createElement('div')
-		layerA.className = styles.colorLayer + ' ' + styles.layerA
+		layerA.className = `${styles.colorLayer} ${styles.layerA}`
 		colorWrapper.appendChild(layerA)
 
 		const layerB = document.createElement('div')
-		layerB.className = styles.colorLayer + ' ' + styles.layerB
+		layerB.className = `${styles.colorLayer} ${styles.layerB}`
 		colorWrapper.appendChild(layerB)
 
 		const layerC = document.createElement('div')
-		layerC.className = styles.colorLayer + ' ' + styles.layerC
+		layerC.className = `${styles.colorLayer} ${styles.layerC}`
 		colorWrapper.appendChild(layerC)
 	}
 
@@ -28,15 +28,15 @@ export function createMotion() {
 		wrapper.appendChild(borderWrapper)
 
 		const layerA = document.createElement('div')
-		layerA.className = styles.borderLayer + ' ' + styles.layerA
+		layerA.className = `${styles.borderLayer} ${styles.layerA}`
 		borderWrapper.appendChild(layerA)
 
 		const layerB = document.createElement('div')
-		layerB.className = styles.borderLayer + ' ' + styles.layerB
+		layerB.className = `${styles.borderLayer} ${styles.layerB}`
 		borderWrapper.appendChild(layerB)
 
 		const layerC = document.createElement('div')
-		layerC.className = styles.borderLayer + ' ' + styles.layerC
+		layerC.className = `${styles.borderLayer} ${styles.layerC}`
 		borderWrapper.appendChild(layerC)
 	}
 

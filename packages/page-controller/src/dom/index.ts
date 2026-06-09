@@ -138,7 +138,7 @@ function matchAttributes(
 			}
 		} else {
 			const value = attrs[pattern]
-			if (value && value.trim()) {
+			if (value?.trim()) {
 				result[pattern] = value.trim()
 			}
 		}
@@ -172,9 +172,9 @@ interface TreeNode {
  * processes DOM information into text format suitable for LLM reading
  * @example
  * ``` text
- * [0]<a aria-label=page-agent.js Home />
+ * [0]<a aria-label=SupaAgent Home />
  * [1]<div >P />
- * [2]<div >page-agent.js
+ * [2]<div >SupaAgent
  * UI Agent in your webpage />
  * [3]<a >Docs />
  * [4]<a aria-label=View source (open in new window)>Source />
@@ -231,7 +231,7 @@ export function flatTreeToString(
 	// Helper function to cap text length
 	const capTextLength = (text: string, maxLength: number): string => {
 		if (text.length > maxLength) {
-			return text.substring(0, maxLength) + '...'
+			return `${text.substring(0, maxLength)}...`
 		}
 		return text
 	}
@@ -361,7 +361,8 @@ export function flatTreeToString(
 					for (const attr of attrsToRemoveIfTextMatches) {
 						if (
 							attributesToInclude[attr] &&
-							attributesToInclude[attr].toLowerCase().trim() === text.toLowerCase().trim()
+							attributesToInclude[attr].toLowerCase().trim() ===
+								text.toLowerCase().trim()
 						) {
 							delete attributesToInclude[attr]
 						}
@@ -392,7 +393,8 @@ export function flatTreeToString(
 						let scrollDataText = ''
 						if (node.extra.scrollData?.left)
 							scrollDataText += `left=${node.extra.scrollData.left}, `
-						if (node.extra.scrollData?.top) scrollDataText += `top=${node.extra.scrollData.top}, `
+						if (node.extra.scrollData?.top)
+							scrollDataText += `top=${node.extra.scrollData.top}, `
 						if (node.extra.scrollData?.right)
 							scrollDataText += `right=${node.extra.scrollData.right}, `
 						if (node.extra.scrollData?.bottom)

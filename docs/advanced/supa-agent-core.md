@@ -1,21 +1,21 @@
-# PageAgentCore
+# SupaAgentCore
 
-PageAgentCore is the core Agent class without UI. Use it for custom UI or headless scenarios.
+SupaAgentCore is the core Agent class without UI. Use it for custom UI or headless scenarios.
 
-## When to Use PageAgentCore
+## When to Use SupaAgentCore
 
 - Need a custom UI interface
 - Running headless in automated tests
 - Running in non-browser environments (requires custom PageController)
-- Embedding PageAgent in other agent systems
+- Embedding SupaAgent in other agent systems
 
 ## Basic Usage
 
 ```typescript
-import { PageAgentCore } from '@page-agent/core'
-import { PageController } from '@page-agent/page-controller'
+import { SupaAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
-const agent = new PageAgentCore({
+const agent = new SupaAgentCore({
   pageController: new PageController({ enableMask: true }),
   baseURL: 'https://api.openai.com/v1',
   apiKey: 'your-api-key',
@@ -40,7 +40,7 @@ const result = await agent.execute('Fill in the form with test data')
 
 ## Configuration
 
-`PageAgentCoreConfig = AgentConfig & { pageController: PageController }`. AgentConfig contains the following options:
+`SupaAgentCoreConfig = AgentConfig & { pageController: PageController }`. AgentConfig contains the following options:
 
 ### PageController
 
@@ -65,9 +65,9 @@ const result = await agent.execute('Fill in the form with test data')
 
 | Property | Type | Default | Status | Description |
 |---|---|---|---|---|
-| `language` | `'en-US' \| 'zh-CN'` | `'en-US'` | | Agent output language |
+| `language` | `'en-US'` | `'en-US'` | | Agent output language |
 | `maxSteps` | `number` | `40` | | Maximum number of steps per task |
-| `customTools` | `Record<string, PageAgentTool \| null>` | | experimental | Custom tools to extend or override built-in tools. Set to `null` to remove a tool. |
+| `customTools` | `Record<string, SupaAgentTool \| null>` | | experimental | Custom tools to extend or override built-in tools. Set to `null` to remove a tool. |
 | `instructions` | `InstructionsConfig` | | | Instructions to guide agent behavior, see type definition below |
 | `transformPageContent` | `(content: string) => string \| Promise<string>` | | | Transform page content before sending to LLM, useful for data masking |
 | `customSystemPrompt` | `string` | | experimental | Completely override the default system prompt. Use with caution. |
@@ -98,7 +98,7 @@ const result = await agent.execute('Fill in the form with test data')
 | `history` | `HistoricalEvent[]` | Array of historical events, forms agent memory |
 | `task` | `string` | Current task being executed |
 | `pageController` | `PageController` | PageController instance for DOM operations |
-| `tools` | `Map<string, PageAgentTool>` | Map of available tools |
+| `tools` | `Map<string, SupaAgentTool>` | Map of available tools |
 | `onAskUser` | `(question: string) => Promise<string>` | Callback when agent needs user input. If not set, `ask_user` tool is disabled. |
 
 ### Methods
@@ -111,7 +111,7 @@ const result = await agent.execute('Fill in the form with test data')
 
 ### Events
 
-PageAgentCore extends `EventTarget` and provides the following events:
+SupaAgentCore extends `EventTarget` and provides the following events:
 
 | Property | Type | Description |
 |---|---|---|

@@ -258,7 +258,7 @@ export class TabsController {
 	async getTabInfo(tabId: number): Promise<{ title: string; url: string }> {
 		// use cached tab info if available
 		const tabMeta = this.tabs.find((t) => t.id === tabId)
-		if (tabMeta && tabMeta.url && tabMeta.title) {
+		if (tabMeta?.url && tabMeta.title) {
 			return { title: tabMeta.title, url: tabMeta.url }
 		}
 
@@ -326,7 +326,8 @@ export class TabsController {
 
 			if (message.action === 'created') {
 				const tab = message.payload.tab as chrome.tabs.Tab
-				const shouldTrack = this.experimentalIncludeAllTabs || tab.groupId === this.tabGroupId
+				const shouldTrack =
+					this.experimentalIncludeAllTabs || tab.groupId === this.tabGroupId
 				if (shouldTrack && tab.id != null) {
 					this.addTab({ id: tab.id, isInitial: false })
 					this.switchToTab(tab.id)
@@ -361,7 +362,7 @@ export class TabsController {
 			if (this.disposed) return
 			this.portRetries++
 			// Exponential backoff: 100ms, 200ms, 400ms … capped at 30s
-			const delay = Math.min(100 * Math.pow(2, this.portRetries - 1), 30_000)
+			const delay = Math.min(100 * 2 ** (this.portRetries - 1), 30_000)
 			debug(`port disconnected, reconnecting in ${delay}ms (attempt ${this.portRetries})`)
 			this.connectTabEvents(delay)
 		})

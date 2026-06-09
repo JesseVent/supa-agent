@@ -185,7 +185,7 @@ export class PageController extends EventTarget {
 
 		const blacklist = [
 			...(this.config.interactiveBlacklist || []),
-			...Array.from(document.querySelectorAll('[data-page-agent-not-interactive]')),
+			...Array.from(document.querySelectorAll('[data-supa-agent-not-interactive]')),
 		]
 
 		this.flatTree = dom.getFlatTree({
@@ -222,7 +222,6 @@ export class PageController extends EventTarget {
 	 * Clean up all element highlights
 	 */
 	async cleanUpHighlights(): Promise<void> {
-		console.log('[PageController] cleanUpHighlights')
 		dom.cleanUpHighlights()
 	}
 

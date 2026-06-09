@@ -20,8 +20,8 @@
 
 ## Advanced
 
-- [PageAgent](advanced/page-agent.md) — full agent class with built-in UI panel
-- [PageAgentCore](advanced/page-agent-core.md) — headless core, full config & API reference
+- [SupaAgent](advanced/supa-agent.md) — full agent class with built-in UI panel
+- [SupaAgentCore](advanced/supa-agent-core.md) — headless core, full config & API reference
 - [PageController](advanced/page-controller.md) — DOM extraction & element interaction
 - [Custom UI](advanced/custom-ui.md) — replace the built-in panel via the event system
 - [Security & Permissions](advanced/security-permissions.md) — allowlist/blocklist patterns
@@ -31,5 +31,4 @@
 - [Changelog](CHANGELOG.md) — version history and release notes
 - [Developer Guide](developer-guide.md) — local development setup and workflow
 - [Security Policy](SECURITY.md) — reporting vulnerabilities
-- [Code of Conduct](CODE_OF_CONDUCT.md) — community standards
 - [Terms and Privacy](terms-and-privacy.md) — usage terms and data policy

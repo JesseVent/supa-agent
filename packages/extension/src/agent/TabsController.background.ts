@@ -9,7 +9,7 @@ const debug = console.debug.bind(console, `\x1b[90m${PREFIX}\x1b[0m`)
 
 export function handleTabControlMessage(
 	message: { type: 'TAB_CONTROL'; action: TabAction; payload: any },
-	sender: chrome.runtime.MessageSender,
+	_sender: chrome.runtime.MessageSender,
 	sendResponse: (response: unknown) => void
 ): true | undefined {
 	const { action, payload } = message

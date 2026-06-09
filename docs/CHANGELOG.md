@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **Beta MCP support** - New `@page-agent/mcp` package lets MCP clients such as Claude Desktop and Copilot control the browser through the Page Agent extension
+- **Beta MCP support** - New `@supa-agent/mcp` package lets MCP clients such as Claude Desktop and Copilot control the browser through the SupaAgent extension
 - **Better iframe handling** - Same-origin iframe elements are handled more reliably during DOM extraction and actions
 - **Extension history workflows** - Users can rerun past tasks, export history sessions as JSON, and approve MCP-triggered tasks before execution
 
@@ -141,8 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Unified zod imports (`* as z`) across all packages for consistency
 - Better Zod error formatting with `z.prettifyError()` in LLM client
-- Exported `InvokeError` and `InvokeErrorType` as values (not just types) from `@page-agent/llms`
-- Exported `SupportedLanguage` type from `@page-agent/core`
+- Exported `InvokeError` and `InvokeErrorType` as values (not just types) from `@supa-agent/llms`
+- Exported `SupportedLanguage` type from `@supa-agent/core`
 
 ### Extension v0.1.8
 
@@ -248,18 +248,18 @@ PageAgent is now ready for production use. The API is stable and breaking change
 
 | Package                       | Description                        |
 | ----------------------------- | ---------------------------------- |
-| `page-agent`                  | Main entry with UI Panel           |
-| `@page-agent/core`            | Core agent logic without UI        |
-| `@page-agent/llms`            | LLM client with retry logic        |
-| `@page-agent/page-controller` | DOM operations and visual feedback |
-| `@page-agent/ui`              | Panel and i18n                     |
+| `supa-agent`                  | Main entry with UI Panel           |
+| `@supa-agent/core`            | Core agent logic without UI        |
+| `@supa-agent/llms`            | LLM client with retry logic        |
+| `@supa-agent/page-controller` | DOM operations and visual feedback |
+| `@supa-agent/ui`              | Panel and i18n                     |
 
 ### Known Limitations
 
 - Single-page application only (cannot navigate across pages)
 - No visual recognition (relies on DOM structure)
 - Limited interaction support (no hover, drag-drop, canvas operations)
-- See [Limitations](https://alibaba.github.io/page-agent/docs/introduction/limitations) for details
+- See [Limitations](https://github.com/JesseVent/supa-agent/blob/main/docs/introduction/limitations.md) for details
 
 ### Acknowledgments
 

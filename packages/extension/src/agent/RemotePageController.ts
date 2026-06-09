@@ -1,7 +1,6 @@
 import type { BrowserState } from '@supa-agent/page-controller'
-
-import type { TabsController } from './TabsController'
 import { isDomainAllowed } from './security'
+import type { TabsController } from './TabsController'
 
 const PREFIX = '[RemotePageController]'
 
@@ -80,7 +79,7 @@ export class RemotePageController {
 		}
 
 		const sum = await this.tabsController.summarizeTabs()
-		browserState.header = sum + '\n\n' + (browserState.header || '')
+		browserState.header = `${sum}\n\n${browserState.header || ''}`
 
 		debug('getBrowserState: success', this.currentTabId, browserState)
 

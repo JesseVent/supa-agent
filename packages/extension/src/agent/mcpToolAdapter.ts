@@ -6,7 +6,7 @@
  * enums, unions (anyOf), and optionality. It does NOT aim to be a
  * full JSON Schema → Zod converter.
  */
-import type { PageAgentTool } from '@supa-agent/core'
+import type { SupaAgentTool } from '@supa-agent/core'
 import * as z from 'zod/v4'
 
 import type { SupabaseMcpClient } from './SupabaseMcpClient'
@@ -97,15 +97,15 @@ function applyMeta(zodType: z.ZodType, schema: Record<string, unknown>): z.ZodTy
 }
 
 /**
- * Convert a list of MCP tool definitions into PageAgentTool objects.
+ * Convert a list of MCP tool definitions into SupaAgentTool objects.
  *
  * Each tool's execute function calls back into the provided SupabaseMcpClient.
  */
 export async function adaptMcpTools(
 	client: SupabaseMcpClient
-): Promise<Record<string, PageAgentTool>> {
+): Promise<Record<string, SupaAgentTool>> {
 	const mcpTools = await client.listTools()
-	const adapted: Record<string, PageAgentTool> = {}
+	const adapted: Record<string, SupaAgentTool> = {}
 
 	for (const tool of mcpTools) {
 		const inputSchema = jsonSchemaToZod(tool.inputSchema, true)
@@ -114,9 +114,8 @@ export async function adaptMcpTools(
 		adapted[name] = {
 			description: tool.description ?? '',
 			inputSchema,
-			execute: async function (args: unknown): Promise<string> {
-				return client.callTool(name, args as Record<string, unknown>)
-			},
+			execute: async (args: unknown): Promise<string> =>
+				client.callTool(name, args as Record<string, unknown>),
 		}
 	}
 
@@ -130,10 +129,10 @@ export async function adaptMcpTools(
  */
 export function selectMcpToolsForTask(
 	task: string,
-	allTools: Record<string, PageAgentTool>
-): Record<string, PageAgentTool> {
+	allTools: Record<string, SupaAgentTool>
+): Record<string, SupaAgentTool> {
 	const t = task.toLowerCase()
-	const selected: Record<string, PageAgentTool> = {}
+	const selected: Record<string, SupaAgentTool> = {}
 
 	const keywords: Record<string, string[]> = {
 		execute_sql: [
@@ -200,12 +199,7 @@ export function selectMcpToolsForTask(
 		list_secrets: ['secrets', 'env vars', 'environment variables'],
 		set_secrets: ['set secrets', 'add secrets', 'env var'],
 		delete_secrets: ['delete secrets', 'remove secrets'],
-		transfer_pgsodium_key: [
-			'pgsodium',
-			'encryption key',
-			'vault key',
-			'migrate encryption',
-		],
+		transfer_pgsodium_key: ['pgsodium', 'encryption key', 'vault key', 'migrate encryption'],
 		get_migration_commands: ['migration commands', 'pg_dump', 'dump', 'restore'],
 		export_vault_secrets: ['vault secrets', 'export vault', 'column encryption'],
 	}

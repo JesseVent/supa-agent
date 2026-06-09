@@ -30,7 +30,7 @@ export interface LogEntry {
 	detail?: string
 }
 
-interface PageAgentDB extends DBSchema {
+interface SupaAgentDB extends DBSchema {
 	sessions: {
 		key: string
 		value: SessionRecord
@@ -43,11 +43,11 @@ interface PageAgentDB extends DBSchema {
 	}
 }
 
-let dbPromise: Promise<IDBPDatabase<PageAgentDB>> | null = null
+let dbPromise: Promise<IDBPDatabase<SupaAgentDB>> | null = null
 
 function getDB() {
 	if (!dbPromise) {
-		dbPromise = openDB<PageAgentDB>(DB_NAME, DB_VERSION, {
+		dbPromise = openDB<SupaAgentDB>(DB_NAME, DB_VERSION, {
 			upgrade(db, oldVersion) {
 				if (oldVersion < 1) {
 					const sessions = db.createObjectStore('sessions', { keyPath: 'id' })

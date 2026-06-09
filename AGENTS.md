@@ -4,16 +4,16 @@
 
 This is a **monorepo** with npm workspaces:
 
-- **Page Agent** (`packages/supa-agent/`) - Main entry with built-in UI Panel, published as `page-agent` on npm
+- **SupaAgent** (`packages/supa-agent/`) - Main entry with built-in UI Panel, published as `supa-agent` on npm
 - **Extension** (`packages/extension/`) - Browser extension (WXT + React)
 - **Website** (`packages/website/`) - React docs and landing page. **When working on website, follow `packages/website/AGENTS.md`**
 
 Internal packages:
 
-- **Core** (`packages/core/`) - PageAgentCore without UI (npm: `@supa-agent/core`)
+- **Core** (`packages/core/`) - SupaAgentCore without UI (npm: `@supa-agent/core`)
 - **LLMs** (`packages/llms/`) - LLM client with reflection-before-action mental model
 - **Page Controller** (`packages/page-controller/`) - DOM operations and visual feedback (SimulatorMask), independent of LLM
-- **UI** (`packages/ui/`) - Panel and i18n. Decoupled from PageAgent
+- **UI** (`packages/ui/`) - Panel and i18n. Decoupled from SupaAgent
 
 ## Development Commands
 
@@ -23,10 +23,15 @@ npm run build                  # Build all packages
 npm run build:libs             # Build all libraries
 npm run build:ext              # Build and zip the extension package
 npm run typecheck              # Typecheck all packages
-npm run lint                   # ESLint
+bun run lint                   # Biome check (lint + format + import sort)
+bun run format                 # Biome format --write
 ```
 
 ## Architecture
+
+### Package Manager
+
+[Bun](https://bun.sh) owns the lockfile (`bun.lock`). Scripts still use `npm run` for compatibility with publish/audit tooling, but installs and script execution go through Bun. The monorepo uses the standard `workspaces` field in `package.json` — no separate `pnpm-workspace.yaml` or `bun-workspace.toml` needed.
 
 ### Monorepo Structure
 
@@ -35,7 +40,7 @@ Source-first monorepo: library `package.json` exports point to `src/*.ts` during
 ```
 packages/
 ├── core/                    # npm: "@supa-agent/core" ⭐ Core agent logic (headless)
-├── page-agent/              # npm: "supa-agent" entry class (with UI + controller + demo builds)
+├── supa-agent/              # npm: "supa-agent" entry class (with UI + controller + demo builds)
 ├── website/                 # @supa-agent/website (private)
 ├── llms/                    # @supa-agent/llms
 ├── extension/               # Browser extension
@@ -47,18 +52,18 @@ packages/
 
 ### Module Boundaries
 
-- **Page Agent**: Main entry with UI. Extends PageAgentCore and adds Panel. Imports from `@supa-agent/core`, `@supa-agent/ui`
-- **Core**: PageAgentCore without UI. Imports from `@supa-agent/llms`, `@supa-agent/page-controller`
-- **LLMs**: LLM client with MacroToolInput contract. No dependency on page-agent
-- **UI**: Panel and i18n. Decoupled from PageAgent via PanelAgentAdapter interface
+- **SupaAgent**: Main entry with UI. Extends SupaAgentCore and adds Panel. Imports from `@supa-agent/core`, `@supa-agent/ui`
+- **Core**: SupaAgentCore without UI. Imports from `@supa-agent/llms`, `@supa-agent/page-controller`
+- **LLMs**: LLM client with MacroToolInput contract. No dependency on SupaAgent
+- **UI**: Panel and i18n. Decoupled from SupaAgent via PanelAgentAdapter interface
 - **Page Controller**: DOM operations with optional visual feedback (SimulatorMask). No LLM dependency. Enable mask via `enableMask: true` config
 
-### PageController ↔ PageAgent Communication
+### PageController ↔ SupaAgent Communication
 
 All communication is async and isolated:
 
 ```typescript
-// PageAgent delegates DOM operations to PageController
+// SupaAgent delegates DOM operations to PageController
 await this.pageController.updateTree()
 await this.pageController.clickElement(index)
 await this.pageController.inputText(index, text)
@@ -73,23 +78,23 @@ const pageInfo = await this.pageController.getPageInfo()
 
 1. **DOM Extraction**: Live DOM → `FlatDomTree` via `page-controller/src/dom/dom_tree/`
 2. **Dehydration**: DOM tree → simplified text for LLM
-3. **LLM Processing**: AI returns action plans (page-agent)
-4. **Indexed Operations**: PageAgent calls PageController by element index
+3. **LLM Processing**: AI returns action plans (SupaAgent)
+4. **Indexed Operations**: SupaAgent calls PageController by element index
 
 ## Key Files Reference
 
-### Page Agent (`packages/supa-agent/`)
+### SupaAgent (`packages/supa-agent/`)
 
 | File               | Description                                  |
 | ------------------ | -------------------------------------------- |
-| `src/PageAgent.ts` | ⭐ Main class with UI, extends PageAgentCore |
+| `src/SupaAgent.ts` | ⭐ Main class with UI, extends SupaAgentCore |
 | `src/demo.ts`      | IIFE demo entry (auto-init with demo API)    |
 
 ### Core (`packages/core/`)
 
 | File                   | Description                             |
 | ---------------------- | --------------------------------------- |
-| `src/PageAgentCore.ts` | ⭐ Core agent class without UI          |
+| `src/SupaAgentCore.ts` | ⭐ Core agent class without UI          |
 | `src/tools/`           | Tool definitions calling PageController |
 | `src/config/`          | Configuration types and constants       |
 | `src/prompts/`         | System prompt templates                 |
@@ -128,7 +133,8 @@ const pageInfo = await this.pageController.getPageInfo()
 ## Code Standards
 
 - Explicit typing for exported/public APIs
-- ESLint relaxes some unsafe rules for rapid iteration
+- **Biome** is the linter and formatter (replaces ESLint + Prettier). Run `bun run lint` and `bun run format` before pushing
+- A few rules are turned off in `biome.json` to keep noise low; see the comments there
 - Every change you make should not only implement the desired functionality but also improve the quality of the codebase
 - All code and comments must be in English.
 - Do not try to hide errors or risks. They are valuable feedbacks for developers and users. Make them visible and actionable.

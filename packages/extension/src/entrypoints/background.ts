@@ -17,8 +17,6 @@ const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientIdV2'
 const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecretV2'
 
 export default defineBackground(() => {
-	console.log('[Background] Service Worker started')
-
 	// tab change events
 
 	setupTabEventsPort()

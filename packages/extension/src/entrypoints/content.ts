@@ -49,7 +49,9 @@ export default defineContentScript({
 							const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
 
 							if (myTabId !== agentOriginTabId) {
-								console.debug('[SupaAgent]: Not origin tab — skipping page exposure.')
+								console.debug(
+									'[SupaAgent]: Not origin tab — skipping page exposure.'
+								)
 								return
 							}
 							if (!isDomainAllowed(window.location.href, allowedDomains)) {
@@ -60,8 +62,6 @@ export default defineContentScript({
 								return
 							}
 
-							console.log('[SupaAgent]: Auth tokens match. Exposing agent to page.')
-
 							// add isolated world script
 							exposeAgentToPage().then(
 								// add main-world script
@@ -69,7 +69,10 @@ export default defineContentScript({
 							)
 						})
 						.catch((err) => {
-							console.error('[SupaAgent]: Failed to get tab id for page exposure check:', err)
+							console.error(
+								'[SupaAgent]: Failed to get tab id for page exposure check:',
+								err
+							)
 						})
 				})
 		})
@@ -78,7 +81,6 @@ export default defineContentScript({
 
 async function exposeAgentToPage() {
 	const { MultiPageAgent } = await import('@/agent/MultiPageAgent')
-	console.log('[SupaAgent]: MultiPageAgent loaded')
 
 	/**
 	 * singleton MultiPageAgent to handle requests from the page
@@ -124,7 +126,7 @@ async function exposeAgentToPage() {
 
 					// events
 
-					multiPageAgent.addEventListener('statuschange', (event) => {
+					multiPageAgent.addEventListener('statuschange', (_event) => {
 						if (!multiPageAgent) return
 						window.postMessage(
 							{
@@ -150,7 +152,7 @@ async function exposeAgentToPage() {
 						)
 					})
 
-					multiPageAgent.addEventListener('historychange', (event) => {
+					multiPageAgent.addEventListener('historychange', (_event) => {
 						if (!multiPageAgent) return
 						window.postMessage(
 							{

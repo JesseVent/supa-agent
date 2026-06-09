@@ -14,13 +14,13 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
-	type LogEntry,
-	type SessionRecord,
 	clearLogs,
 	clearSessions,
 	deleteSession,
+	type LogEntry,
 	listLogs,
 	listSessions,
+	type SessionRecord,
 } from '@/lib/db'
 import { downloadHistoryExport } from '@/lib/history-export'
 import { cn } from '@/lib/utils'
@@ -260,9 +260,16 @@ export function HistoryList({
 			{tab === 'sessions' && (
 				<div className="flex-1 overflow-y-auto">
 					{loading && (
-						<div className="flex flex-col" aria-label="Loading history" aria-busy="true">
+						<div
+							className="flex flex-col"
+							aria-label="Loading history"
+							aria-busy="true"
+						>
 							{[...Array(4)].map((_, i) => (
-								<div key={i} className="flex items-start gap-2 px-3 py-2.5 border-b">
+								<div
+									key={i}
+									className="flex items-start gap-2 px-3 py-2.5 border-b"
+								>
 									<div className="size-3.5 mt-0.5 rounded-full bg-muted animate-pulse shrink-0" />
 									<div className="flex-1 space-y-1.5">
 										<div className="h-2.5 bg-muted animate-pulse rounded w-3/4" />
@@ -300,11 +307,13 @@ export function HistoryList({
 								<p className="text-xs font-medium truncate">{session.task}</p>
 								<div className="flex items-center mt-0.5">
 									<p className="text-[10px] text-muted-foreground">
-										{timeAgo(session.createdAt)} · {session.history.length} steps
+										{timeAgo(session.createdAt)} · {session.history.length}{' '}
+										steps
 									</p>
 									{session.configSnapshot?.projectRef && (
 										<span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono truncate max-w-[80px] ml-1.5">
-											{session.configSnapshot.projectName || session.configSnapshot.projectRef}
+											{session.configSnapshot.projectName ||
+												session.configSnapshot.projectRef}
 										</span>
 									)}
 									{session.configSnapshot?.model && (

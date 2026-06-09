@@ -1,7 +1,8 @@
 // @ts-check
+
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { config as dotenvConfig } from 'dotenv'
-import { dirname, resolve } from 'path'
-import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js'
 
@@ -23,19 +24,15 @@ export default defineConfig(() => ({
 	build: {
 		lib: {
 			entry: resolve(__dirname, 'src/demo.ts'),
-			name: 'PageAgent',
-			fileName: () => `page-agent.demo.js`,
+			name: 'SupaAgent',
+			fileName: () => `supa-agent.demo.js`,
 			formats: ['iife'],
 		},
 		outDir: resolve(__dirname, 'dist', 'iife'),
 		cssCodeSplit: true,
 		// minify: false,
 		rollupOptions: {
-			// output: {
-			// 	// force use .js as extension
-			// 	entryFileNames: 'page-agent.js',
-			// },
-			onwarn: function (message, handler) {
+			onwarn: (message, handler) => {
 				if (message.code === 'EVAL') return
 				handler(message)
 			},

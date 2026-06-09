@@ -3,7 +3,7 @@
 > 🚧 **Beta Stage**
 > Current features are incomplete and the API may change at any time. Please do not use in production environments before the official release.
 
-page-agent provides multiple security mechanisms to ensure AI operations stay within controlled boundaries.
+SupaAgent provides multiple security mechanisms to ensure AI operations stay within controlled boundaries.
 
 ## Browser Extension Permissions
 
