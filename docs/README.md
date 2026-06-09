@@ -1,23 +1,22 @@
-# page-agent Docs
-
-Static documentation extracted from the original React-based docs site. English content only (the source had EN/ZH i18n — ZH was dropped to keep these readable and consistent with the rest of the repo's English-only docs).
+# SupaAgent Docs
 
 ## Introduction
 
-- [Overview](introduction/overview.md) — what page-agent is, core features, use cases
-- [Quick Start](introduction/quick-start.md) — install via CDN or NPM, first agent
-- [Limitations](introduction/limitations.md) — what page-agent can and can't do
+- [Overview](introduction/overview.md) — what SupaAgent is, core features, use cases
+- [Quick Start](introduction/quick-start.md) — install via NPM or load the extension
+- [Limitations](introduction/limitations.md) — what SupaAgent can and can't do
 - [Troubleshooting](introduction/troubleshooting.md) — common issues and fixes
 
 ## Features
 
-- [Models](features/models.md) — supported LLMs, baseline-tested list, local runtimes
+- [Models](features/models.md) — supported LLMs, tested list, local runtimes
+- [Supabase MCP](features/supabase-mcp.md) — OAuth-connected Supabase integration
 - [Custom Tools](features/custom-tools.md) — extend the agent with Zod-defined tools
 - [Instructions](features/custom-instructions.md) — system and page-level context
 - [Data Masking](features/data-masking.md) — `transformPageContent` hook for PII
 - [Chrome Extension](features/chrome-extension.md) — multi-page tasks, browser-level control
-- [MCP Server (Beta)](features/mcp-server.md) — let local agents drive the browser
-- [Third-party Agent](features/third-party-agent.md) — integrate page-agent as a tool
+- [MCP Server](features/mcp-server.md) — let local agents drive the browser
+- [Third-party Agent](features/third-party-agent.md) — integrate SupaAgent as a tool
 
 ## Advanced
 
@@ -25,7 +24,7 @@ Static documentation extracted from the original React-based docs site. English 
 - [PageAgentCore](advanced/page-agent-core.md) — headless core, full config & API reference
 - [PageController](advanced/page-controller.md) — DOM extraction & element interaction
 - [Custom UI](advanced/custom-ui.md) — replace the built-in panel via the event system
-- [Security & Permissions (Beta)](advanced/security-permissions.md) — allowlist/blocklist patterns
+- [Security & Permissions](advanced/security-permissions.md) — allowlist/blocklist patterns
 
 ## Project
 

@@ -1,52 +1,65 @@
 # SupaAgent
 
-AI-powered browser automation assistant. Control web pages with natural language, powered by OpenRouter.
+AI-powered browser automation with native Supabase integration. Control any web page with natural language, query your Supabase project directly from the browser, and automate multi-page workflows — all from a Chrome extension or a JavaScript library.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-auto.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/) [![Bundle Size](https://img.shields.io/bundlephobia/minzip/page-agent)](https://bundlephobia.com/package/page-agent)
+[![License: MIT](https://img.shields.io/badge/License-MIT-auto.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 
 ## What is SupaAgent?
 
-SupaAgent is a browser extension and JavaScript library that lets you automate web pages using natural language. Describe what you want done, and the agent interacts with the page for you -- clicking, typing, scrolling, and navigating across tabs.
+SupaAgent is a Chrome extension and headless JavaScript library that lets you automate web pages using natural language. It is designed for developers who want to:
 
-Built on the Page Agent core, rebranded with Supabase design language and configured for OpenRouter.
+- Automate repetitive browser workflows
+- Query and manage their Supabase project without leaving the browser
+- Give their web app a natural-language interface for users
+- Connect local or cloud AI agents to the browser via MCP
 
 ## Features
 
-- Natural language control of any web page
-- Multi-page and multi-tab task execution
-- Side panel UI with real-time activity feed
-- Hub mode for external control via WebSocket (MCP integration)
-- OpenRouter support -- works with Claude, GPT, Gemini, DeepSeek, and more
-- Supabase design system styling
+| Feature | Description |
+|---|---|
+| **Natural language browser control** | Click, type, scroll, and navigate using plain English |
+| **Supabase MCP integration** | OAuth-connected access to your Supabase project — query DB, inspect logs, manage edge functions |
+| **Multi-page & multi-tab tasks** | Cross-tab automation from a single instruction |
+| **OpenRouter support** | Works with Claude, Gemini, GPT, DeepSeek, Grok, and any OpenRouter model |
+| **MCP server** | Let local agents (Claude Desktop, Cursor, etc.) control your browser |
+| **Skill Router** | Inject domain knowledge into the agent from an external knowledge base |
+| **Side panel UI** | Real-time activity feed, step history, and Supabase connection status |
+| **Headless core** | Use `@supa-agent/core` without any UI for server-side or testing workflows |
 
 ## Quick Start
 
-### Browser Extension
+### Chrome Extension
 
 1. Get an [OpenRouter](https://openrouter.ai) API key
-2. Load the extension from `packages/extension/.output/chrome-mv3/` in Chrome (Developer mode)
-3. Open the side panel, enter your OpenRouter API key
-4. Describe your task and press Enter
+2. Build or download the extension (see [Releases](https://github.com/JesseVent/supa-agent/releases))
+3. Load `packages/extension/output/chrome-mv3/` in Chrome → Developer mode → Load unpacked
+4. Open the side panel, enter your API key, and describe your task
+
+### Connect Supabase
+
+Click **Connect with Supabase** in the extension settings to authenticate via OAuth. Once connected, the agent gets direct access to MCP tools (`execute_sql`, `list_tables`, `get_logs`, `get_advisors`, `list_edge_functions`, etc.) and can answer questions about your project without navigating the dashboard.
 
 ### JavaScript Library
 
-```html
-<script type="module">
-  import { PageAgent } from 'page-agent'
-
-  const agent = new PageAgent({
-    baseURL: 'https://openrouter.ai/api/v1',
-    model: 'google/gemini-2.5-flash',
-    apiKey: 'your-openrouter-key',
-  })
-</script>
-```
-
-### NPM Package
-
 ```bash
-npm install page-agent
+npm install supa-agent
 ```
+
+```ts
+import { PageAgent } from 'supa-agent'
+
+const agent = new PageAgent({
+  baseURL: 'https://openrouter.ai/api/v1',
+  model: 'google/gemini-2.5-flash',
+  apiKey: 'your-openrouter-key',
+})
+
+agent.panel.show()
+await agent.execute('Find all tables in my Supabase project and summarise the schema')
+```
+
+### Headless (no UI)
 
 ```ts
 import { PageAgentCore } from '@supa-agent/core'
@@ -55,89 +68,108 @@ const agent = new PageAgentCore({
   baseURL: 'https://openrouter.ai/api/v1',
   model: 'anthropic/claude-sonnet-4-6',
   apiKey: 'your-openrouter-key',
+  pageController,
 })
 
 const result = await agent.execute('Fill in the login form with email test@example.com')
 ```
 
+### MCP Server (for Claude Desktop, Cursor, etc.)
+
+```json
+{
+  "mcpServers": {
+    "supa-agent": {
+      "command": "npx",
+      "args": ["-y", "@supa-agent/mcp"],
+      "env": {
+        "LLM_BASE_URL": "https://openrouter.ai/api/v1",
+        "LLM_API_KEY": "your-openrouter-key",
+        "LLM_MODEL_NAME": "google/gemini-2.5-flash"
+      }
+    }
+  }
+}
+```
+
 ## Supported Models
 
-SupaAgent works with any OpenRouter-compatible model:
+Any OpenRouter-compatible model works. Well-tested options:
 
 | Provider | Model ID |
-|----------|----------|
+|---|---|
 | Google | `google/gemini-2.5-flash` |
 | Anthropic | `anthropic/claude-sonnet-4-6` |
 | OpenAI | `openai/gpt-5.1` |
-| DeepSeek | `deepseek/deepseek-v4-pro` |
+| DeepSeek | `deepseek/deepseek-v3` |
 | xAI | `x-ai/grok-4` |
 
 ## Architecture
 
 ```
 packages/
-  core/              # Core agent logic (headless)
-  page-agent/        # Main entry with UI panel
-  extension/         # Chrome extension (WXT + React)
-  llms/              # LLM client with model-specific patches
-  page-controller/   # DOM operations and visual feedback
-  ui/                # Panel component and i18n
-  mcp/               # MCP server for external control
-  website/           # Documentation site
+  core/           # @supa-agent/core — headless agent logic, tools, prompts
+  supa-agent/     # supa-agent — PageAgent class with built-in UI panel
+  extension/      # Chrome extension (WXT + React)
+  llms/           # @supa-agent/llms — OpenAI-compatible LLM client
+  page-controller/# @supa-agent/page-controller — DOM extraction & element interaction
+  ui/             # @supa-agent/ui — Panel component and i18n
+  mcp/            # @supa-agent/mcp — MCP server for external agent control
+  skill-router/   # @supa-agent/skill-router — domain knowledge injection
 ```
-
-### Module Boundaries
-
-- **Page Agent** extends PageAgentCore and adds the UI Panel
-- **Core** contains agent logic, tool definitions, and prompt templates
-- **LLMs** handles OpenAI-compatible API calls with model-specific patches
-- **Page Controller** manages DOM extraction and element interactions
-- **UI** provides the side panel component and translations
 
 ## Development
 
 ```bash
 # Install dependencies
-bun install
+pnpm install
 
-# Start dev server (website)
-npm start
+# Extension dev server (hot reload)
+pnpm run dev:ext
 
-# Start extension dev
-npm run dev:ext
+# Build extension
+pnpm run build:ext
 
 # Build all packages
-npm run build
-
-# Build extension only
-npm run build:ext
+pnpm run build
 
 # Type check
-npm run typecheck
+pnpm run typecheck
 
 # Lint
-npm run lint
+pnpm run lint
 ```
 
-## Configuration
-
-### Extension Settings
+## Extension Settings
 
 | Setting | Default | Description |
-|---------|---------|-------------|
+|---|---|---|
 | Base URL | `https://openrouter.ai/api/v1` | OpenAI-compatible API endpoint |
-| Model | `google/gemini-2.5-flash` | Model ID to use |
-| API Key | - | Your OpenRouter API key |
+| Model | `google/gemini-2.5-flash` | Model ID |
+| API Key | — | Your OpenRouter API key |
 | Max Steps | 40 | Maximum agent steps per task |
-| Response Language | System | Language for agent responses |
+| System Instruction | — | Custom instructions appended to every task |
+| Supabase Project | — | Connect via OAuth to enable MCP tools |
 
-### Advanced
+## Documentation
 
-- **System Instruction** -- Custom instructions appended to the agent prompt
-- **Disable named tool_choice** -- For models that don't support named tool selection
-- **Experimental llms.txt** -- Enable llms.txt context fetching
-- **Experimental include all tabs** -- Include all browser tabs in agent context
+Full documentation is in [`docs/`](./docs/README.md):
+
+- [Overview](docs/introduction/overview.md)
+- [Quick Start](docs/introduction/quick-start.md)
+- [Chrome Extension](docs/features/chrome-extension.md)
+- [Supabase MCP](docs/features/supabase-mcp.md)
+- [MCP Server](docs/features/mcp-server.md)
+- [Custom Tools](docs/features/custom-tools.md)
+- [Custom Instructions](docs/features/custom-instructions.md)
+- [Models](docs/features/models.md)
+- [PageAgentCore API](docs/advanced/page-agent-core.md)
+- [Changelog](docs/CHANGELOG.md)
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/developer-guide.md](./docs/developer-guide.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](./LICENSE)
