@@ -71,6 +71,7 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 	const [supabaseMcpAccessToken, setSupabaseMcpAccessToken] = useState(
 		config?.supabaseMcpAccessToken ?? ''
 	)
+	const [allowedDomains, setAllowedDomains] = useState(config?.allowedDomains?.join(', ') ?? '')
 	const [showSupabaseToken, setShowSupabaseToken] = useState(false)
 	const [advancedOpen, setAdvancedOpen] = useState(false)
 	const [saving, setSaving] = useState(false)
@@ -97,6 +98,7 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 		setSupabaseMcpProjectRef(config?.supabaseMcpProjectRef ?? '')
 		setSupabaseMcpProjectName(config?.supabaseMcpProjectName ?? '')
 		setSupabaseMcpAccessToken(config?.supabaseMcpAccessToken ?? '')
+		setAllowedDomains(config?.allowedDomains?.join(', ') ?? '')
 	}
 
 	// Poll for user auth token every second until found
@@ -150,6 +152,12 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				supabaseMcpProjectRef: supabaseMcpProjectRef || undefined,
 				supabaseMcpProjectName: supabaseMcpProjectName || undefined,
 				supabaseMcpAccessToken: supabaseMcpAccessToken || undefined,
+				allowedDomains: allowedDomains
+					? allowedDomains
+							.split(',')
+							.map((d) => d.trim())
+							.filter((d) => d.length > 0)
+					: undefined,
 			})
 		} finally {
 			setSaving(false)
@@ -438,13 +446,36 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 						<Switch checked={experimentalLlmsTxt} onCheckedChange={setExperimentalLlmsTxt} />
 					</label>
 
-					<label className="flex items-center justify-between cursor-pointer">
-						<span className="text-xs text-muted-foreground">Experimental include all tabs</span>
-						<Switch
-							checked={experimentalIncludeAllTabs}
-							onCheckedChange={setExperimentalIncludeAllTabs}
+					<div className="flex flex-col gap-1.5">
+						<label className="flex items-center justify-between cursor-pointer">
+							<span className="text-xs text-muted-foreground">Experimental include all tabs</span>
+							<Switch
+								checked={experimentalIncludeAllTabs}
+								onCheckedChange={setExperimentalIncludeAllTabs}
+							/>
+						</label>
+						{experimentalIncludeAllTabs && (
+							<p className="text-[10px] text-amber-500 leading-relaxed">
+								⚠️ This lets the agent control all unpinned tabs. Use with caution.
+							</p>
+						)}
+					</div>
+
+					<div className="flex flex-col gap-1.5 pt-2 border-t border-border/50">
+						<label htmlFor="allowed-domains" className="text-xs font-medium text-muted-foreground">
+							Allowed Domains
+						</label>
+						<p className="text-[10px] text-muted-foreground">
+							Comma-separated list (e.g. supabase.com, github.com). Leave empty to allow all.
+						</p>
+						<Input
+							id="allowed-domains"
+							placeholder="supabase.com, github.com, vercel.com"
+							value={allowedDomains}
+							onChange={(e) => setAllowedDomains(e.target.value)}
+							className="text-xs h-8"
 						/>
-					</label>
+					</div>
 
 					<div className="flex flex-col gap-2 pt-2 border-t border-border/50">
 						<span className="text-xs font-medium text-muted-foreground">Skill Router</span>

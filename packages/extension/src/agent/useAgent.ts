@@ -12,6 +12,8 @@ import type { LLMConfig } from '@supa-agent/llms'
 import { SkillRouterClient } from '@supa-agent/skill-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { writeLog } from '@/lib/db'
+
 import { MultiPageAgent } from './MultiPageAgent'
 import { SupabaseMcpClient } from './SupabaseMcpClient'
 import { DEMO_CONFIG } from './constants'
@@ -19,7 +21,7 @@ import { adaptMcpTools } from './mcpToolAdapter'
 import { SUPABASE_MIGRATION_INSTRUCTION } from './migrationInstruction'
 
 function isMigrationTask(task: string): boolean {
-	return /migrat|region transfer|cutover|move.*project|transfer.*project/i.test(task)
+	return /\b(migrat(e|ion)|region transfer|cutover|move project|transfer project)\b/i.test(task)
 }
 
 function sanitizeMcpError(raw: string): string {
@@ -27,6 +29,13 @@ function sanitizeMcpError(raw: string): string {
 		.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
 		.split('\n')[0]
 		.slice(0, 120)
+}
+
+/** A single completed turn in the current conversation session */
+interface ConversationTurn {
+	task: string
+	summary: string
+	success: boolean
 }
 
 /** Language preference: undefined means follow system */
@@ -44,6 +53,8 @@ export interface AdvancedConfig {
 	supabaseMcpProjectRef?: string
 	supabaseMcpProjectName?: string
 	supabaseMcpAccessToken?: string
+	/** Whitelist of domains the agent may interact with. Empty = allow all. */
+	allowedDomains?: string[]
 }
 
 export interface ExtConfig extends LLMConfig, AdvancedConfig {
@@ -58,14 +69,30 @@ export interface UseAgentResult {
 	config: ExtConfig | null
 	mcpStatus: 'idle' | 'loading' | 'connected' | 'error'
 	mcpError: string | null
+	conversationTurnCount: number
 	execute: (task: string) => Promise<ExecutionResult>
 	stop: () => void
 	configure: (config: ExtConfig) => Promise<void>
+	clearConversation: () => void
+}
+
+function buildSupabaseHint(projectLabel: string, projectRef: string): string {
+	return `\
+You have Supabase MCP tools available for project "${projectLabel}" (ref: ${projectRef}).
+Available tools: execute_sql, list_tables, list_projects, get_project, get_logs, get_advisors, list_edge_functions, get_publishable_keys, and others.
+
+RULES — read carefully before every action:
+1. For read-only tasks (check types, view schema, list data, inspect logs) — use MCP query tools. Do NOT navigate the Supabase dashboard UI unless the user explicitly asks you to open the dashboard.
+2. NEVER initiate a migration, region transfer, or cutover unless the user's message contains an explicit word like "migrate", "migration", "move project", or "transfer region". If you are unsure, call done and ask for clarification.
+3. NEVER execute DROP, DELETE, TRUNCATE, or destructive ALTER statements without explicit confirmation in the current message.
+4. If a request is ambiguous about whether an operation is destructive, stop and ask the user to confirm before proceeding.`
 }
 
 export function useAgent(): UseAgentResult {
 	const agentRef = useRef<MultiPageAgent | null>(null)
 	const configRef = useRef<ExtConfig | null>(null)
+	/** Accumulated prior turns — persists across execute() calls until clearConversation() */
+	const conversationRef = useRef<ConversationTurn[]>([])
 	const [status, setStatus] = useState<AgentStatus>('idle')
 	const [history, setHistory] = useState<HistoricalEvent[]>([])
 	const [activity, setActivity] = useState<AgentActivity | null>(null)
@@ -73,6 +100,7 @@ export function useAgent(): UseAgentResult {
 	const [config, setConfig] = useState<ExtConfig | null>(null)
 	const [mcpStatus, setMcpStatus] = useState<'idle' | 'loading' | 'connected' | 'error'>('idle')
 	const [mcpError, setMcpError] = useState<string | null>(null)
+	const [conversationTurnCount, setConversationTurnCount] = useState(0)
 
 	useEffect(() => {
 		chrome.storage.local.get(['llmConfig', 'language', 'advancedConfig']).then((result) => {
@@ -129,7 +157,7 @@ export function useAgent(): UseAgentResult {
 		}
 
 		;(async () => {
-			let customTools: Record<string, unknown> | undefined
+			let customTools: Record<string, import('@supa-agent/core').PageAgentTool> | undefined
 			let supabaseHint: string | undefined
 
 			if (supabaseMcpProjectRef) {
@@ -144,13 +172,25 @@ export function useAgent(): UseAgentResult {
 					setMcpStatus('connected')
 					setMcpError(null)
 					const projectLabel = supabaseMcpProjectName || supabaseMcpProjectRef
-					supabaseHint = `You have MCP tools available (execute_sql, list_tables, list_projects, get_project, get_logs, get_advisors, list_edge_functions, get_publishable_keys, etc.) for the Supabase project "${projectLabel}" (ref: ${supabaseMcpProjectRef}). Use them proactively when the user asks about their database, schema, users, storage, logs, or project health — don't just browse the Supabase dashboard UI.`
+					void writeLog({
+						level: 'success',
+						source: 'mcp',
+						message: `Connected to project ${projectLabel}`,
+						detail: supabaseMcpProjectRef,
+					})
+					supabaseHint = buildSupabaseHint(projectLabel, supabaseMcpProjectRef)
 				} catch (err) {
 					const mcpErr = err instanceof Error ? err.message : 'MCP connection failed'
 					console.warn('[useAgent] MCP tools unavailable:', err)
 					setMcpStatus('error')
 					setMcpError(mcpErr)
 					const safeErr = sanitizeMcpError(mcpErr)
+					void writeLog({
+						level: 'error',
+						source: 'mcp',
+						message: `MCP connection failed for ${supabaseMcpProjectRef}`,
+						detail: safeErr,
+					})
 					supabaseHint = `A Supabase project ("${supabaseMcpProjectRef}") is configured but the MCP tools failed to load (${safeErr}). You do NOT have MCP tools right now. Fall back to browser actions and inform the user that Supabase integration is offline.`
 				}
 			} else {
@@ -195,18 +235,58 @@ export function useAgent(): UseAgentResult {
 		setCurrentTask(task)
 		setHistory([])
 
-		// Inject migration instruction only when the task is migration-related.
-		// This avoids wasting ~195 lines of tokens on every non-migration task.
-		const effectiveTask =
-			configRef.current?.supabaseMcpProjectRef && isMigrationTask(task)
-				? `${SUPABASE_MIGRATION_INSTRUCTION}\n\n---\n\nUser request: ${task}`
-				: task
+		// Build conversation context from prior turns in this session
+		const priorTurns = conversationRef.current
+		let effectiveTask = task
 
-		return agent.execute(effectiveTask)
+		if (priorTurns.length > 0) {
+			const contextLines = priorTurns
+				.map((t, i) => `[Turn ${i + 1}] ${t.success ? '✓' : '✗'} "${t.task}" → ${t.summary}`)
+				.join('\n')
+			effectiveTask = `<conversation_history>\n${contextLines}\n</conversation_history>\n\nCurrent request: ${task}`
+		}
+
+		// Inject migration instruction only when the task explicitly requests migration.
+		// This avoids wasting ~195 lines of tokens on every non-migration task.
+		if (configRef.current?.supabaseMcpProjectRef && isMigrationTask(task)) {
+			effectiveTask = `${SUPABASE_MIGRATION_INSTRUCTION}\n\n---\n\n${effectiveTask}`
+		}
+
+		void writeLog({ level: 'info', source: 'agent', message: `Task started`, detail: task })
+
+		try {
+			const result = await agent.execute(effectiveTask)
+
+			// Append this turn so the next message has context
+			const summary = result.data?.slice(0, 300) || (result.success ? 'Completed.' : 'Failed.')
+			conversationRef.current = [...priorTurns, { task, summary, success: result.success }]
+			setConversationTurnCount(conversationRef.current.length)
+
+			void writeLog({
+				level: result.success ? 'success' : 'error',
+				source: 'agent',
+				message: result.success ? 'Task completed' : 'Task failed',
+				detail: task,
+			})
+			return result
+		} catch (err) {
+			void writeLog({
+				level: 'error',
+				source: 'agent',
+				message: `Task threw: ${err instanceof Error ? err.message : String(err)}`,
+				detail: task,
+			})
+			throw err
+		}
 	}, [])
 
 	const stop = useCallback(() => {
 		agentRef.current?.stop()
+	}, [])
+
+	const clearConversation = useCallback(() => {
+		conversationRef.current = []
+		setConversationTurnCount(0)
 	}, [])
 
 	const configure = useCallback(
@@ -223,8 +303,13 @@ export function useAgent(): UseAgentResult {
 			supabaseMcpProjectRef,
 			supabaseMcpProjectName,
 			supabaseMcpAccessToken,
+			allowedDomains,
 			...llmConfig
 		}: ExtConfig) => {
+			// Clear conversation when config changes — new project/model = fresh context
+			conversationRef.current = []
+			setConversationTurnCount(0)
+
 			await chrome.storage.local.set({ llmConfig })
 			if (language) {
 				await chrome.storage.local.set({ language })
@@ -243,6 +328,7 @@ export function useAgent(): UseAgentResult {
 				supabaseMcpProjectRef,
 				supabaseMcpProjectName,
 				supabaseMcpAccessToken,
+				allowedDomains,
 			}
 			await chrome.storage.local.set({ advancedConfig })
 			setConfig({ ...llmConfig, ...advancedConfig, language })
@@ -258,8 +344,10 @@ export function useAgent(): UseAgentResult {
 		config,
 		mcpStatus,
 		mcpError,
+		conversationTurnCount,
 		execute,
 		stop,
 		configure,
+		clearConversation,
 	}
 }

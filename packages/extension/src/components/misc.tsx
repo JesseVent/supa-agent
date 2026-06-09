@@ -1,11 +1,11 @@
 import type { AgentStatus } from '@supa-agent/core'
-import { BookOpen, Globe } from 'lucide-react'
+import { BookOpen, Globe, Square } from 'lucide-react'
 import { siGithub } from 'simple-icons'
 
 import { TypingAnimation } from '@/components/ui/typing-animation'
 import { cn } from '@/lib/utils'
 
-// Status dot indicator
+// Status dot indicator — kept for potential reuse elsewhere
 export function StatusDot({ status }: { status: AgentStatus }) {
 	const colorClass = {
 		idle: 'bg-muted-foreground',
@@ -27,6 +27,65 @@ export function StatusDot({ status }: { status: AgentStatus }) {
 				className={cn('size-2 rounded-full', colorClass, status === 'running' && 'animate-pulse')}
 			/>
 			<span className="text-xs text-muted-foreground">{label}</span>
+		</div>
+	)
+}
+
+/**
+ * Header identity + status for the chat view.
+ *
+ * - Shows the connected Supabase project name (or "Disconnected")
+ * - While running: shows a stop button instead of the status pill
+ * - While idle: shows "Ready" (has API key) or "No Model" (missing key)
+ */
+export function HeaderStatus({
+	status,
+	projectName,
+	hasModel,
+	onStop,
+}: {
+	status: AgentStatus
+	projectName?: string
+	hasModel: boolean
+	onStop: () => void
+}) {
+	const isRunning = status === 'running'
+
+	return (
+		<div className="flex items-center gap-2 min-w-0">
+			{/* Project identity */}
+			<span className="text-sm font-medium truncate max-w-[160px]" title={projectName}>
+				{projectName || 'Disconnected'}
+			</span>
+
+			{/* Status / stop */}
+			{isRunning ? (
+				<button
+					type="button"
+					onClick={onStop}
+					className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 border border-destructive/40 rounded px-1.5 py-0.5 transition-colors cursor-pointer shrink-0"
+					title="Stop task"
+					aria-label="Stop task"
+				>
+					<Square className="size-2.5" />
+					<span>Stop</span>
+				</button>
+			) : (
+				<span
+					className={cn(
+						'flex items-center gap-1 text-xs rounded px-1.5 py-0.5 shrink-0',
+						hasModel ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+					)}
+				>
+					<span
+						className={cn(
+							'size-1.5 rounded-full',
+							hasModel ? 'bg-emerald-500' : 'bg-muted-foreground/50'
+						)}
+					/>
+					{hasModel ? 'Ready' : 'No Model'}
+				</span>
+			)}
 		</div>
 	)
 }

@@ -3,6 +3,8 @@
  */
 import { PageController } from '@supa-agent/page-controller'
 
+import { isDomainAllowed } from './security'
+
 export function initPageController() {
 	let pageController: PageController | null = null
 	let intervalID: number | null = null
@@ -16,6 +18,13 @@ export function initPageController() {
 			console.error('[RemotePageController.ContentScript]: Failed to get my tab id', error)
 			return null
 		})
+
+	async function isCurrentDomainAllowed(): Promise<boolean> {
+		const { advancedConfig } = await chrome.storage.local.get('advancedConfig')
+		const cfg = advancedConfig as Record<string, unknown> | undefined
+		const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
+		return isDomainAllowed(window.location.href, allowedDomains)
+	}
 
 	function getPC(): PageController {
 		if (!pageController) {
@@ -47,6 +56,14 @@ export function initPageController() {
 				isAgentRunning && agentInTouch && currentTabId === (await myTabIdPromise)
 
 			if (shouldShowMask) {
+				// Security: do not show mask or enable DOM ops on non-whitelisted domains
+				if (!(await isCurrentDomainAllowed())) {
+					if (pageController) {
+						pageController.hideMask()
+						pageController.cleanUpHighlights()
+					}
+					return
+				}
 				const pc = getPC()
 				pc.initMask()
 				await pc.showMask()
@@ -100,14 +117,24 @@ export function initPageController() {
 			case 'scroll':
 			case 'scroll_horizontally':
 			case 'execute_javascript':
-				pc[methodName](...(payload || []))
-					.then((result: any) => sendResponse(result))
-					.catch((error: any) =>
+				// Security: reject DOM actions on non-whitelisted domains
+				isCurrentDomainAllowed().then((allowed) => {
+					if (!allowed) {
 						sendResponse({
 							success: false,
-							error: error instanceof Error ? error.message : String(error),
+							message: 'Operation blocked: current domain is not in the allowed list.',
 						})
-					)
+						return
+					}
+					pc[methodName](...(payload || []))
+						.then((result: any) => sendResponse(result))
+						.catch((error: any) =>
+							sendResponse({
+								success: false,
+								error: error instanceof Error ? error.message : String(error),
+							})
+						)
+				})
 				break
 
 			default:

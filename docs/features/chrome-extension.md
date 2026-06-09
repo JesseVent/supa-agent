@@ -5,8 +5,10 @@ The SupaAgent Chrome extension adds multi-page automation, Supabase MCP integrat
 ## Key Features
 
 - **Multi-page Tasks** — Run tasks across multiple pages and tabs without being limited to a single page context.
+- **Multi-turn Conversation Memory** — The agent remembers the results of prior tasks in the session. Each completed turn is summarised and injected as context into the next request, so follow-up messages like "now check the logs for that table" work naturally. Click the turn counter in the header to clear conversation context and start fresh.
 - **Supabase MCP** — OAuth-authenticated connection to your Supabase project. See [Supabase MCP](supabase-mcp.md).
 - **Browser-Level Control** — Cross-tab navigation, tab groups, and page switching.
+- **Agent Log** — A persistent structured log (IndexedDB) captures MCP connection events, task starts, completions, and errors. Accessible from History → Logs tab.
 - **Open Integration API** — With explicit user authorisation, page JavaScript, local agents, or cloud agents can trigger multi-page tasks through the extension.
 
 ## Installing
@@ -27,6 +29,23 @@ Load `packages/extension/output/chrome-mv3/` in Chrome:
 ### From GitHub Releases
 
 Download the `.zip` from [Releases](https://github.com/JesseVent/supa-agent/releases), extract it, and load unpacked as above.
+
+## Permissions
+
+The extension uses the Manifest V3 optional permissions model for broad host access.
+
+| Permission | When granted |
+|---|---|
+| `tabs`, `storage`, `sidePanel`, `identity` | At install time (always required) |
+| `<all_urls>` | At runtime — requested the first time the user runs a task |
+
+`<all_urls>` is declared under `optional_host_permissions`. Chrome prompts the user once; subsequent runs resolve silently if already granted. If the user declines, the agent will still run but may be blocked from accessing pages on origins it hasn't been granted.
+
+### Experimental: Control All Tabs
+
+Enable **Experimental include all tabs** in Settings to let the agent read and interact with all unpinned browser tabs, not just the active one. An amber warning is shown in Settings when this option is on:
+
+> ⚠️ This lets the agent control all unpinned tabs. Use with caution.
 
 ## Third-Party Page Integration
 

@@ -5,7 +5,7 @@ import { ConfigPanel } from '@/components/ConfigPanel'
 import { HistoryDetail } from '@/components/HistoryDetail'
 import { HistoryList } from '@/components/HistoryList'
 import { ActivityCard, EventCard } from '@/components/cards'
-import { EmptyState, Logo, MotionOverlay, StatusDot } from '@/components/misc'
+import { EmptyState, HeaderStatus, MotionOverlay } from '@/components/misc'
 import { Button } from '@/components/ui/button'
 import {
 	InputGroup,
@@ -37,9 +37,11 @@ export default function App() {
 		config,
 		mcpStatus,
 		mcpError,
+		conversationTurnCount,
 		execute,
 		stop,
 		configure,
+		clearConversation,
 	} = useAgent()
 
 	// Persist session when task finishes
@@ -86,9 +88,19 @@ export default function App() {
 			setInputValue('')
 			setView({ name: 'chat' })
 
-			execute(normalizedTask).catch((error) => {
-				console.error('[SidePanel] Failed to execute task:', error)
-			})
+			// Request <all_urls> inside the user-gesture handler so Chrome shows the
+			// permission prompt synchronously. If already granted, resolves instantly.
+			chrome.permissions
+				.request({ origins: ['<all_urls>'] })
+				.then((granted) => {
+					if (!granted) {
+						console.warn('[SidePanel] Host permission denied — agent may not reach all pages.')
+					}
+					return execute(normalizedTask)
+				})
+				.catch((error) => {
+					console.error('[SidePanel] Failed to execute task:', error)
+				})
 		},
 		[execute, status]
 	)
@@ -159,13 +171,24 @@ export default function App() {
 		<div className="relative flex flex-col h-screen bg-background">
 			<MotionOverlay active={isRunning} />
 			{/* Header */}
-			<header className="flex items-center justify-between border-b px-3 py-2">
-				<div className="flex items-center gap-2">
-					<Logo className="size-5" />
-					<span className="text-sm font-medium">SupaAgent</span>
-				</div>
-				<div className="flex items-center gap-1">
-					<StatusDot status={status} />
+			<header className="flex items-center justify-between border-b px-3 py-2 gap-2">
+				<HeaderStatus
+					status={status}
+					projectName={config?.supabaseMcpProjectName || config?.supabaseMcpProjectRef}
+					hasModel={!!config?.apiKey}
+					onStop={handleStop}
+				/>
+				<div className="flex items-center gap-1 shrink-0">
+					{conversationTurnCount > 0 && !isRunning && (
+						<button
+							type="button"
+							onClick={clearConversation}
+							className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground border border-dashed rounded px-1.5 py-0.5 transition-colors cursor-pointer"
+							title="Clear conversation context and start fresh"
+						>
+							{conversationTurnCount}t
+						</button>
+					)}
 					<Button
 						variant="ghost"
 						size="icon-sm"

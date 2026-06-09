@@ -7,3 +7,6 @@ export const DEMO_CONFIG: LLMConfig = {
 	baseURL: DEMO_BASE_URL,
 	model: DEMO_MODEL,
 }
+
+/** Default domains the agent may interact with. Empty = allow all. */
+export const DEFAULT_ALLOWED_DOMAINS: string[] = []

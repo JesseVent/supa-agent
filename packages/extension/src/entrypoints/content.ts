@@ -1,4 +1,5 @@
 import { initPageController } from '@/agent/RemotePageController.content'
+import { isDomainAllowed } from '@/agent/security'
 
 // import { DEMO_CONFIG } from '@/agent/constants'
 
@@ -36,13 +37,41 @@ export default defineContentScript({
 
 			if (pageToken !== extToken) return
 
-			console.log('[SupaAgent]: Auth tokens match. Exposing agent to page.')
+			// Security: only expose the page-facing API on the origin tab and whitelisted domains
+			chrome.storage.local
+				.get(['agentOriginTabId', 'advancedConfig'])
+				.then(({ agentOriginTabId, advancedConfig }) => {
+					chrome.runtime
+						.sendMessage({ type: 'PAGE_CONTROL', action: 'get_my_tab_id' })
+						.then((response) => {
+							const myTabId = (response as { tabId: number | null }).tabId
+							const cfg = advancedConfig as Record<string, unknown> | undefined
+							const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
 
-			// add isolated world script
-			exposeAgentToPage().then(
-				// add main-world script
-				() => injectScript('/main-world.js')
-			)
+							if (myTabId !== agentOriginTabId) {
+								console.debug('[SupaAgent]: Not origin tab — skipping page exposure.')
+								return
+							}
+							if (!isDomainAllowed(window.location.href, allowedDomains)) {
+								console.debug(
+									'[SupaAgent]: Domain not in whitelist — skipping page exposure.',
+									allowedDomains
+								)
+								return
+							}
+
+							console.log('[SupaAgent]: Auth tokens match. Exposing agent to page.')
+
+							// add isolated world script
+							exposeAgentToPage().then(
+								// add main-world script
+								() => injectScript('/main-world.js')
+							)
+						})
+						.catch((err) => {
+							console.error('[SupaAgent]: Failed to get tab id for page exposure check:', err)
+						})
+				})
 		})
 	},
 })

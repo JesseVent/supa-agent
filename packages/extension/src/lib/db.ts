@@ -2,7 +2,7 @@ import type { HistoricalEvent } from '@supa-agent/core'
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 
 const DB_NAME = 'supa-agent'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 export interface SessionRecord {
 	id: string
@@ -20,11 +20,26 @@ export interface SessionRecord {
 	}
 }
 
+export interface LogEntry {
+	id: string
+	timestamp: number
+	level: 'info' | 'success' | 'warn' | 'error'
+	source: 'mcp' | 'agent' | 'config'
+	message: string
+	/** Optional structured detail (task text, error string, etc.) */
+	detail?: string
+}
+
 interface PageAgentDB extends DBSchema {
 	sessions: {
 		key: string
 		value: SessionRecord
 		indexes: { 'by-created': number }
+	}
+	logs: {
+		key: string
+		value: LogEntry
+		indexes: { 'by-timestamp': number }
 	}
 }
 
@@ -33,9 +48,15 @@ let dbPromise: Promise<IDBPDatabase<PageAgentDB>> | null = null
 function getDB() {
 	if (!dbPromise) {
 		dbPromise = openDB<PageAgentDB>(DB_NAME, DB_VERSION, {
-			upgrade(db) {
-				const store = db.createObjectStore('sessions', { keyPath: 'id' })
-				store.createIndex('by-created', 'createdAt')
+			upgrade(db, oldVersion) {
+				if (oldVersion < 1) {
+					const sessions = db.createObjectStore('sessions', { keyPath: 'id' })
+					sessions.createIndex('by-created', 'createdAt')
+				}
+				if (oldVersion < 2) {
+					const logs = db.createObjectStore('logs', { keyPath: 'id' })
+					logs.createIndex('by-timestamp', 'timestamp')
+				}
 			},
 		})
 	}
@@ -82,4 +103,32 @@ export async function deleteSession(id: string): Promise<void> {
 export async function clearSessions(): Promise<void> {
 	const db = await getDB()
 	await db.clear('sessions')
+}
+
+/** Write a structured log entry. Fire-and-forget safe. */
+export async function writeLog(entry: Omit<LogEntry, 'id' | 'timestamp'>): Promise<void> {
+	try {
+		const db = await getDB()
+		await db.put('logs', {
+			...entry,
+			id: crypto.randomUUID(),
+			timestamp: Date.now(),
+		})
+	} catch {
+		// Never let logging crash the agent
+	}
+}
+
+const LOG_LIMIT = 500
+
+/** List log entries, newest first (capped at LOG_LIMIT) */
+export async function listLogs(): Promise<LogEntry[]> {
+	const db = await getDB()
+	const all = await db.getAllFromIndex('logs', 'by-timestamp')
+	return all.reverse().slice(0, LOG_LIMIT)
+}
+
+export async function clearLogs(): Promise<void> {
+	const db = await getDB()
+	await db.clear('logs')
 }

@@ -1,4 +1,5 @@
 import { isContentScriptAllowed } from './RemotePageController'
+import { isDomainAllowed } from './security'
 
 const PREFIX = '[TabsController]'
 
@@ -70,6 +71,9 @@ export class TabsController {
 			}
 		}
 
+		// Record the origin tab so content scripts can gate main-world API exposure
+		await chrome.storage.local.set({ agentOriginTabId: this.initialTabId })
+
 		this.connectTabEvents()
 
 		if (experimentalIncludeAllTabs) {
@@ -120,6 +124,16 @@ export class TabsController {
 
 	async openNewTab(url: string): Promise<string> {
 		debug('openNewTab', url)
+
+		// Enforce domain whitelist before opening any new tab
+		const { advancedConfig } = await chrome.storage.local.get('advancedConfig')
+		const cfg = advancedConfig as Record<string, unknown> | undefined
+		const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
+		if (!isDomainAllowed(url, allowedDomains)) {
+			throw new Error(
+				`Domain not allowed: ${url}. Whitelist: ${allowedDomains.join(', ') || 'none configured'}`
+			)
+		}
 
 		const result = await sendMessage({
 			type: 'TAB_CONTROL',
@@ -358,6 +372,7 @@ export class TabsController {
 		this.disposed = true
 		this.port?.disconnect()
 		this.port = undefined
+		chrome.storage.local.remove('agentOriginTabId').catch(() => {})
 	}
 }
 

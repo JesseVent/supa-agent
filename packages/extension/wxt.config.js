@@ -62,7 +62,7 @@ export default defineConfig({
 		description: '__MSG_extDescription__',
 		homepage_url: 'https://github.com/JesseVent/supa-agent',
 		permissions: ['tabs', 'tabGroups', 'sidePanel', 'storage', 'identity'],
-		host_permissions: ['<all_urls>'],
+		optional_host_permissions: ['<all_urls>'],
 		icons: {
 			64: 'assets/supa-agent-64.png',
 		},
