@@ -76,7 +76,10 @@ function ReflectionItem({ icon, value }: { icon: string; value: string }) {
 					'text-[11px] text-muted-foreground cursor-pointer hover:text-muted-foreground/70',
 					!expanded && 'line-clamp-1'
 				)}
-				onClick={() => setExpanded(!expanded)}
+				onClick={(e) => {
+					e.stopPropagation()
+					setExpanded((prev) => !prev)
+				}}
 			>
 				{value}
 			</span>
@@ -108,7 +111,10 @@ function ReflectionSection({
 		<div className="mb-2">
 			<button
 				type="button"
-				onClick={() => setExpanded(!expanded)}
+				onClick={(e) => {
+					e.stopPropagation()
+					setExpanded((prev) => !prev)
+				}}
 				className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer mb-1"
 			>
 				<Brain className="size-3" />
