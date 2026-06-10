@@ -380,7 +380,7 @@ export class PageController extends EventTarget {
 	async executeJavascript(script: string): Promise<ActionResult> {
 		try {
 			// Wrap script in async function to support await
-			const asyncFunction = eval(`(async () => { ${script} })`)
+			const asyncFunction = new Function(`return (async () => { ${script} })()`)
 			const result = await asyncFunction()
 			return {
 				success: true,

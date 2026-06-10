@@ -4,6 +4,7 @@ import * as z from 'zod/v4'
 
 import type { SupaAgentTool } from '../tools'
 
+// biome-ignore lint/suspicious/noConsole: global debug log utility for dev feedback
 const log = console.log.bind(console, chalk.yellow('[autoFixer]'))
 
 /**

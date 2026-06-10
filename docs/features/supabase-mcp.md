@@ -19,11 +19,22 @@ Tokens are automatically refreshed in the background. If a refresh fails, the ex
 
 ## Connecting
 
+### OAuth (Recommended)
+
 1. Open the SupaAgent side panel
 2. Go to **Settings**
 3. Click **Connect with Supabase**
 4. Select the project you want to connect
 5. Approve the OAuth permission screen
+
+### Manual Connection (Personal Access Token)
+
+If you need a generic or custom connection:
+1. Open the side panel and go to **Settings**
+2. Expand the **Advanced** section
+3. Enter your **Project Ref** (e.g. `abcdefghijklmnop`)
+4. Enter your **Personal Access Token** (starts with `sbp_...`, generated under Supabase Account Settings → Access Tokens)
+5. Toggle **Allow MCP writes** if your tasks require mutations (migrations, database edits, etc.)
 
 The connection status is shown in the panel header:
 - **Connected** (green) — MCP tools are active

@@ -625,7 +625,7 @@ export class SupaAgentCore extends EventTarget {
 				prompt += `Action Results: ${sanitizeUntrusted(event.action.output)}\n`
 				prompt += `</step_${stepIndex}>\n`
 			} else if (event.type === 'observation') {
-				prompt += `<sys>${event.content}</sys>\n`
+				prompt += `<sys>${sanitizeUntrusted(event.content)}</sys>\n`
 			} else if (event.type === 'user_takeover') {
 				prompt += `<sys>User took over control and made changes to the page</sys>\n`
 			} else if (event.type === 'error') {
@@ -646,7 +646,7 @@ export class SupaAgentCore extends EventTarget {
 		pageContent = sanitizeUntrusted(pageContent)
 
 		prompt += '<browser_state>\n'
-		prompt += `${browserState.header}\n`
+		prompt += `${sanitizeUntrusted(browserState.header)}\n`
 		prompt += `${pageContent}\n`
 		prompt += `${browserState.footer}\n\n`
 		prompt += '</browser_state>\n\n'

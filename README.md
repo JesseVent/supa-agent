@@ -20,11 +20,15 @@ SupaAgent is a Chrome extension and headless JavaScript library that lets you au
 |---|---|
 | **Natural language browser control** | Click, type, scroll, and navigate using plain English |
 | **Supabase MCP integration** | OAuth-connected access to your Supabase project — query DB, inspect logs, manage edge functions |
+| **MCP Write Guardrails** | Interactive runtime confirmation prompts block destructive SQL/migrations |
+| **Self-Correction (autoFixer)** | Resilient parsing engine that automatically recovers and retries on model output format deviations |
+| **Prompt Injection Protection** | Defuses malicious markup and tag overrides in pages via Zero-Width Space (ZWSP) sanitization |
 | **Multi-page & multi-tab tasks** | Cross-tab automation from a single instruction |
 | **OpenRouter support** | Works with Claude, Gemini, GPT, DeepSeek, Grok, and any OpenRouter model |
 | **MCP server** | Let local agents (Claude Desktop, Cursor, etc.) control your browser |
 | **Skill Router** | Inject domain knowledge into the agent from an external knowledge base |
 | **Side panel UI** | Real-time activity feed, step history, and Supabase connection status |
+| **Agent Telemetry & Logs** | Local IndexedDB persistence of detailed session metrics, steps, and token usages |
 | **Headless core** | Use `@supa-agent/core` without any UI for server-side or testing workflows |
 
 ## Quick Start
@@ -38,40 +42,37 @@ SupaAgent is a Chrome extension and headless JavaScript library that lets you au
 
 ### Connect Supabase
 
-Click **Connect with Supabase** in the extension settings to authenticate via OAuth. Once connected, the agent gets direct access to MCP tools (`execute_sql`, `list_tables`, `get_logs`, `get_advisors`, `list_edge_functions`, etc.) and can answer questions about your project without navigating the dashboard.
+There are two ways to connect your Supabase project to the extension:
 
-### JavaScript Library
+1. **OAuth (Recommended)**: Click **Connect with Supabase** in the settings. This uses secure OAuth 2.1 with Dynamic Client Registration (DCR) and PKCE to authenticate and acquire a temporary token.
+2. **Manual Connection (Personal Access Token)**: If you prefer not to use OAuth, or need generic functionality for custom setups, toggle **Advanced** settings and manually provide your **Project Ref** and **Personal Access Token (`sbp_...`)**.
+
+Once connected, the agent gets direct access to Supabase MCP tools (`execute_sql`, `list_tables`, `get_logs`, `get_advisors`, `list_edge_functions`, etc.) to inspect and manage your project via natural language.
+
+### JavaScript Library (Server-Side)
+
+For server-side browser automation (Node.js/Bun) or headless scripts, use `@supa-agent/core` and `@supa-agent/page-controller`. Sourced API keys and configuration should be loaded securely from your environment or `.env` file:
 
 ```bash
-npm install supa-agent
+npm install @supa-agent/core @supa-agent/page-controller
 ```
-
-```ts
-import { SupaAgent } from 'supa-agent'
-
-const agent = new SupaAgent({
-  baseURL: 'https://openrouter.ai/api/v1',
-  model: 'google/gemini-2.5-flash',
-  apiKey: 'your-openrouter-key',
-})
-
-agent.panel.show()
-await agent.execute('Find all tables in my Supabase project and summarise the schema')
-```
-
-### Headless (no UI)
 
 ```ts
 import { SupaAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
+// Create controller for browser DOM operations
+const pageController = new PageController()
+
+// Initialize the agent server-side
 const agent = new SupaAgentCore({
-  baseURL: 'https://openrouter.ai/api/v1',
-  model: 'anthropic/claude-sonnet-4-6',
-  apiKey: 'your-openrouter-key',
+  baseURL: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
+  model: process.env.LLM_MODEL_NAME || 'google/gemini-2.5-flash',
+  apiKey: process.env.LLM_API_KEY, // Sourced from .env
   pageController,
 })
 
-const result = await agent.execute('Fill in the login form with email test@example.com')
+const result = await agent.execute('Find all tables in my Supabase project and summarise the schema')
 ```
 
 ### MCP Server (for Claude Desktop, Cursor, etc.)
@@ -122,34 +123,43 @@ packages/
 
 ```bash
 # Install dependencies
-pnpm install
+bun install
 
 # Extension dev server (hot reload)
-pnpm run dev:ext
+bun run dev:ext
 
 # Build extension
-pnpm run build:ext
+bun run build:ext
 
 # Build all packages
-pnpm run build
+bun run build
 
 # Type check
-pnpm run typecheck
+bun run typecheck
 
 # Lint
-pnpm run lint
+bun run lint
 ```
 
 ## Extension Settings
 
 | Setting | Default | Description |
 |---|---|---|
-| Base URL | `https://openrouter.ai/api/v1` | OpenAI-compatible API endpoint |
-| Model | `google/gemini-2.5-flash` | Model ID |
-| API Key | — | Your OpenRouter API key |
-| Max Steps | 40 | Maximum agent steps per task |
-| System Instruction | — | Custom instructions appended to every task |
-| Supabase Project | — | Connect via OAuth to enable MCP tools |
+| **Base URL** | `https://openrouter.ai/api/v1` | OpenAI-compatible API endpoint |
+| **Model** | `google/gemini-2.5-flash` | Model ID |
+| **API Key** | — | Your OpenRouter API key |
+| **Response Language** | `System` | Preferences for agent response language |
+| **Theme** | `System` | Theme choice (`system`, `light`, `dark`) |
+| **Max Steps** (Advanced) | 40 | Maximum agent steps per task |
+| **System Instruction** (Advanced) | — | Custom instructions appended to every task prompt |
+| **Preserve memory** (Advanced) | `false` | Retain session conversation turns when configuration is updated |
+| **Disable named tool_choice** (Advanced) | `false` | Disable provider-specific tool call hints (useful for fallback modes) |
+| **Experimental llms.txt** (Advanced) | `false` | Fetch and inject `/llms.txt` of the current origin for context |
+| **Experimental include all tabs** (Advanced) | `false` | Allow the agent to inspect and control all unpinned tabs |
+| **Allowed Domains** (Advanced) | — | Comma-separated domain whitelist. Empty allows all domains |
+| **Skill Router** (Advanced) | — | Connect to a Supabase Skill Router (URL, Anon key, Skill name) |
+| **Supabase MCP Project** (Advanced) | — | Connect your project via OAuth or manually (Project ref, Personal Access Token) |
+| **Allow MCP writes** (Advanced) | `false` | Enable write operations on connected Supabase projects |
 
 ## Documentation
 

@@ -6,7 +6,7 @@ The fastest way to use SupaAgent.
 
 1. **Get an API key** from [OpenRouter](https://openrouter.ai) (free tier available)
 2. **Build or download** the extension:
-   - From source: `pnpm run build:ext` inside `packages/extension/`
+   - From source: `bun run build:ext` (or `npm run build:ext`)
    - From [GitHub Releases](https://github.com/JesseVent/supa-agent/releases)
 3. **Load in Chrome**: go to `chrome://extensions/` → enable Developer mode → Load unpacked → select `packages/extension/output/chrome-mv3/`
 4. **Open the side panel**: click the SupaAgent icon in the toolbar
@@ -15,58 +15,40 @@ The fastest way to use SupaAgent.
 
 ### Connect Supabase (optional)
 
-In the extension settings, click **Connect with Supabase** to authenticate via OAuth. This gives the agent access to your Supabase project via MCP — database queries, logs, edge functions, and more.
+You can connect your Supabase project in two ways:
+*   **OAuth (Recommended)**: Click **Connect with Supabase** to authenticate via secure OAuth 2.1 (Dynamic Client Registration + PKCE).
+*   **Manual**: Expand **Advanced** settings and provide your **Project Ref** and **Personal Access Token (`sbp_...`)**.
+
+This grants the agent access to Supabase MCP tools (database queries, logs, edge functions, etc.) for direct project management.
 
 ---
 
-## NPM Package
+## NPM Package (Server-Side)
 
-```bash
-npm install supa-agent
-# or
-pnpm add supa-agent
-```
-
-```ts
-import { SupaAgent } from 'supa-agent'
-
-const agent = new SupaAgent({
-  baseURL: 'https://openrouter.ai/api/v1',
-  model: 'google/gemini-2.5-flash',
-  apiKey: 'YOUR_OPENROUTER_KEY',
-})
-
-// Show the built-in panel for user input
-agent.panel.show()
-
-// Or execute programmatically
-await agent.execute('Click the submit button and wait for the confirmation message')
-```
-
----
-
-## Headless (no UI)
-
-Use `@supa-agent/core` for server-side or test automation:
+For server-side browser automation (Node.js/Bun) or headless scripts, use `@supa-agent/core` and `@supa-agent/page-controller`. Sourced credentials and configuration should be loaded securely from your environment or `.env` file:
 
 ```bash
 npm install @supa-agent/core @supa-agent/page-controller
+# or
+bun add @supa-agent/core @supa-agent/page-controller
 ```
 
 ```ts
 import { SupaAgentCore } from '@supa-agent/core'
 import { PageController } from '@supa-agent/page-controller'
 
+// Create controller for browser DOM operations
 const pageController = new PageController()
 
+// Initialize the agent server-side
 const agent = new SupaAgentCore({
-  baseURL: 'https://openrouter.ai/api/v1',
-  model: 'anthropic/claude-sonnet-4-6',
-  apiKey: 'YOUR_OPENROUTER_KEY',
+  baseURL: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
+  model: process.env.LLM_MODEL_NAME || 'google/gemini-2.5-flash',
+  apiKey: process.env.LLM_API_KEY, // Sourced from .env
   pageController,
 })
 
-const result = await agent.execute('Fill in the login form with email test@example.com')
+const result = await agent.execute('Click the submit button and wait for the confirmation message')
 console.log(result)
 ```
 

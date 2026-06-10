@@ -16,8 +16,9 @@ The SupaAgent Chrome extension adds multi-page automation, Supabase MCP integrat
 ### From source
 
 ```bash
-cd packages/extension
-pnpm run build:ext
+bun run build:ext
+# or
+npm run build:ext
 ```
 
 Load `packages/extension/output/chrome-mv3/` in Chrome:

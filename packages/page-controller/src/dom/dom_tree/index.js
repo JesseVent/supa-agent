@@ -403,7 +403,9 @@ export default (
 				window.removeEventListener('scroll', throttledUpdatePositions, true)
 				window.removeEventListener('resize', throttledUpdatePositions)
 				// Remove overlay elements if needed
-				overlays.forEach((overlay) => overlay.element.remove())
+				overlays.forEach((overlay) => {
+					overlay.element.remove()
+				})
 				if (label) label.remove()
 			}
 
@@ -415,9 +417,8 @@ export default (
 			// Store cleanup function for later use
 			if (cleanupFn) {
 				// Keep a reference to cleanup functions in a global array
-				;(window._highlightCleanupFunctions = window._highlightCleanupFunctions || []).push(
-					cleanupFn
-				)
+				window._highlightCleanupFunctions = window._highlightCleanupFunctions || []
+				window._highlightCleanupFunctions.push(cleanupFn)
 			}
 		}
 	}
