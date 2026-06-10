@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
@@ -7,6 +8,10 @@ import { WebSocketServer } from 'ws'
 const EXT_ID = 'akldabonmimlicnjlflnapfeklbfemhj'
 const STORE_URL = `https://chromewebstore.google.com/detail/supa-agent-ext/${EXT_ID}`
 const LOOPBACK_HOST = 'localhost'
+
+const PKG_VERSION = JSON.parse(
+	readFileSync(new URL('../package.json', import.meta.url), 'utf-8')
+).version
 
 const launcherTemplate = readFileSync(
 	fileURLToPath(new URL('./launcher.html', import.meta.url)),
@@ -21,6 +26,9 @@ const launcherTemplate = readFileSync(
 export class HubBridge {
 	/** @type {number} */
 	port
+
+	/** @type {string} */
+	token
 
 	/** @type {http.Server} */
 	#httpServer
@@ -37,16 +45,18 @@ export class HubBridge {
 	/** @param {number} port */
 	constructor(port) {
 		this.port = port
+		this.token = crypto.randomUUID()
 		this.#httpServer = http.createServer((_req, res) => {
 			const html = launcherTemplate
 				.replaceAll('__EXT_ID__', EXT_ID)
 				.replaceAll('__STORE_URL__', STORE_URL)
 				.replaceAll('__WS_PORT__', String(port))
+				.replaceAll('__WS_TOKEN__', this.token)
 			res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
 			res.end(html)
 		})
 		this.#wss = new WebSocketServer({ server: this.#httpServer })
-		this.#wss.on('connection', (ws) => this.#onConnection(ws))
+		this.#wss.on('connection', (ws, req) => this.#onConnection(ws, req))
 	}
 
 	/** @returns {Promise<void>} */
@@ -99,10 +109,18 @@ export class HubBridge {
 		}
 	}
 
-	// TODO: Add version checking
+	/**
+	 * @param {import('ws').WebSocket} ws
+	 * @param {import('node:http').IncomingMessage} req
+	 */
+	#onConnection(ws, req) {
+		const urlObj = new URL(req.url ?? '', 'http://localhost')
+		const connToken = urlObj.searchParams.get('token')
+		if (connToken !== this.token) {
+			ws.close(4001, 'Unauthorized')
+			return
+		}
 
-	/** @param {import('ws').WebSocket} ws */
-	#onConnection(ws) {
 		if (this.#hub && this.#hub.readyState === 1) {
 			ws.close(4000, 'Another hub is already connected')
 			return
@@ -112,7 +130,7 @@ export class HubBridge {
 		console.error('[supa-agent-mcp] Hub connected')
 
 		ws.on('message', (/** @type {Buffer} */ rawData) => {
-			/** @type {{ type: string, success?: boolean, data?: string, message?: string }} */
+			/** @type {{ type: string, success?: boolean, data?: string, message?: string, version?: string }} */
 			let msg
 			try {
 				msg = JSON.parse(rawData.toString('utf-8'))
@@ -120,7 +138,25 @@ export class HubBridge {
 				return
 			}
 
-			if (msg.type === 'result') {
+			if (msg.type === 'ready') {
+				const clientVersion = msg.version
+				const clientMajor = clientVersion ? clientVersion.split('.')[0] : ''
+				const serverMajor = PKG_VERSION.split('.')[0]
+				if (!clientVersion || clientMajor !== serverMajor) {
+					console.error(
+						`[supa-agent-mcp] Version mismatch: client is v${clientVersion || 'unknown'}, server is v${PKG_VERSION}`
+					)
+					ws.send(
+						JSON.stringify({
+							type: 'error',
+							message: `Version mismatch: client version ${clientVersion || 'unknown'} is not compatible with server version ${PKG_VERSION}.`,
+						})
+					)
+					ws.close(4002, 'Version mismatch')
+					return
+				}
+				console.error(`[supa-agent-mcp] Handshake successful: client is v${clientVersion}`)
+			} else if (msg.type === 'result') {
 				this.#pendingTask?.resolve({ success: msg.success ?? false, data: msg.data ?? '' })
 				this.#pendingTask = null
 			} else if (msg.type === 'error') {

@@ -89,15 +89,20 @@ async function exposeAgentToPage() {
 
 	window.addEventListener('message', async (e) => {
 		if (e.source !== window) return
+		// Only accept messages from the same origin
+		if (e.origin !== window.location.origin) return
 
 		const data = e.data
 		if (typeof data !== 'object' || data === null) return
 		if (data.channel !== 'PAGE_AGENT_EXT_REQUEST') return
 
 		const { action, payload, id } = data
+		if (typeof id !== 'number') return
 
 		switch (action) {
 			case 'execute': {
+				// Capture the request origin once — used for all responses in this task
+				const requestOrigin = e.origin
 				// singleton check
 				if (multiPageAgent && multiPageAgent.status === 'running') {
 					window.postMessage(
@@ -107,7 +112,7 @@ async function exposeAgentToPage() {
 							action: 'execute_result',
 							error: 'Agent is already running a task. Please wait until it finishes.',
 						},
-						'*'
+						e.origin
 					)
 					return
 				}
@@ -135,7 +140,7 @@ async function exposeAgentToPage() {
 								action: 'status_change_event',
 								payload: multiPageAgent.status,
 							},
-							'*'
+							requestOrigin
 						)
 					})
 
@@ -148,7 +153,7 @@ async function exposeAgentToPage() {
 								action: 'activity_event',
 								payload: (event as CustomEvent).detail,
 							},
-							'*'
+							requestOrigin
 						)
 					})
 
@@ -161,7 +166,7 @@ async function exposeAgentToPage() {
 								action: 'history_change_event',
 								payload: multiPageAgent.history,
 							},
-							'*'
+							requestOrigin
 						)
 					})
 
@@ -176,7 +181,7 @@ async function exposeAgentToPage() {
 							action: 'execute_result',
 							payload: result,
 						},
-						'*'
+						requestOrigin
 					)
 				} catch (error) {
 					window.postMessage(
@@ -186,7 +191,7 @@ async function exposeAgentToPage() {
 							action: 'execute_result',
 							error: (error as Error).message,
 						},
-						'*'
+						requestOrigin
 					)
 				}
 
