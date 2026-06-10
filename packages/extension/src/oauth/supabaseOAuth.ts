@@ -41,7 +41,7 @@ export function getRedirectUri(): string {
 
 export interface DynamicClient {
 	client_id: string
-	client_secret: string
+	client_secret?: string
 	client_id_issued_at?: number
 }
 
@@ -58,7 +58,7 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 		body: JSON.stringify({
 			client_name: 'SupaAgent Extension',
 			redirect_uris: [redirectUri],
-			token_endpoint_auth_method: 'client_secret_post',
+			token_endpoint_auth_method: 'none',
 			grant_types: ['authorization_code', 'refresh_token'],
 			response_types: ['code'],
 			scope: DEFAULT_SCOPES,
@@ -70,11 +70,10 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 	}
 	const data = (await res.json()) as {
 		client_id: string
-		client_secret: string
+		client_secret?: string
 		client_id_issued_at?: number
 	}
 	if (!data.client_id) throw new Error('Registration response missing client_id')
-	if (!data.client_secret) throw new Error('DCR response missing client_secret')
 	return {
 		client_id: data.client_id,
 		client_secret: data.client_secret,
