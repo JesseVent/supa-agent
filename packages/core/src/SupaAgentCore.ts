@@ -83,6 +83,8 @@ export class SupaAgentCore extends EventTarget {
 
 	#status: AgentStatus = 'idle'
 	#llm: LLM
+	#onLlmRetry: (e: Event) => void
+	#onLlmError: (e: Event) => void
 	#abortController = new AbortController()
 	#observations: string[] = []
 
@@ -107,8 +109,8 @@ export class SupaAgentCore extends EventTarget {
 		this.tools = new Map(tools)
 		this.pageController = config.pageController
 
-		// Listen to LLM retry events
-		this.#llm.addEventListener('retry', (e) => {
+		// Listen to LLM retry events (removed again in dispose())
+		this.#onLlmRetry = (e) => {
 			const { attempt, maxAttempts } = (e as CustomEvent).detail
 			this.#emitActivity({ type: 'retrying', attempt, maxAttempts })
 			// Also push to history for panel rendering
@@ -119,8 +121,8 @@ export class SupaAgentCore extends EventTarget {
 				maxAttempts,
 			})
 			this.#emitHistoryChange()
-		})
-		this.#llm.addEventListener('error', (e) => {
+		}
+		this.#onLlmError = (e) => {
 			const error = (e as CustomEvent).detail.error as Error | InvokeError
 			if ((error as any)?.rawError?.name === 'AbortError') return
 			const message = String(error)
@@ -132,7 +134,9 @@ export class SupaAgentCore extends EventTarget {
 				rawResponse: (error as InvokeError).rawResponse,
 			})
 			this.#emitHistoryChange()
-		})
+		}
+		this.#llm.addEventListener('retry', this.#onLlmRetry)
+		this.#llm.addEventListener('error', this.#onLlmError)
 
 		if (this.config.customTools) {
 			for (const [name, tool] of Object.entries(this.config.customTools)) {
@@ -204,6 +208,10 @@ export class SupaAgentCore extends EventTarget {
 
 	async execute(task: string): Promise<ExecutionResult> {
 		if (this.disposed) throw new Error('SupaAgent has been disposed. Create a new instance.')
+		if (this.#status === 'running')
+			throw new Error(
+				'SupaAgent is already running a task. Call stop() or wait for it to finish before starting another.'
+			)
 		if (!task) throw new Error('Task is required')
 		this.task = task
 		this.taskId = uid()
@@ -711,6 +719,8 @@ export class SupaAgentCore extends EventTarget {
 		this.pageController.dispose()
 		// this.history = []
 		this.#abortController.abort()
+		this.#llm.removeEventListener('retry', this.#onLlmRetry)
+		this.#llm.removeEventListener('error', this.#onLlmError)
 
 		// Emit dispose event for UI cleanup
 		this.dispatchEvent(new Event('dispose'))
