@@ -9,11 +9,11 @@ export const InvokeErrorTypes = {
 	SERVER_ERROR: 'server_error', // 5xx, retry
 	NO_TOOL_CALL: 'no_tool_call', // Model did not call tool
 	INVALID_TOOL_ARGS: 'invalid_tool_args', // Tool args don't match schema
-	TOOL_EXECUTION_ERROR: 'tool_execution_error', // Tool execution error
 
 	UNKNOWN: 'unknown',
 
 	// Non-retryable
+	TOOL_EXECUTION_ERROR: 'tool_execution_error', // Tool threw during execution (caller-side, not retried)
 	CONFIG_ERROR: 'config_error', // Invalid local configuration or hook
 	AUTH_ERROR: 'auth_error', // Authentication failed
 	CONTEXT_LENGTH: 'context_length', // Prompt too long
@@ -50,7 +50,9 @@ export class InvokeError extends Error {
 			InvokeErrorTypes.SERVER_ERROR,
 			InvokeErrorTypes.NO_TOOL_CALL,
 			InvokeErrorTypes.INVALID_TOOL_ARGS,
-			InvokeErrorTypes.TOOL_EXECUTION_ERROR,
+			// TOOL_EXECUTION_ERROR is intentionally NOT retryable: tools are executed by
+			// the caller outside the retry loop, and re-running a side-effecting tool can
+			// cause duplicate writes. Tool failures surface to the agent as observations.
 			InvokeErrorTypes.UNKNOWN,
 		]
 		return retryableTypes.includes(type)

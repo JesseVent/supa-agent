@@ -64,15 +64,18 @@ export interface LLMClient {
 }
 
 /**
- * Invoke result (strict typing, supports generics)
+ * Invoke result.
+ *
+ * @note The client validates the tool call but does NOT execute it. Execution is
+ * the caller's responsibility so that side-effecting tools never run inside the
+ * retry loop (avoids duplicate writes on retry). `toolCall.args` is schema-validated.
  */
-export interface InvokeResult<TResult = unknown> {
+export interface InvokeResult {
 	toolCall: {
 		// id?: string // OpenAI's tool_call_id
 		name: string
 		args: any
 	}
-	toolResult: TResult // Supports generics, but defaults to unknown
 	usage: {
 		promptTokens: number
 		completionTokens: number

@@ -71,6 +71,7 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 	const [supabaseMcpAccessToken, setSupabaseMcpAccessToken] = useState(
 		config?.supabaseMcpAccessToken ?? ''
 	)
+	const [allowMcpWrites, setAllowMcpWrites] = useState(config?.allowMcpWrites ?? false)
 	const [allowedDomains, setAllowedDomains] = useState(config?.allowedDomains?.join(', ') ?? '')
 	const [showSupabaseToken, setShowSupabaseToken] = useState(false)
 	const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -79,6 +80,8 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 	const [copied, setCopied] = useState(false)
 	const [showToken, setShowToken] = useState(false)
 	const [showApiKey, setShowApiKey] = useState(false)
+	const [theme, setTheme] = useState(config?.theme ?? 'system')
+	const [preserveMemory, setPreserveMemory] = useState(config?.preserveMemory ?? false)
 
 	const [prevConfig, setPrevConfig] = useState(config)
 	if (prevConfig !== config) {
@@ -98,7 +101,10 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 		setSupabaseMcpProjectRef(config?.supabaseMcpProjectRef ?? '')
 		setSupabaseMcpProjectName(config?.supabaseMcpProjectName ?? '')
 		setSupabaseMcpAccessToken(config?.supabaseMcpAccessToken ?? '')
+		setAllowMcpWrites(config?.allowMcpWrites ?? false)
 		setAllowedDomains(config?.allowedDomains?.join(', ') ?? '')
+		setTheme(config?.theme ?? 'system')
+		setPreserveMemory(config?.preserveMemory ?? false)
 	}
 
 	// Poll for user auth token every second until found
@@ -152,12 +158,15 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				supabaseMcpProjectRef: supabaseMcpProjectRef || undefined,
 				supabaseMcpProjectName: supabaseMcpProjectName || undefined,
 				supabaseMcpAccessToken: supabaseMcpAccessToken || undefined,
+				allowMcpWrites,
 				allowedDomains: allowedDomains
 					? allowedDomains
 							.split(',')
 							.map((d) => d.trim())
 							.filter((d) => d.length > 0)
 					: undefined,
+				theme,
+				preserveMemory,
 			})
 		} finally {
 			setSaving(false)
@@ -323,6 +332,7 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 								setSupabaseMcpProjectRef('')
 								setSupabaseMcpProjectName('')
 								setSupabaseMcpAccessToken('')
+								setAllowMcpWrites(false)
 								toast.info('Project unlinked')
 							}}
 						>
@@ -403,6 +413,18 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 					<option value="en-US">English</option>
 				</select>
 			</div>
+			<div className="flex flex-col gap-1.5">
+				<label className="text-xs text-muted-foreground">Theme</label>
+				<select
+					value={theme}
+					onChange={(e) => setTheme(e.target.value as 'system' | 'light' | 'dark')}
+					className="h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
+				>
+					<option value="system">System</option>
+					<option value="light">Light</option>
+					<option value="dark">Dark</option>
+				</select>
+			</div>
 
 			{/* Advanced Config */}
 			<button
@@ -448,6 +470,13 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 							className="text-xs rounded-md border border-input bg-background px-3 py-2 resize-y min-h-[60px]"
 						/>
 					</div>
+
+					<label className="flex items-center justify-between cursor-pointer">
+						<span className="text-xs text-muted-foreground">
+							Preserve memory across settings changes
+						</span>
+						<Switch checked={preserveMemory} onCheckedChange={setPreserveMemory} />
+					</label>
 
 					<label className="flex items-center justify-between cursor-pointer">
 						<span className="text-xs text-muted-foreground">
@@ -565,6 +594,23 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 									<Eye className="size-3" />
 								)}
 							</Button>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<label className="flex items-center justify-between cursor-pointer">
+								<span className="text-xs text-muted-foreground">
+									Allow MCP writes
+								</span>
+								<Switch
+									checked={allowMcpWrites}
+									onCheckedChange={setAllowMcpWrites}
+								/>
+							</label>
+							<p className="text-[10px] text-amber-500 leading-relaxed">
+								{allowMcpWrites
+									? '⚠️ The agent can run write operations. Destructive ops (DROP/DELETE/migrations) still require explicit confirmation.'
+									: 'Read-only: write and destructive MCP tools are blocked. Enable only if you need the agent to modify your project.'}
+							</p>
 						</div>
 					</div>
 				</>

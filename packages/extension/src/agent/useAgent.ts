@@ -1,12 +1,13 @@
 /**
  * React hook for using AgentController
  */
-import type {
-	AgentActivity,
-	AgentStatus,
-	ExecutionResult,
-	HistoricalEvent,
-	SupportedLanguage,
+import {
+	type AgentActivity,
+	type AgentStatus,
+	type ExecutionResult,
+	type HistoricalEvent,
+	type SupportedLanguage,
+	sanitizeUntrusted,
 } from '@supa-agent/core'
 import type { LLMConfig } from '@supa-agent/llms'
 import { SkillRouterClient } from '@supa-agent/skill-router'
@@ -52,8 +53,21 @@ export interface AdvancedConfig {
 	supabaseMcpProjectRef?: string
 	supabaseMcpProjectName?: string
 	supabaseMcpAccessToken?: string
+	/**
+	 * Allow the agent to run write/destructive Supabase MCP operations.
+	 * Default false: the MCP connection is read-only and write tools are blocked
+	 * in code. Destructive ops still require explicit confirmation even when enabled.
+	 */
+	allowMcpWrites?: boolean
 	/** Whitelist of domains the agent may interact with. Empty = allow all. */
 	allowedDomains?: string[]
+	/** Theme preference. 'system' follows OS setting. */
+	theme?: 'system' | 'light' | 'dark'
+	/**
+	 * Keep conversation memory when config changes.
+	 * When true, prior conversation turns survive across reconfigures.
+	 */
+	preserveMemory?: boolean
 }
 
 export interface ExtConfig extends LLMConfig, AdvancedConfig {
@@ -73,17 +87,23 @@ export interface UseAgentResult {
 	stop: () => void
 	configure: (config: ExtConfig) => Promise<void>
 	clearConversation: () => void
+	/** Current effective theme ('light' | 'dark') derived from preference + system */
+	effectiveTheme: 'light' | 'dark'
 }
 
-function buildSupabaseHint(projectLabel: string, projectRef: string): string {
+function buildSupabaseHint(projectLabel: string, projectRef: string, allowWrites: boolean): string {
+	const writePolicy = allowWrites
+		? `Writes are ENABLED. Destructive operations (DROP/DELETE/TRUNCATE/ALTER, migrations, deleting secrets/functions, pausing projects) still trigger a mandatory confirmation prompt and must be explicitly requested by the user.`
+		: `This connection is READ-ONLY. Write and destructive MCP tools are BLOCKED in code and will return a "Blocked" message. Do not attempt them — if the task needs a write, call done and tell the user to enable "Allow MCP writes" in Settings.`
+
 	return `\
 You have Supabase MCP tools available for project "${projectLabel}" (ref: ${projectRef}).
 Available tools: execute_sql, list_tables, list_projects, get_project, get_logs, get_advisors, list_edge_functions, get_publishable_keys, and others.
 
 RULES — read carefully before every action:
 1. For read-only tasks (check types, view schema, list data, inspect logs) — use MCP query tools. Do NOT navigate the Supabase dashboard UI unless the user explicitly asks you to open the dashboard.
-2. NEVER initiate a migration, region transfer, or cutover unless the user's message contains an explicit word like "migrate", "migration", "move project", or "transfer region". If you are unsure, call done and ask for clarification.
-3. NEVER execute DROP, DELETE, TRUNCATE, or destructive ALTER statements without explicit confirmation in the current message.
+2. ${writePolicy}
+3. NEVER initiate a migration, region transfer, or cutover unless the user's message contains an explicit word like "migrate", "migration", "move project", or "transfer region". If you are unsure, call done and ask for clarification.
 4. If a request is ambiguous about whether an operation is destructive, stop and ask the user to confirm before proceeding.`
 }
 
@@ -100,20 +120,49 @@ export function useAgent(): UseAgentResult {
 	const [mcpStatus, setMcpStatus] = useState<'idle' | 'loading' | 'connected' | 'error'>('idle')
 	const [mcpError, setMcpError] = useState<string | null>(null)
 	const [conversationTurnCount, setConversationTurnCount] = useState(0)
+	const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>(() =>
+		matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+	)
+
+	/** Resolve stored theme preference into an effective light/dark value. */
+	const resolveTheme = useCallback((pref?: 'system' | 'light' | 'dark'): 'light' | 'dark' => {
+		if (pref === 'light') return 'light'
+		if (pref === 'dark') return 'dark'
+		return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+	}, [])
 
 	useEffect(() => {
-		chrome.storage.local.get(['llmConfig', 'language', 'advancedConfig']).then((result) => {
-			const llmConfig = (result.llmConfig as LLMConfig) ?? DEMO_CONFIG
-			const language = (result.language as SupportedLanguage) || undefined
-			const advancedConfig = (result.advancedConfig as AdvancedConfig) ?? {}
+		chrome.storage.local
+			.get(['llmConfig', 'language', 'advancedConfig', 'conversationHistory'])
+			.then((result) => {
+				const llmConfig = (result.llmConfig as LLMConfig) ?? DEMO_CONFIG
+				const language = (result.language as SupportedLanguage) || undefined
+				const advancedConfig = (result.advancedConfig as AdvancedConfig) ?? {}
+				const storedHistory = (result.conversationHistory as ConversationTurn[]) ?? []
 
-			if (!result.llmConfig) {
-				chrome.storage.local.set({ llmConfig: DEMO_CONFIG })
-			}
+				if (!result.llmConfig) {
+					chrome.storage.local.set({ llmConfig: DEMO_CONFIG })
+				}
 
-			setConfig({ ...llmConfig, ...advancedConfig, language })
-		})
-	}, [])
+				if (storedHistory.length > 0) {
+					conversationRef.current = storedHistory
+					setConversationTurnCount(storedHistory.length)
+				}
+
+				setConfig({ ...llmConfig, ...advancedConfig, language })
+				setEffectiveTheme(resolveTheme(advancedConfig.theme))
+			})
+	}, [resolveTheme])
+
+	useEffect(() => {
+		if (config?.theme === 'system' || !config?.theme) {
+			const listener = (e: MediaQueryListEvent) =>
+				setEffectiveTheme(e.matches ? 'dark' : 'light')
+			matchMedia('(prefers-color-scheme: dark)').addEventListener('change', listener)
+			return () =>
+				matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', listener)
+		}
+	}, [config?.theme])
 
 	useEffect(() => {
 		if (!config) return
@@ -131,6 +180,7 @@ export function useAgent(): UseAgentResult {
 			supabaseMcpProjectRef,
 			supabaseMcpProjectName,
 			supabaseMcpAccessToken,
+			allowMcpWrites,
 			...agentConfig
 		} = config
 
@@ -166,8 +216,11 @@ export function useAgent(): UseAgentResult {
 						// When accessToken is omitted, SupabaseMcpClient reads the OAuth
 						// mgmt token from chrome.storage (SupaAgentMgmtToken) and auto-refreshes.
 						accessToken: supabaseMcpAccessToken || undefined,
+						// Default to a read-only MCP connection (server-side enforcement);
+						// code-level write/destructive gating is applied in adaptMcpTools.
+						readOnly: !allowMcpWrites,
 					})
-					customTools = await adaptMcpTools(client)
+					customTools = await adaptMcpTools(client, { allowWrites: !!allowMcpWrites })
 					setMcpStatus('connected')
 					setMcpError(null)
 					const projectLabel = supabaseMcpProjectName || supabaseMcpProjectRef
@@ -177,7 +230,11 @@ export function useAgent(): UseAgentResult {
 						message: `Connected to project ${projectLabel}`,
 						detail: supabaseMcpProjectRef,
 					})
-					supabaseHint = buildSupabaseHint(projectLabel, supabaseMcpProjectRef)
+					supabaseHint = buildSupabaseHint(
+						projectLabel,
+						supabaseMcpProjectRef,
+						!!allowMcpWrites
+					)
 				} catch (err) {
 					const mcpErr = err instanceof Error ? err.message : 'MCP connection failed'
 					console.warn('[useAgent] MCP tools unavailable:', err)
@@ -210,6 +267,11 @@ export function useAgent(): UseAgentResult {
 			createdAgent = agent
 			agentRef.current = agent
 
+			// Wire a confirmation/question callback. This both enables the `ask_user`
+			// tool and powers the mandatory confirmation for destructive MCP operations
+			// in adaptMcpTools. Uses a native prompt in the side panel context.
+			agent.onAskUser = (question: string) => Promise.resolve(window.prompt(question) ?? '')
+
 			agent.addEventListener('statuschange', handleStatusChange)
 			agent.addEventListener('historychange', handleHistoryChange)
 			agent.addEventListener('activity', handleActivity)
@@ -239,9 +301,12 @@ export function useAgent(): UseAgentResult {
 		let effectiveTask = task
 
 		if (priorTurns.length > 0) {
+			// Prior-turn task text and model summaries are untrusted — defuse any framing
+			// tags so an earlier turn cannot forge prompt structure for the next one.
 			const contextLines = priorTurns
 				.map(
-					(t, i) => `[Turn ${i + 1}] ${t.success ? '✓' : '✗'} "${t.task}" → ${t.summary}`
+					(t, i) =>
+						`[Turn ${i + 1}] ${t.success ? '✓' : '✗'} "${sanitizeUntrusted(t.task)}" → ${sanitizeUntrusted(t.summary)}`
 				)
 				.join('\n')
 			effectiveTask = `<conversation_history>\n${contextLines}\n</conversation_history>\n\nCurrent request: ${task}`
@@ -263,6 +328,7 @@ export function useAgent(): UseAgentResult {
 				result.data?.slice(0, 300) || (result.success ? 'Completed.' : 'Failed.')
 			conversationRef.current = [...priorTurns, { task, summary, success: result.success }]
 			setConversationTurnCount(conversationRef.current.length)
+			void chrome.storage.local.set({ conversationHistory: conversationRef.current })
 
 			void writeLog({
 				level: result.success ? 'success' : 'error',
@@ -289,6 +355,7 @@ export function useAgent(): UseAgentResult {
 	const clearConversation = useCallback(() => {
 		conversationRef.current = []
 		setConversationTurnCount(0)
+		void chrome.storage.local.remove('conversationHistory')
 	}, [])
 
 	const configure = useCallback(
@@ -305,12 +372,17 @@ export function useAgent(): UseAgentResult {
 			supabaseMcpProjectRef,
 			supabaseMcpProjectName,
 			supabaseMcpAccessToken,
+			allowMcpWrites,
 			allowedDomains,
+			theme,
+			preserveMemory,
 			...llmConfig
 		}: ExtConfig) => {
-			// Clear conversation when config changes — new project/model = fresh context
-			conversationRef.current = []
-			setConversationTurnCount(0)
+			// Clear conversation when config changes unless user asked to preserve memory
+			if (!preserveMemory) {
+				conversationRef.current = []
+				setConversationTurnCount(0)
+			}
 
 			await chrome.storage.local.set({ llmConfig })
 			if (language) {
@@ -330,12 +402,16 @@ export function useAgent(): UseAgentResult {
 				supabaseMcpProjectRef,
 				supabaseMcpProjectName,
 				supabaseMcpAccessToken,
+				allowMcpWrites,
 				allowedDomains,
+				theme,
+				preserveMemory,
 			}
 			await chrome.storage.local.set({ advancedConfig })
 			setConfig({ ...llmConfig, ...advancedConfig, language })
+			setEffectiveTheme(resolveTheme(theme))
 		},
-		[]
+		[resolveTheme]
 	)
 
 	return {
@@ -351,5 +427,6 @@ export function useAgent(): UseAgentResult {
 		stop,
 		configure,
 		clearConversation,
+		effectiveTheme,
 	}
 }

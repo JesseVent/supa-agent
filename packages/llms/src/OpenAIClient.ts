@@ -209,26 +209,14 @@ export class OpenAIClient implements LLMClient {
 		}
 		const toolInput = validation.data
 
-		// 5. Execute tool
-		let toolResult: unknown
-		try {
-			toolResult = await tool.execute(toolInput)
-		} catch (e) {
-			throw new InvokeError(
-				InvokeErrorTypes.TOOL_EXECUTION_ERROR,
-				`Tool execution failed: ${(e as Error).message}`,
-				e,
-				data
-			)
-		}
-
-		// Return result
+		// 5. Return the validated tool call WITHOUT executing it.
+		// Execution happens in the caller (outside the retry loop) so that
+		// side-effecting tools never run more than once per model decision.
 		return {
 			toolCall: {
 				name: toolCallName,
 				args: toolInput,
 			},
-			toolResult,
 			usage: {
 				promptTokens: data.usage?.prompt_tokens ?? 0,
 				completionTokens: data.usage?.completion_tokens ?? 0,

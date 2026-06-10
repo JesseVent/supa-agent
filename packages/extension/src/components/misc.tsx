@@ -1,7 +1,18 @@
 import type { AgentStatus } from '@supa-agent/core'
-import { BookOpen, Globe, Square } from 'lucide-react'
+import {
+	ArrowLeftRight,
+	BookOpen,
+	Database,
+	Globe,
+	MessageSquare,
+	Play,
+	Sparkles,
+	Square,
+	X,
+} from 'lucide-react'
 import { siGithub } from 'simple-icons'
 
+import { Button } from '@/components/ui/button'
 import { TypingAnimation } from '@/components/ui/typing-animation'
 import { cn } from '@/lib/utils'
 
@@ -124,14 +135,65 @@ export function NeonGlowOverlay({ active }: { active: boolean }) {
 // Keep MotionOverlay as an alias for backward compat
 export const MotionOverlay = NeonGlowOverlay
 
-// Empty state with logo
-export function EmptyState() {
+const EXAMPLE_PROMPTS = [
+	{
+		icon: Sparkles,
+		label: 'List tables in my Supabase project',
+		task: 'List all tables in my Supabase project using MCP',
+	},
+	{
+		icon: Database,
+		label: 'Check my project logs',
+		task: 'Show me the latest logs from my Supabase project',
+	},
+	{
+		icon: Globe,
+		label: 'Summarize this page',
+		task: 'Summarize the content of the current page',
+	},
+	{
+		icon: ArrowLeftRight,
+		label: 'Harden my Data API',
+		task:
+			'1. Navigate to the Supabase dashboard for my connected project. ' +
+			'2. Open the Integrations section. ' +
+			'3. Select "Data API". ' +
+			'4. Click the "Settings" tab inside Data API. ' +
+			'5. Scroll down to the "Harden Data API" section. ' +
+			'6. Click the button in that section. ' +
+			'7. Expand the "Option 1" accordion. ' +
+			'8. Copy the SQL shown inside that accordion. ' +
+			'9. Navigate back to this chat and paste the SQL here.',
+	},
+	{
+		icon: MessageSquare,
+		label: 'Fill out this form',
+		task: 'Help me fill out the form on this page with sensible defaults',
+	},
+]
+
+interface EmptyStateProps {
+	conversationTurnCount?: number
+	onClearConversation?: () => void
+	onExample?: (task: string) => void
+}
+
+export function EmptyState({
+	conversationTurnCount = 0,
+	onClearConversation,
+	onExample,
+}: EmptyStateProps) {
+	const hasSession = conversationTurnCount > 0
+
 	return (
-		<div className="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
+		<div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
+			{/* Logo */}
 			<div className="relative select-none pointer-events-none">
 				<div className="absolute inset-0 -m-6 rounded-full bg-emerald-500/10 blur-2xl" />
 				<Logo className="relative size-20 opacity-90" />
 			</div>
+
+			{/* Title + typing */}
 			<div>
 				<h2 className="text-base font-medium text-foreground mb-1">SupaAgent</h2>
 				<TypingAnimation
@@ -150,6 +212,55 @@ export function EmptyState() {
 					pauseDelay={3000}
 				/>
 			</div>
+
+			{/* Session continuation banner */}
+			{hasSession && (
+				<div className="w-full max-w-xs rounded-lg border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-2 flex items-center justify-between gap-2">
+					<div className="flex items-center gap-2 text-left">
+						<Play className="size-3 text-emerald-400 shrink-0" />
+						<span className="text-xs text-emerald-300">
+							Session active · {conversationTurnCount} prior{' '}
+							{conversationTurnCount === 1 ? 'task' : 'tasks'}
+						</span>
+					</div>
+					{onClearConversation && (
+						<button
+							type="button"
+							onClick={onClearConversation}
+							className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+							title="Clear session"
+							aria-label="Clear session"
+						>
+							<X className="size-3" />
+						</button>
+					)}
+				</div>
+			)}
+
+			{/* Example prompts */}
+			{onExample && (
+				<div className="w-full max-w-xs flex flex-col gap-1.5 mt-1">
+					<span className="text-[10px] text-muted-foreground uppercase tracking-wide text-left">
+						Try an example
+					</span>
+					<div className="flex flex-wrap gap-1.5">
+						{EXAMPLE_PROMPTS.map((ex) => (
+							<Button
+								key={ex.label}
+								variant="outline"
+								size="sm"
+								className="h-auto py-1 px-2 text-[10px] leading-tight text-left gap-1 cursor-pointer"
+								onClick={() => onExample(ex.task)}
+							>
+								<ex.icon className="size-2.5 shrink-0 text-muted-foreground" />
+								{ex.label}
+							</Button>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Footer links */}
 			<div className="flex items-center gap-3 mt-1 text-muted-foreground">
 				<a
 					href="https://github.com/JesseVent/supa-agent"

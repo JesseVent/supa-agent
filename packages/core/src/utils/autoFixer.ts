@@ -90,10 +90,15 @@ export function normalizeResponse(response: any, tools?: Map<string, SupaAgentTo
 		resolvedArguments.action = validateAction(resolvedArguments.action, tools)
 	}
 
-	// fix incomplete formats
+	// Unrecoverable: no action could be extracted. Do NOT fabricate an action
+	// (e.g. a fake `wait`) — that masks real failures and makes the agent reason
+	// about a step it never decided to take. Surface it so the LLM call retries
+	// with the error appended as feedback.
 	if (!resolvedArguments.action) {
-		log(`#5: fixing tool_call`)
-		resolvedArguments.action = { wait: { seconds: 1 } }
+		throw new InvokeError(
+			InvokeErrorTypes.NO_TOOL_CALL,
+			'Model output did not contain a valid `action`. Expected AgentOutput with an `action` field.'
+		)
 	}
 
 	// pack back to standard format

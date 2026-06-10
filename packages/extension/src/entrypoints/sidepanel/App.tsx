@@ -1,4 +1,4 @@
-import { History, Send, Settings, Square } from 'lucide-react'
+import { History, Moon, Send, Settings, Square, Sun } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ConfigPanel } from '@/components/ConfigPanel'
@@ -42,7 +42,13 @@ export default function App() {
 		stop,
 		configure,
 		clearConversation,
+		effectiveTheme,
 	} = useAgent()
+
+	// Sync DOM class whenever effective theme changes
+	useEffect(() => {
+		document.documentElement.classList.toggle('dark', effectiveTheme === 'dark')
+	}, [effectiveTheme])
 
 	// Persist session when task finishes.
 	// `config` is held in a ref so the effect only re-runs on task state changes
@@ -198,6 +204,28 @@ export default function App() {
 					<Button
 						variant="ghost"
 						size="icon-sm"
+						onClick={() => {
+							const next: 'system' | 'light' | 'dark' =
+								config?.theme === 'light'
+									? 'dark'
+									: config?.theme === 'dark'
+										? 'system'
+										: 'light'
+							void configure({ ...config!, theme: next })
+						}}
+						className="cursor-pointer"
+						aria-label="Toggle theme"
+						title={`Theme: ${config?.theme ?? 'system'}`}
+					>
+						{effectiveTheme === 'dark' ? (
+							<Sun className="size-3.5" />
+						) : (
+							<Moon className="size-3.5" />
+						)}
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon-sm"
 						onClick={() => setView({ name: 'history' })}
 						className="cursor-pointer"
 						aria-label="History"
@@ -234,7 +262,13 @@ export default function App() {
 
 				{/* History */}
 				<div ref={historyRef} className="flex-1 overflow-y-auto p-3 space-y-2">
-					{showEmptyState && <EmptyState />}
+					{showEmptyState && (
+						<EmptyState
+							conversationTurnCount={conversationTurnCount}
+							onClearConversation={clearConversation}
+							onExample={runTask}
+						/>
+					)}
 
 					{history.map((event, index) => (
 						<EventCard key={index} event={event} />

@@ -5,11 +5,6 @@ import SYSTEM_PROMPT from './system_prompt.md?raw'
 import { TabsController } from './TabsController'
 import { createTabTools } from './tabTools'
 
-/** Detect user language from browser settings */
-function detectLanguage(): 'en-US' {
-	return 'en-US'
-}
-
 interface MultiPageAgentConfig extends AgentConfig {
 	includeInitialTab?: boolean
 	experimentalIncludeAllTabs?: boolean
@@ -27,13 +22,9 @@ export class MultiPageAgent extends SupaAgentCore {
 		const pageController = new RemotePageController(tabsController)
 		const tabTools = createTabTools(tabsController)
 
-		// system prompt - auto-detect language if not specified
-		const language = config.language ?? detectLanguage()
+		// system prompt — substitute the working-language placeholder
 		const targetLanguage = 'English'
-		const systemPrompt = SYSTEM_PROMPT.replace(
-			/Default working language: \*\*.*?\*\*/,
-			`Default working language: **${targetLanguage}**`
-		)
+		const systemPrompt = SYSTEM_PROMPT.replaceAll('{{LANGUAGE}}', targetLanguage)
 
 		const includeInitialTab = config.includeInitialTab ?? true
 		const experimentalIncludeAllTabs = config.experimentalIncludeAllTabs ?? false

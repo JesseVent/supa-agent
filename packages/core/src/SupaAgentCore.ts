@@ -22,10 +22,11 @@ import type {
 	MacroToolResult,
 	SkillRouterResult,
 } from './types'
-import { assert, fetchLlmsTxt, normalizeResponse, uid, waitFor } from './utils'
+import { assert, fetchLlmsTxt, normalizeResponse, sanitizeUntrusted, uid, waitFor } from './utils'
 
 export { type SupaAgentTool, tool } from './tools'
 export type * from './types'
+export { sanitizeUntrusted } from './utils'
 
 export type SupaAgentCoreConfig = AgentConfig & { pageController: PageController }
 
@@ -259,10 +260,12 @@ export class SupaAgentCore extends EventTarget {
 					{ role: 'user' as const, content: await this.#assembleUserPrompt() },
 				]
 
-				const macroTool = { AgentOutput: this.#packMacroTool() }
+				const agentOutputTool = this.#packMacroTool()
+				const macroTool = { AgentOutput: agentOutputTool }
 
 				this.#emitActivity({ type: 'thinking' })
 
+				// The LLM call is retryable and does NOT execute the tool.
 				const result = await this.#llm.invoke(
 					messages,
 					macroTool,
@@ -273,9 +276,22 @@ export class SupaAgentCore extends EventTarget {
 					}
 				)
 
+				// Execute the chosen action EXACTLY ONCE, outside the retry loop.
+				// On failure (non-abort) we record the error as the action output so the
+				// model observes it next step and re-plans, instead of aborting the task.
+				const macroInput = result.toolCall.args as MacroToolInput
+				let macroResult: MacroToolResult
+				try {
+					macroResult = await agentOutputTool.execute(macroInput)
+				} catch (toolError: unknown) {
+					if (this.#isAbortError(toolError)) throw toolError
+					const message = this.#sanitizeError(toolError)
+					this.#emitActivity({ type: 'error', message })
+					macroResult = { input: macroInput, output: `Action failed: ${message}` }
+				}
+
 				// assemble history
 
-				const macroResult = result.toolResult as MacroToolResult
 				const input = macroResult.input
 				const output = macroResult.output
 				const reflection: Partial<AgentReflection> = {
@@ -400,18 +416,6 @@ export class SupaAgentCore extends EventTarget {
 				const toolName = Object.keys(action)[0]
 				const toolInput = action[toolName]
 
-				// Build reflection text, only include non-empty fields
-				const reflectionLines: string[] = []
-				if (input.evaluation_previous_goal)
-					reflectionLines.push(`Done: ${input.evaluation_previous_goal}`)
-				if (input.memory) reflectionLines.push(`💾: ${input.memory}`)
-				if (input.next_goal) reflectionLines.push(`goal: ${input.next_goal}`)
-
-				const reflectionText = reflectionLines.length > 0 ? reflectionLines.join('\n') : ''
-
-				if (reflectionText) {
-				}
-
 				// Find the corresponding tool
 				const tool = tools.get(toolName)
 				assert(tool, `Tool ${toolName} not found`)
@@ -460,12 +464,7 @@ export class SupaAgentCore extends EventTarget {
 		}
 
 		const targetLanguage = 'English'
-		const systemPrompt = SYSTEM_PROMPT.replace(
-			/Default working language: \*\*.*?\*\*/,
-			`Default working language: **${targetLanguage}**`
-		)
-
-		return systemPrompt
+		return SYSTEM_PROMPT.replaceAll('{{LANGUAGE}}', targetLanguage)
 	}
 
 	/**
@@ -504,7 +503,8 @@ export class SupaAgentCore extends EventTarget {
 		}
 
 		if (llmsTxt) {
-			result += `<llms_txt>\n${llmsTxt}\n</llms_txt>\n`
+			// /llms.txt is fetched from an arbitrary site origin — untrusted.
+			result += `<llms_txt>\n${sanitizeUntrusted(llmsTxt)}\n</llms_txt>\n`
 		}
 
 		result += '</instructions>\n\n'
@@ -621,7 +621,8 @@ export class SupaAgentCore extends EventTarget {
 				prompt += `Evaluation of Previous Step: ${event.reflection.evaluation_previous_goal}\n`
 				prompt += `Memory: ${event.reflection.memory}\n`
 				prompt += `Next Goal: ${event.reflection.next_goal}\n`
-				prompt += `Action Results: ${event.action.output}\n`
+				// Tool output can embed untrusted page/DB text — defuse framing delimiters.
+				prompt += `Action Results: ${sanitizeUntrusted(event.action.output)}\n`
 				prompt += `</step_${stepIndex}>\n`
 			} else if (event.type === 'observation') {
 				prompt += `<sys>${event.content}</sys>\n`
@@ -641,6 +642,8 @@ export class SupaAgentCore extends EventTarget {
 		if (this.config.transformPageContent) {
 			pageContent = await this.config.transformPageContent(pageContent)
 		}
+		// Page DOM is fully untrusted — defuse any forged framing tags before injecting.
+		pageContent = sanitizeUntrusted(pageContent)
 
 		prompt += '<browser_state>\n'
 		prompt += `${browserState.header}\n`
@@ -667,12 +670,33 @@ export class SupaAgentCore extends EventTarget {
 
 		let out = '<skill_context>\n'
 		for (const c of chunks) {
-			out += `[${c.impact}] ${c.title}\n`
-			out += `Why relevant: ${c.relevance_reason}\n`
-			out += `${c.content}\n\n`
+			// Retrieved chunks are untrusted content — defuse framing delimiters.
+			out += `[${c.impact}] ${sanitizeUntrusted(c.title)}\n`
+			out += `Why relevant: ${sanitizeUntrusted(c.relevance_reason)}\n`
+			out += `${sanitizeUntrusted(c.content)}\n\n`
 		}
 		out += '</skill_context>\n\n'
 		return out
+	}
+
+	/** Detect an abort across the various shapes errors take in this codebase. */
+	#isAbortError(error: unknown): boolean {
+		const e = error as { name?: string; message?: string; rawError?: { name?: string } }
+		return (
+			this.#abortController.signal.aborted ||
+			e?.name === 'AbortError' ||
+			e?.message === 'AbortError' ||
+			e?.rawError?.name === 'AbortError'
+		)
+	}
+
+	/** Produce a concise, single-line, token-stripped error message for history/UI. */
+	#sanitizeError(error: unknown): string {
+		const raw = error instanceof Error ? error.message : String(error)
+		return raw
+			.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
+			.split('\n')[0]
+			.slice(0, 200)
 	}
 
 	#onDone(success = true) {

@@ -20,22 +20,33 @@ export function handlePageControlMessage(
 		return
 	}
 
-	// proxy to content script
-	chrome.tabs
-		.sendMessage(targetTabId, {
-			type: 'PAGE_CONTROL',
-			action,
-			payload,
-		})
-		.then((result) => {
+	async function sendWithRetry(retries = 1): Promise<void> {
+		try {
+			const result = await chrome.tabs.sendMessage(targetTabId, {
+				type: 'PAGE_CONTROL',
+				action,
+				payload,
+			})
 			sendResponse(result)
-		})
-		.catch((error) => {
+		} catch (error) {
 			const msg = error instanceof Error ? error.message : String(error)
+
 			// Chrome bfcache kills content-script ports when a page is navigated back/forward.
-			// This is expected — the agent will re-inject on the new page.
-			if (/back\/forward cache|message channel is closed/i.test(msg)) {
-				console.warn(PREFIX, 'Tab entered bfcache, port closed — ignoring', msg)
+			// "Receiving end does not exist" is also expected when a tab just navigated and the
+			// content script hasn't re-injected yet. Retry once after a short delay.
+			const isTransient =
+				/back\/forward cache|message channel is closed|receiving end does not exist/i.test(
+					msg
+				)
+
+			if (isTransient && retries > 0) {
+				debug('Transient port error, retrying...', msg)
+				await new Promise((r) => setTimeout(r, 400))
+				return sendWithRetry(retries - 1)
+			}
+
+			if (isTransient) {
+				console.warn(PREFIX, 'Tab port unavailable — ignoring', msg)
 			} else {
 				console.error(PREFIX, error)
 			}
@@ -43,7 +54,9 @@ export function handlePageControlMessage(
 				success: false,
 				error: msg,
 			})
-		})
+		}
+	}
 
+	sendWithRetry()
 	return true // async response
 }

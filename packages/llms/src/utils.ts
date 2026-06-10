@@ -65,8 +65,11 @@ export function modelPatch(body: Record<string, any>) {
 	}
 
 	if (modelName.startsWith('gpt')) {
-		debug('Applying GPT patch: set verbosity to low')
-		body.verbosity = 'low'
+		// Only GPT-5 and reasoning models support verbosity; gpt-4o does not
+		if (modelName.startsWith('gpt-5') || modelName.startsWith('o')) {
+			debug('Applying GPT patch: set verbosity to low')
+			body.verbosity = 'low'
+		}
 
 		if (modelName.startsWith('gpt-52')) {
 			debug('Applying GPT-52 patch: disable reasoning')

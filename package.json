@@ -35,6 +35,7 @@
         "postpublish": "npm run postpublish --workspaces --if-present",
         "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && tsc --noEmit -p packages/extension/tsconfig.json",
         "lint": "biome check .",
+        "test": "vitest run",
         "format": "biome format --write .",
         "format:check": "biome format .",
         "ci": "node scripts/ci.js",
@@ -58,6 +59,7 @@
         "unplugin-dts": "^1.0.2",
         "vite": "^8.0.16",
         "vite-plugin-css-injected-by-js": "^5.0.1",
+        "vitest": "^4.1.8",
         "wxt": "^0.20.26"
     },
     "overrides": {

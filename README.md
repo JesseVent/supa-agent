@@ -166,6 +166,43 @@ Full documentation is in [`docs/`](./docs/README.md):
 - [SupaAgentCore API](docs/advanced/supa-agent-core.md)
 - [Changelog](docs/CHANGELOG.md)
 
+## Manual Testing Checklist
+
+Before pushing a release, verify these features manually in the side panel:
+
+### 🎨 Theme toggle
+1. Click the **sun/moon icon** in the header — it cycles `system → light → dark → system`
+2. Check the **Theme** dropdown in Settings matches
+3. Close and reopen the extension — the chosen theme persists
+
+### 💬 Session continuation
+1. Run a task (e.g. *"List tables"*)
+2. Close the sidepanel completely
+3. Reopen it — the **"Session active · N prior tasks"** banner should appear
+4. Send a follow-up — it should reference the prior conversation turn
+
+### 🧠 Preserve memory across settings changes
+1. Go to **Settings → Advanced** → enable **"Preserve memory across settings changes"**
+2. Change the model name → **Save**
+3. The session banner should **still show** prior tasks (not cleared)
+
+### 🎯 Example prompts
+1. Clear the conversation to reach the empty state
+2. Verify all **5 chips** appear: *List tables*, *Check logs*, *Summarize page*, *Harden Data API*, *Fill form*
+
+| Chip | Expected result |
+|---|---|
+| **List tables** | Uses MCP to return a list of tables from the connected Supabase project |
+| **Check logs** | Uses MCP to return recent logs from the connected Supabase project |
+| **Summarize page** | Reads the current page DOM and returns a text summary |
+| **Harden Data API** | Navigates to Supabase dashboard → Integrations → Data API → Settings → scrolls to "Harden Data API" → clicks button → expands Option 1 accordion → copies SQL → returns to chat |
+| **Fill form** | Detects input fields on the current page and types sensible sample values |
+
+### 🔄 Navigation retry (no errors)
+1. Run any multi-page task (the Data API example is good)
+2. Open the service-worker background console
+3. There should be **zero** `"Receiving end does not exist"` errors — only `warn`-level transient-port messages if any
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/developer-guide.md](./docs/developer-guide.md).

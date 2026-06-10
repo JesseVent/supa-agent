@@ -45,7 +45,8 @@ export default defineConfig({
 			cssCodeSplit: true,
 			rollupOptions: {
 				onwarn: (message, handler) => {
-					if (message.code === 'EVAL') return
+					// Do NOT suppress EVAL warnings: PageController.executeJavascript
+					// intentionally uses eval(), and we want it to stay visible.
 					handler(message)
 				},
 			},
