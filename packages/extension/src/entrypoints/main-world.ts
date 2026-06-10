@@ -103,7 +103,7 @@ export default defineUnlistedScript(() => {
 					},
 				},
 			},
-			'*'
+			window.location.origin
 		)
 
 		return promise
@@ -118,7 +118,7 @@ export default defineUnlistedScript(() => {
 				id,
 				action: 'stop',
 			},
-			'*'
+			window.location.origin
 		)
 	}
 

@@ -60,7 +60,7 @@ export default defineBackground(() => {
 
 	chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
 		if (message.type === 'OPEN_HUB') {
-			openOrFocusHubTab(message.wsPort).then(() => {
+			openOrFocusHubTab(message.wsPort, message.wsToken).then(() => {
 				if (sender.tab?.id) chrome.tabs.remove(sender.tab.id)
 				sendResponse({ ok: true })
 			})
@@ -73,19 +73,20 @@ export default defineBackground(() => {
 	chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
 })
 
-async function openOrFocusHubTab(wsPort: number) {
+async function openOrFocusHubTab(wsPort: number, wsToken?: string) {
 	const hubUrl = chrome.runtime.getURL('hub.html')
 	const existing = await chrome.tabs.query({ url: `${hubUrl}*` })
+	const query = wsToken ? `?ws=${wsPort}&token=${encodeURIComponent(wsToken)}` : `?ws=${wsPort}`
 
 	if (existing.length > 0 && existing[0].id) {
 		await chrome.tabs.update(existing[0].id, {
 			active: true,
-			url: `${hubUrl}?ws=${wsPort}`,
+			url: `${hubUrl}${query}`,
 		})
 		return
 	}
 
-	await chrome.tabs.create({ url: `${hubUrl}?ws=${wsPort}`, pinned: true })
+	await chrome.tabs.create({ url: `${hubUrl}${query}`, pinned: true })
 }
 
 // ── Supabase Management API OAuth (hosted MCP DCR) ───────────────────────────

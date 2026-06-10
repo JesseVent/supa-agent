@@ -34,6 +34,7 @@ type InboundMessage = ExecuteMessage | StopMessage
 
 interface ReadyMessage {
 	type: 'ready'
+	version: string
 }
 
 interface ResultMessage {
@@ -93,12 +94,21 @@ export class HubWs {
 		if (this.#ws) return
 		this.#setState('connecting')
 
-		const ws = new WebSocket(`ws://localhost:${this.#port}`)
+		const wsToken = new URLSearchParams(window.location.search).get('token')
+		const url = wsToken
+			? `ws://localhost:${this.#port}?token=${encodeURIComponent(wsToken)}`
+			: `ws://localhost:${this.#port}`
+
+		const ws = new WebSocket(url)
 		this.#ws = ws
 
 		ws.addEventListener('open', () => {
 			this.#setState('connected')
-			this.#send({ type: 'ready' })
+			const version =
+				typeof chrome !== 'undefined' && chrome.runtime?.getManifest
+					? chrome.runtime.getManifest().version
+					: '1.8.2'
+			this.#send({ type: 'ready', version })
 		})
 
 		ws.addEventListener('close', () => {

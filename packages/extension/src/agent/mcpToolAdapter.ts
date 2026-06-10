@@ -7,6 +7,7 @@
  * full JSON Schema → Zod converter.
  */
 import type { SupaAgentTool } from '@supa-agent/core'
+import { sanitizeUntrusted } from '@supa-agent/core'
 import * as z from 'zod/v4'
 
 import type { SupabaseMcpClient } from './SupabaseMcpClient'
@@ -136,7 +137,10 @@ function readSqlArg(args: unknown): string {
 }
 
 /** Classify an MCP call as a write and/or destructive operation. */
-function classifyMcpOp(name: string, args: unknown): { write: boolean; destructive: boolean } {
+export function classifyMcpOp(
+	name: string,
+	args: unknown
+): { write: boolean; destructive: boolean } {
 	if (name === 'execute_sql') {
 		const sql = readSqlArg(args)
 		return { write: WRITE_SQL.test(sql), destructive: DESTRUCTIVE_SQL.test(sql) }
@@ -197,7 +201,8 @@ export async function adaptMcpTools(
 					}
 				}
 
-				return client.callTool(name, args as Record<string, unknown>)
+				const raw = await client.callTool(name, args as Record<string, unknown>)
+				return `<mcp_result tool="${name}">\n${sanitizeUntrusted(raw)}\n</mcp_result>`
 			},
 		}
 	}
