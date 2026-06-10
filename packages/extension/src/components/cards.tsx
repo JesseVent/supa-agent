@@ -246,50 +246,73 @@ function RawSection({ rawRequest, rawResponse }: { rawRequest?: unknown; rawResp
 }
 
 function StepCard({ event }: { event: AgentStepEvent }) {
+	const [collapsed, setCollapsed] = useState(false)
+
 	return (
 		<div className="rounded-lg border-l-2 border-l-blue-500/50 border bg-muted/40 p-2.5">
-			<div className="text-[11px] font-semibold text-foreground tracking-wide mb-2">
-				Step #{event.stepIndex! + 1}
-			</div>
+			<button
+				type="button"
+				onClick={() => setCollapsed((prev) => !prev)}
+				className="flex w-full items-center justify-between text-left text-[11px] font-semibold text-foreground tracking-wide cursor-pointer hover:opacity-80 transition-opacity"
+			>
+				<div className="flex items-center gap-1.5 min-w-0">
+					<span>Step #{event.stepIndex! + 1}</span>
+					{collapsed && event.action && (
+						<span className="font-normal text-muted-foreground truncate">
+							: {event.action.name}
+						</span>
+					)}
+				</div>
+				<ChevronDown
+					className={cn(
+						'size-3.5 text-muted-foreground transition-transform duration-200 shrink-0',
+						!collapsed && 'rotate-180'
+					)}
+				/>
+			</button>
 
-			{/* Reflection */}
-			{event.reflection && <ReflectionSection reflection={event.reflection} />}
+			{!collapsed && (
+				<div className="mt-2 space-y-2">
+					{/* Reflection */}
+					{event.reflection && <ReflectionSection reflection={event.reflection} />}
 
-			{/* Action */}
-			{event.action && (
-				<div>
-					<div className="text-[11px] font-semibold text-foreground tracking-wide mb-1">
-						Actions
-					</div>
-					<div className="flex items-start gap-2">
-						<ActionIcon
-							name={event.action.name}
-							className="size-3.5 text-blue-500 shrink-0 mt-0.5"
-						/>
-						<div className="flex-1 min-w-0">
-							<p className="text-xs text-foreground/80 mb-0.5 wrap-anywhere break-all line-clamp-1 hover:line-clamp-none">
-								<span className="font-medium text-foreground/70">
-									{event.action.name}
-								</span>
-								{event.action.name !== 'done' && (
-									<span className="text-muted-foreground/70 ml-1.5">
-										{JSON.stringify(event.action.input)}
-									</span>
-								)}
-							</p>
-							<p className="text-[11px] text-muted-foreground/70 grid grid-cols-[auto_1fr] gap-1.5">
-								<span className="">└</span>
-								<span className="wrap-anywhere break-all line-clamp-1 hover:line-clamp-3">
-									{event.action.output}
-								</span>
-							</p>
+					{/* Action */}
+					{event.action && (
+						<div>
+							<div className="text-[11px] font-semibold text-foreground tracking-wide mb-1">
+								Actions
+							</div>
+							<div className="flex items-start gap-2">
+								<ActionIcon
+									name={event.action.name}
+									className="size-3.5 text-blue-500 shrink-0 mt-0.5"
+								/>
+								<div className="flex-1 min-w-0">
+									<p className="text-xs text-foreground/80 mb-0.5 wrap-anywhere break-all line-clamp-1 hover:line-clamp-none">
+										<span className="font-medium text-foreground/70">
+											{event.action.name}
+										</span>
+										{event.action.name !== 'done' && (
+											<span className="text-muted-foreground/70 ml-1.5">
+												{JSON.stringify(event.action.input)}
+											</span>
+										)}
+									</p>
+									<p className="text-[11px] text-muted-foreground/70 grid grid-cols-[auto_1fr] gap-1.5">
+										<span className="">└</span>
+										<span className="wrap-anywhere break-all line-clamp-1 hover:line-clamp-3">
+											{event.action.output}
+										</span>
+									</p>
+								</div>
+							</div>
 						</div>
-					</div>
+					)}
+
+					{/* Raw Response */}
+					<RawSection rawRequest={event.rawRequest} rawResponse={event.rawResponse} />
 				</div>
 			)}
-
-			{/* Raw Response */}
-			<RawSection rawRequest={event.rawRequest} rawResponse={event.rawResponse} />
 		</div>
 	)
 }
