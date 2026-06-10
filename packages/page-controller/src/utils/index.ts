@@ -37,7 +37,6 @@ export function getIframeOffset(element: HTMLElement): { x: number; y: number } 
  * @note for React
  */
 export function getNativeValueSetter(element: HTMLInputElement | HTMLTextAreaElement) {
-	// eslint-disable-next-line @typescript-eslint/unbound-method
 	return Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element) as object, 'value')!
 		.set as (v: string) => void
 }
@@ -59,7 +58,7 @@ export async function movePointerToElement(element: HTMLElement, x: number, y: n
 	const offset = getIframeOffset(element)
 
 	window.dispatchEvent(
-		new CustomEvent('PageAgent::MovePointerTo', {
+		new CustomEvent('SupaAgent::MovePointerTo', {
 			detail: { x: x + offset.x, y: y + offset.y },
 		})
 	)
@@ -68,13 +67,13 @@ export async function movePointerToElement(element: HTMLElement, x: number, y: n
 }
 
 export async function clickPointer() {
-	window.dispatchEvent(new CustomEvent('PageAgent::ClickPointer'))
+	window.dispatchEvent(new CustomEvent('SupaAgent::ClickPointer'))
 }
 
 export async function enablePassThrough() {
-	window.dispatchEvent(new CustomEvent('PageAgent::EnablePassThrough'))
+	window.dispatchEvent(new CustomEvent('SupaAgent::EnablePassThrough'))
 }
 
 export async function disablePassThrough() {
-	window.dispatchEvent(new CustomEvent('PageAgent::DisablePassThrough'))
+	window.dispatchEvent(new CustomEvent('SupaAgent::DisablePassThrough'))
 }

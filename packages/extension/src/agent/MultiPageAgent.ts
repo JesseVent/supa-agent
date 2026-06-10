@@ -1,14 +1,9 @@
-import { type AgentConfig, PageAgentCore } from '@supa-agent/core'
+import { type AgentConfig, SupaAgentCore } from '@supa-agent/core'
 
 import { RemotePageController } from './RemotePageController'
-import { TabsController } from './TabsController'
 import SYSTEM_PROMPT from './system_prompt.md?raw'
+import { TabsController } from './TabsController'
 import { createTabTools } from './tabTools'
-
-/** Detect user language from browser settings */
-function detectLanguage(): 'en-US' {
-	return 'en-US'
-}
 
 interface MultiPageAgentConfig extends AgentConfig {
 	includeInitialTab?: boolean
@@ -20,20 +15,16 @@ interface MultiPageAgentConfig extends AgentConfig {
  * - use with extension
  * - can be used from a side panel or a content script
  */
-export class MultiPageAgent extends PageAgentCore {
+export class MultiPageAgent extends SupaAgentCore {
 	constructor(config: MultiPageAgentConfig) {
 		// multi page controller
 		const tabsController = new TabsController()
 		const pageController = new RemotePageController(tabsController)
 		const tabTools = createTabTools(tabsController)
 
-		// system prompt - auto-detect language if not specified
-		const language = config.language ?? detectLanguage()
+		// system prompt — substitute the working-language placeholder
 		const targetLanguage = 'English'
-		const systemPrompt = SYSTEM_PROMPT.replace(
-			/Default working language: \*\*.*?\*\*/,
-			`Default working language: **${targetLanguage}**`
-		)
+		const systemPrompt = SYSTEM_PROMPT.replaceAll('{{LANGUAGE}}', targetLanguage)
 
 		const includeInitialTab = config.includeInitialTab ?? true
 		const experimentalIncludeAllTabs = config.experimentalIncludeAllTabs ?? false
@@ -54,7 +45,10 @@ export class MultiPageAgent extends PageAgentCore {
 			customSystemPrompt: systemPrompt,
 
 			onBeforeTask: async (agent) => {
-				await tabsController.init(agent.task, { includeInitialTab, experimentalIncludeAllTabs })
+				await tabsController.init(agent.task, {
+					includeInitialTab,
+					experimentalIncludeAllTabs,
+				})
 
 				heartBeatInterval = window.setInterval(() => {
 					chrome.storage.local.set({
@@ -78,7 +72,7 @@ export class MultiPageAgent extends PageAgentCore {
 				})
 			},
 
-			onBeforeStep: async (agent) => {
+			onBeforeStep: async (_agent) => {
 				if (!tabsController.currentTabId) return
 				// make sure the current tab is loaded before the step starts
 				await tabsController.waitUntilTabLoaded(tabsController.currentTabId!)

@@ -9,7 +9,7 @@ const debug = console.debug.bind(console, `\x1b[90m${PREFIX}\x1b[0m`)
 
 export function handleTabControlMessage(
 	message: { type: 'TAB_CONTROL'; action: TabAction; payload: any },
-	sender: chrome.runtime.MessageSender,
+	_sender: chrome.runtime.MessageSender,
 	sendResponse: (response: unknown) => void
 ): true | undefined {
 	const { action, payload } = message
@@ -45,8 +45,22 @@ export function handleTabControlMessage(
 
 		case 'open_new_tab': {
 			debug('open_new_tab', payload)
+			const url: string = payload.url ?? ''
+			let scheme: string
+			try {
+				scheme = new URL(url).protocol
+			} catch {
+				sendResponse({ error: `open_new_tab: invalid URL: ${url}` })
+				return true
+			}
+			if (scheme !== 'http:' && scheme !== 'https:') {
+				sendResponse({
+					error: `open_new_tab: blocked scheme "${scheme}" — only http/https allowed`,
+				})
+				return true
+			}
 			chrome.tabs
-				.create({ url: payload.url, active: false })
+				.create({ url, active: false })
 				.then((newTab) => {
 					debug('open_new_tab: success', newTab)
 					sendResponse({ success: true, tabId: newTab.id })

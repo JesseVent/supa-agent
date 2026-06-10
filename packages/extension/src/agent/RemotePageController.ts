@@ -1,5 +1,5 @@
 import type { BrowserState } from '@supa-agent/page-controller'
-
+import { isDomainAllowed } from './security'
 import type { TabsController } from './TabsController'
 
 const PREFIX = '[RemotePageController]'
@@ -62,7 +62,7 @@ export class RemotePageController {
 		const currentUrl = await this.getCurrentUrl()
 		const currentTitle = await this.getCurrentTitle()
 
-		if (!this.currentTabId || !isContentScriptAllowed(currentUrl)) {
+		if (!this.currentTabId || !(await isPageActionAllowed(currentUrl))) {
 			browserState = {
 				url: currentUrl,
 				title: currentTitle,
@@ -79,7 +79,7 @@ export class RemotePageController {
 		}
 
 		const sum = await this.tabsController.summarizeTabs()
-		browserState.header = sum + '\n\n' + (browserState.header || '')
+		browserState.header = `${sum}\n\n${browserState.header || ''}`
 
 		debug('getBrowserState: success', this.currentTabId, browserState)
 
@@ -87,7 +87,7 @@ export class RemotePageController {
 	}
 
 	async updateTree(): Promise<void> {
-		if (!this.currentTabId || !isContentScriptAllowed(await this.getCurrentUrl())) {
+		if (!this.currentTabId || !(await isPageActionAllowed(await this.getCurrentUrl()))) {
 			return
 		}
 
@@ -99,7 +99,7 @@ export class RemotePageController {
 	}
 
 	async cleanUpHighlights(): Promise<void> {
-		if (!this.currentTabId || !isContentScriptAllowed(await this.getCurrentUrl())) {
+		if (!this.currentTabId || !(await isPageActionAllowed(await this.getCurrentUrl()))) {
 			return
 		}
 
@@ -149,7 +149,7 @@ export class RemotePageController {
 			return { success: false, message: 'RemotePageController not initialized.' }
 		}
 
-		if (!isContentScriptAllowed(await this.getCurrentUrl())) {
+		if (!(await isPageActionAllowed(await this.getCurrentUrl()))) {
 			return {
 				success: false,
 				message:
@@ -169,6 +169,17 @@ export class RemotePageController {
 interface DomActionReturn {
 	success: boolean
 	message: string
+}
+
+/**
+ * Check if a URL can run content scripts and is in the domain whitelist.
+ */
+async function isPageActionAllowed(url: string | undefined): Promise<boolean> {
+	if (!isContentScriptAllowed(url)) return false
+	const { advancedConfig } = await chrome.storage.local.get('advancedConfig')
+	const cfg = advancedConfig as Record<string, unknown> | undefined
+	const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
+	return isDomainAllowed(url ?? '', allowedDomains)
 }
 
 /**

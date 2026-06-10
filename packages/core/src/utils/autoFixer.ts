@@ -2,8 +2,9 @@ import { InvokeError, InvokeErrorTypes } from '@supa-agent/llms'
 import chalk from 'chalk'
 import * as z from 'zod/v4'
 
-import type { PageAgentTool } from '../tools'
+import type { SupaAgentTool } from '../tools'
 
+// biome-ignore lint/suspicious/noConsole: global debug log utility for dev feedback
 const log = console.log.bind(console, chalk.yellow('[autoFixer]'))
 
 /**
@@ -18,7 +19,7 @@ const log = console.log.bind(console, chalk.yellow('[autoFixer]'))
  * - Primitive action input for single-field tools (e.g. `{"click_element_by_index": 2}`)
  * - etc.
  */
-export function normalizeResponse(response: any, tools?: Map<string, PageAgentTool>): any {
+export function normalizeResponse(response: any, tools?: Map<string, SupaAgentTool>): any {
 	let resolvedArguments: any
 
 	const choice = (response as { choices?: Choice[] }).choices?.[0]
@@ -90,10 +91,15 @@ export function normalizeResponse(response: any, tools?: Map<string, PageAgentTo
 		resolvedArguments.action = validateAction(resolvedArguments.action, tools)
 	}
 
-	// fix incomplete formats
+	// Unrecoverable: no action could be extracted. Do NOT fabricate an action
+	// (e.g. a fake `wait`) — that masks real failures and makes the agent reason
+	// about a step it never decided to take. Surface it so the LLM call retries
+	// with the error appended as feedback.
 	if (!resolvedArguments.action) {
-		log(`#5: fixing tool_call`)
-		resolvedArguments.action = { wait: { seconds: 1 } }
+		throw new InvokeError(
+			InvokeErrorTypes.NO_TOOL_CALL,
+			'Model output did not contain a valid `action`. Expected AgentOutput with an `action` field.'
+		)
 	}
 
 	// pack back to standard format
@@ -127,7 +133,7 @@ export function normalizeResponse(response: any, tools?: Map<string, PageAgentTo
  * Also coerces primitive inputs for single-field tools:
  * e.g. `{"click_element_by_index": 2}` → `{"click_element_by_index": {"index": 2}}`
  */
-function validateAction(action: any, tools: Map<string, PageAgentTool>): any {
+function validateAction(action: any, tools: Map<string, SupaAgentTool>): any {
 	if (typeof action !== 'object' || action === null) return action
 
 	const toolName = Object.keys(action)[0]

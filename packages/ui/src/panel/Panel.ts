@@ -1,9 +1,8 @@
 import { I18n, type SupportedLanguage } from '../i18n'
 import { truncate } from '../utils'
 import { createCard, createReflectionLines } from './cards'
-import type { AgentActivity, PanelAgentAdapter } from './types'
-
 import styles from './Panel.module.css'
+import type { AgentActivity, PanelAgentAdapter } from './types'
 
 /**
  * Panel configuration
@@ -68,7 +67,7 @@ export class Panel {
 		this.#i18n = new I18n(config.language ?? 'en-US')
 
 		// Set up askUser callback on agent
-		this.#agent.onAskUser = (question) => this.#askUser(question)
+		this.#agent.onAskUser = (question, options) => this.#askUser(question, options?.signal)
 
 		// Create UI elements
 		this.#wrapper = this.#createWrapper()
@@ -171,11 +170,27 @@ export class Panel {
 	/**
 	 * Ask for user input (internal, called by agent via onAskUser)
 	 */
-	#askUser(question: string): Promise<string> {
-		return new Promise((resolve) => {
+	#askUser(question: string, signal?: AbortSignal): Promise<string> {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(new Error('AbortError'))
+				return
+			}
+
 			// Set `waiting for user answer` state
 			this.#isWaitingForUserAnswer = true
 			this.#userAnswerResolver = resolve
+
+			// Reject and clean up if the task is stopped while waiting for user input
+			signal?.addEventListener(
+				'abort',
+				() => {
+					this.#isWaitingForUserAnswer = false
+					this.#userAnswerResolver = null
+					reject(new Error('AbortError'))
+				},
+				{ once: true }
+			)
 
 			// Expand history panel
 			if (!this.#isExpanded) {
@@ -371,10 +386,9 @@ export class Panel {
 	#createWrapper(): HTMLElement {
 		const taskInputMaxLength = 1000
 		const wrapper = document.createElement('div')
-		wrapper.id = 'page-agent-runtime_agent-panel'
+		wrapper.id = 'supa-agent-runtime_agent-panel'
 		wrapper.className = styles.wrapper
-		wrapper.setAttribute('data-browser-use-ignore', 'true')
-		wrapper.setAttribute('data-page-agent-ignore', 'true')
+		wrapper.setAttribute('data-supa-agent-ignore', 'true')
 
 		wrapper.innerHTML = `
 			<div class="${styles.background}"></div>
@@ -615,7 +629,12 @@ export class Panel {
 			}
 		} else if (event.type === 'observation') {
 			cards.push(
-				createCard({ icon: 'view', content: event.content || '', meta, type: 'observation' })
+				createCard({
+					icon: 'view',
+					content: event.content || '',
+					meta,
+					type: 'observation',
+				})
 			)
 		} else if (event.type === 'user_takeover') {
 			cards.push(createCard({ icon: '👤', content: 'User takeover', meta, type: 'input' }))
@@ -624,7 +643,12 @@ export class Panel {
 			cards.push(createCard({ icon: '🔄', content: retryInfo, meta, type: 'observation' }))
 		} else if (event.type === 'error') {
 			cards.push(
-				createCard({ icon: 'Failed', content: event.message || 'Error', meta, type: 'observation' })
+				createCard({
+					icon: 'Failed',
+					content: event.message || 'Error',
+					meta,
+					type: 'observation',
+				})
 			)
 		}
 
@@ -655,7 +679,9 @@ export class Panel {
 					type: 'question',
 				})
 			)
-			cards.push(createCard({ icon: '💬', content: `Answer: ${answer}`, meta, type: 'input' }))
+			cards.push(
+				createCard({ icon: '💬', content: `Answer: ${answer}`, meta, type: 'input' })
+			)
 		} else {
 			const toolText = this.#getToolExecutingText(action.name, action.input)
 			cards.push(createCard({ icon: '🔨', content: toolText, meta }))

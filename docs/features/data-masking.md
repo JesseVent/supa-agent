@@ -5,7 +5,7 @@ Use the `transformPageContent` hook to process page content before sending to LL
 ## API Definition
 
 ```typescript
-interface PageAgentConfig {
+interface SupaAgentConfig {
   /**
    * Transform page content before sending to LLM.
    * Called after DOM extraction and simplification.
@@ -19,7 +19,7 @@ interface PageAgentConfig {
 The following example shows how to mask common sensitive data:
 
 ```javascript
-const agent = new PageAgent({
+const agent = new SupaAgent({
   transformPageContent: async (content) => {
     // China phone number (11 digits starting with 1)
     content = content.replace(/\b(1[3-9]\d)(\d{4})(\d{4})\b/g, '$1****$3')

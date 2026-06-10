@@ -1,7 +1,7 @@
-import tailwindcss from '@tailwindcss/vite'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'wxt'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -12,7 +12,7 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 // Workspace aliases for monorepo packages (point to source entry files)
 const workspaceAliases = {
-	'@supa-agent/core': join(__dirname, '../core/src/PageAgentCore.ts'),
+	'@supa-agent/core': join(__dirname, '../core/src/SupaAgentCore.ts'),
 	'@supa-agent/llms': join(__dirname, '../llms/src/index.ts'),
 	'@supa-agent/page-controller': join(__dirname, '../page-controller/src/PageController.ts'),
 	'@supa-agent/ui': join(__dirname, '../ui/src/index.ts'),
@@ -44,8 +44,9 @@ export default defineConfig({
 			chunkSizeWarningLimit: 2000,
 			cssCodeSplit: true,
 			rollupOptions: {
-				onwarn: function (message, handler) {
-					if (message.code === 'EVAL') return
+				onwarn: (message, handler) => {
+					// Do NOT suppress EVAL warnings: PageController.executeJavascript
+					// intentionally uses eval(), and we want it to stay visible.
 					handler(message)
 				},
 			},
@@ -62,7 +63,7 @@ export default defineConfig({
 		description: '__MSG_extDescription__',
 		homepage_url: 'https://github.com/JesseVent/supa-agent',
 		permissions: ['tabs', 'tabGroups', 'sidePanel', 'storage', 'identity'],
-		host_permissions: ['<all_urls>'],
+		optional_host_permissions: ['<all_urls>'],
 		icons: {
 			64: 'assets/supa-agent-64.png',
 		},

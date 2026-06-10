@@ -1,0 +1,720 @@
+/**
+ * Copyright (C) 2025 Alibaba Group Holding Limited
+ * Copyright (C) 2026 SimonLuvRamen
+ * All rights reserved.
+ */
+import { InvokeError, LLM, type Tool } from '@supa-agent/llms'
+import type { BrowserState, PageController } from '@supa-agent/page-controller'
+import chalk from 'chalk'
+import * as z from 'zod/v4'
+
+import SYSTEM_PROMPT from './prompts/system_prompt.md?raw'
+import { tools } from './tools'
+import type {
+	AgentActivity,
+	AgentConfig,
+	AgentReflection,
+	AgentStatus,
+	AgentStepEvent,
+	ExecutionResult,
+	HistoricalEvent,
+	MacroToolInput,
+	MacroToolResult,
+	SkillRouterResult,
+} from './types'
+import { assert, fetchLlmsTxt, normalizeResponse, sanitizeUntrusted, uid, waitFor } from './utils'
+
+export { type SupaAgentTool, tool } from './tools'
+export type * from './types'
+export { sanitizeUntrusted } from './utils'
+
+export type SupaAgentCoreConfig = AgentConfig & { pageController: PageController }
+
+/**
+ * AI agent for browser automation.
+ *
+ * @remarks
+ * ## Re-act Agent Loop
+ * - step
+ *    - observe (gather information about current environment and context)
+ *    - think (LLM calling)
+ *      - reflection (evaluate history, generate memory, short-term planning)
+ *      - action (give the action to approach the next goal)
+ *    - act (execute the action)
+ * - loop
+ *
+ * ## Event System
+ * - `statuschange` - Agent status transitions (idle → running → completed/error)
+ * - `historychange` - History events updated (persistent, part of agent memory)
+ * - `activity` - Real-time activity feedback (transient, for UI only)
+ * - `dispose` - Agent cleanup triggered
+ *
+ * ## Information Streams
+ * 1. **History Events** (`history` array)
+ *    - Persistent event stream that forms agent's memory
+ *    - Included in LLM context across steps
+ *    - Types: steps, observations, user takeovers, llm errors
+ *
+ * 2. **Activity Events** (via `activity` event)
+ *    - Transient UI feedback during task execution
+ *    - NOT included in LLM context
+ *    - Types: thinking, executing, executed, retrying, error
+ */
+export class SupaAgentCore extends EventTarget {
+	readonly id = uid()
+	readonly config: SupaAgentCoreConfig & { maxSteps: number }
+	readonly tools: typeof tools
+	/** PageController for DOM operations */
+	readonly pageController: PageController
+
+	task = ''
+	taskId = ''
+	/** History events */
+	history: HistoricalEvent[] = []
+	/** Whether this agent has been disposed */
+	disposed = false
+
+	/**
+	 * Callback for when agent needs user input (ask_user tool)
+	 * If not set, ask_user tool will be disabled
+	 * @example onAskUser: (q) => window.prompt(q) || ''
+	 */
+	onAskUser?: (question: string, options?: { signal?: AbortSignal }) => Promise<string>
+
+	#status: AgentStatus = 'idle'
+	#llm: LLM
+	#abortController = new AbortController()
+	#observations: string[] = []
+
+	/** internal states during a single task execution */
+	#states = {
+		/** Accumulated wait time in seconds */
+		totalWaitTime: 0,
+		/** For detecting navigation */
+		lastURL: '',
+		/** Browser state */
+		browserState: null as BrowserState | null,
+		/** Skill router result cached at task start */
+		skillContext: null as SkillRouterResult | null,
+	}
+
+	constructor(config: SupaAgentCoreConfig) {
+		super()
+
+		this.config = { ...config, maxSteps: config.maxSteps ?? 40 }
+
+		this.#llm = new LLM(this.config)
+		this.tools = new Map(tools)
+		this.pageController = config.pageController
+
+		// Listen to LLM retry events
+		this.#llm.addEventListener('retry', (e) => {
+			const { attempt, maxAttempts } = (e as CustomEvent).detail
+			this.#emitActivity({ type: 'retrying', attempt, maxAttempts })
+			// Also push to history for panel rendering
+			this.history.push({
+				type: 'retry',
+				message: `LLM retry attempt ${attempt} of ${maxAttempts}`,
+				attempt,
+				maxAttempts,
+			})
+			this.#emitHistoryChange()
+		})
+		this.#llm.addEventListener('error', (e) => {
+			const error = (e as CustomEvent).detail.error as Error | InvokeError
+			if ((error as any)?.rawError?.name === 'AbortError') return
+			const message = String(error)
+			this.#emitActivity({ type: 'error', message })
+			// Also push to history for panel rendering
+			this.history.push({
+				type: 'error',
+				message,
+				rawResponse: (error as InvokeError).rawResponse,
+			})
+			this.#emitHistoryChange()
+		})
+
+		if (this.config.customTools) {
+			for (const [name, tool] of Object.entries(this.config.customTools)) {
+				if (tool === null) {
+					this.tools.delete(name)
+					continue
+				}
+				this.tools.set(name, tool)
+			}
+		}
+
+		if (!this.config.experimentalScriptExecutionTool) {
+			this.tools.delete('execute_javascript')
+		}
+	}
+
+	/** Get current agent status */
+	get status(): AgentStatus {
+		return this.#status
+	}
+
+	/** AbortSignal for the current task — tools use this to support cooperative cancellation */
+	get signal(): AbortSignal {
+		return this.#abortController.signal
+	}
+
+	/** Emit statuschange event */
+	#emitStatusChange(): void {
+		this.dispatchEvent(new Event('statuschange'))
+	}
+
+	/** Emit historychange event */
+	#emitHistoryChange(): void {
+		this.dispatchEvent(new Event('historychange'))
+	}
+
+	/**
+	 * Emit activity event - for transient UI feedback
+	 * @param activity - Current agent activity
+	 */
+	#emitActivity(activity: AgentActivity): void {
+		this.dispatchEvent(new CustomEvent('activity', { detail: activity }))
+	}
+
+	/** Update status and emit event */
+	#setStatus(status: AgentStatus): void {
+		if (this.#status !== status) {
+			this.#status = status
+			this.#emitStatusChange()
+		}
+	}
+
+	/**
+	 * Push an observation message to the history event stream.
+	 * This will be visible in <agent_history> and remain persistent in memory across steps.
+	 * @experimental @internal
+	 * @note history change will be emitted before next step starts
+	 */
+	pushObservation(content: string): void {
+		this.#observations.push(content)
+	}
+
+	/** Stop the current task. Agent remains reusable. */
+	stop() {
+		this.pageController.cleanUpHighlights()
+		this.pageController.hideMask()
+		this.#abortController.abort()
+	}
+
+	async execute(task: string): Promise<ExecutionResult> {
+		if (this.disposed) throw new Error('SupaAgent has been disposed. Create a new instance.')
+		if (!task) throw new Error('Task is required')
+		this.task = task
+		this.taskId = uid()
+
+		// Disable ask_user tool if onAskUser is not set
+		if (!this.onAskUser) {
+			this.tools.delete('ask_user')
+		}
+
+		const onBeforeStep = this.config.onBeforeStep
+		const onAfterStep = this.config.onAfterStep
+		const onBeforeTask = this.config.onBeforeTask
+		const onAfterTask = this.config.onAfterTask
+
+		await onBeforeTask?.(this)
+
+		// Show mask
+		await this.pageController.showMask()
+
+		if (this.#abortController) {
+			this.#abortController.abort()
+			this.#abortController = new AbortController()
+		}
+
+		this.history = []
+		this.#setStatus('running')
+		this.#emitHistoryChange()
+		this.#observations = []
+
+		// Reset internal states
+		this.#states = { totalWaitTime: 0, lastURL: '', browserState: null, skillContext: null }
+
+		// Fetch skill context once per task — injected into every subsequent LLM call
+		if (this.config.skillRouter) {
+			this.#states.skillContext = await this.config.skillRouter.route(task).catch((err) => {
+				console.warn(chalk.yellow('[SupaAgent] Skill router unavailable:'), err.message)
+				return null
+			})
+		}
+
+		let step = 0
+
+		while (true) {
+			try {
+				await onBeforeStep?.(this, step)
+
+				this.#states.browserState = await this.pageController.getBrowserState()
+				await this.#handleObservations(step)
+
+				// assemble prompts
+
+				const messages = [
+					{ role: 'system' as const, content: this.#getSystemPrompt() },
+					{ role: 'user' as const, content: await this.#assembleUserPrompt() },
+				]
+
+				const agentOutputTool = this.#packMacroTool()
+				const macroTool = { AgentOutput: agentOutputTool }
+
+				this.#emitActivity({ type: 'thinking' })
+
+				// The LLM call is retryable and does NOT execute the tool.
+				const result = await this.#llm.invoke(
+					messages,
+					macroTool,
+					this.#abortController.signal,
+					{
+						toolChoiceName: 'AgentOutput',
+						normalizeResponse: (res) => normalizeResponse(res, this.tools),
+					}
+				)
+
+				// Execute the chosen action EXACTLY ONCE, outside the retry loop.
+				// On failure (non-abort) we record the error as the action output so the
+				// model observes it next step and re-plans, instead of aborting the task.
+				const macroInput = result.toolCall.args as MacroToolInput
+				let macroResult: MacroToolResult
+				try {
+					macroResult = await agentOutputTool.execute(macroInput)
+				} catch (toolError: unknown) {
+					if (this.#isAbortError(toolError)) throw toolError
+					const message = this.#sanitizeError(toolError)
+					this.#emitActivity({ type: 'error', message })
+					macroResult = { input: macroInput, output: `Action failed: ${message}` }
+				}
+
+				// assemble history
+
+				const input = macroResult.input
+				const output = macroResult.output
+				const reflection: Partial<AgentReflection> = {
+					evaluation_previous_goal: input.evaluation_previous_goal,
+					memory: input.memory,
+					next_goal: input.next_goal,
+				}
+				const actionName = Object.keys(input.action)[0]
+				const action: AgentStepEvent['action'] = {
+					name: actionName,
+					input: input.action[actionName],
+					output: output,
+				}
+
+				this.history.push({
+					type: 'step',
+					stepIndex: step,
+					reflection,
+					action,
+					usage: result.usage,
+					rawResponse: result.rawResponse,
+					rawRequest: result.rawRequest,
+				} as AgentStepEvent)
+				this.#emitHistoryChange()
+
+				//
+
+				await onAfterStep?.(this, this.history)
+
+				// finish task if done
+
+				if (actionName === 'done') {
+					const success = action.input?.success ?? false
+					const text = action.input?.text || 'no text provided'
+
+					this.#onDone(success)
+					const result: ExecutionResult = {
+						success,
+						data: text,
+						history: this.history,
+					}
+					this.#sendSkillFeedback(success)
+					await onAfterTask?.(this, result)
+					return result
+				}
+			} catch (error: unknown) {
+				const isAbortError = (error as any)?.rawError?.name === 'AbortError'
+
+				console.error('Task failed', error)
+				const errorMessage = isAbortError ? 'Task stopped' : String(error)
+				this.#emitActivity({ type: 'error', message: errorMessage })
+				this.history.push({ type: 'error', message: errorMessage, rawResponse: error })
+				this.#emitHistoryChange()
+				this.#onDone(false)
+				const result: ExecutionResult = {
+					success: false,
+					data: errorMessage,
+					history: this.history,
+				}
+				this.#sendSkillFeedback(false)
+				await onAfterTask?.(this, result)
+				return result
+			}
+
+			step++
+			if (step > this.config.maxSteps) {
+				const errorMessage = 'Step count exceeded maximum limit'
+				this.history.push({ type: 'error', message: errorMessage })
+				this.#emitHistoryChange()
+				this.#onDone(false)
+				const result: ExecutionResult = {
+					success: false,
+					data: errorMessage,
+					history: this.history,
+				}
+				this.#sendSkillFeedback(false)
+				await onAfterTask?.(this, result)
+				return result
+			}
+
+			await waitFor(this.config.stepDelay ?? 0.4)
+		}
+	}
+
+	/**
+	 * Merge all tools into a single MacroTool with the following input:
+	 * - thinking: string
+	 * - evaluation_previous_goal: string
+	 * - memory: string
+	 * - next_goal: string
+	 * - action: { toolName: toolInput }
+	 * where action must be selected from tools defined in this.tools
+	 */
+	#packMacroTool(): Tool<MacroToolInput, MacroToolResult> {
+		const tools = this.tools
+
+		const actionSchemas = Array.from(tools.entries()).map(([toolName, tool]) => {
+			return z.object({ [toolName]: tool.inputSchema }).describe(tool.description)
+		})
+
+		const actionSchema = z.union(
+			actionSchemas as unknown as [z.ZodType, z.ZodType, ...z.ZodType[]]
+		)
+
+		const macroToolSchema = z.object({
+			// thinking: z.string().optional(),
+			evaluation_previous_goal: z.string().optional(),
+			memory: z.string().optional(),
+			next_goal: z.string().optional(),
+			action: actionSchema,
+		})
+
+		return {
+			description: 'You MUST call this tool every step!',
+			inputSchema: macroToolSchema as z.ZodType<MacroToolInput>,
+			execute: async (input: MacroToolInput): Promise<MacroToolResult> => {
+				// abort
+				if (this.#abortController.signal.aborted) throw new Error('AbortError')
+
+				const action = input.action
+
+				const toolName = Object.keys(action)[0]
+				const toolInput = action[toolName]
+
+				// Find the corresponding tool
+				const tool = tools.get(toolName)
+				assert(tool, `Tool ${toolName} not found`)
+
+				// Emit executing activity
+				this.#emitActivity({ type: 'executing', tool: toolName, input: toolInput })
+
+				const startTime = Date.now()
+
+				// Execute tool, bind `this` to SupaAgent
+				const result = await tool.execute.bind(this)(toolInput)
+
+				const duration = Date.now() - startTime
+
+				// Emit executed activity
+				this.#emitActivity({
+					type: 'executed',
+					tool: toolName,
+					input: toolInput,
+					output: result,
+					duration,
+				})
+
+				// counting wait time
+				if (toolName === 'wait') {
+					this.#states.totalWaitTime += toolInput?.seconds || 0
+				} else {
+					this.#states.totalWaitTime = 0
+				}
+
+				// Return structured result
+				return {
+					input,
+					output: result,
+				}
+			},
+		}
+	}
+
+	/**
+	 * Get system prompt, dynamically replace language settings based on configured language
+	 */
+	#getSystemPrompt(): string {
+		if (this.config.customSystemPrompt) {
+			return this.config.customSystemPrompt
+		}
+
+		const targetLanguage = 'English'
+		return SYSTEM_PROMPT.replaceAll('{{LANGUAGE}}', targetLanguage)
+	}
+
+	/**
+	 * Get instructions from config
+	 */
+	async #getInstructions(): Promise<string> {
+		const { instructions, experimentalLlmsTxt } = this.config
+
+		const systemInstructions = instructions?.system?.trim()
+		let pageInstructions: string | undefined
+
+		const url = this.#states.browserState?.url || ''
+		if (instructions?.getPageInstructions && url) {
+			try {
+				pageInstructions = instructions.getPageInstructions(url)?.trim()
+			} catch (error) {
+				console.error(
+					chalk.red('[SupaAgent] Failed to execute getPageInstructions callback:'),
+					error
+				)
+			}
+		}
+
+		const llmsTxt = experimentalLlmsTxt && url ? await fetchLlmsTxt(url) : undefined
+
+		if (!systemInstructions && !pageInstructions && !llmsTxt) return ''
+
+		let result = '<instructions>\n'
+
+		if (systemInstructions) {
+			result += `<system_instructions>\n${systemInstructions}\n</system_instructions>\n`
+		}
+
+		if (pageInstructions) {
+			result += `<page_instructions>\n${pageInstructions}\n</page_instructions>\n`
+		}
+
+		if (llmsTxt) {
+			// /llms.txt is fetched from an arbitrary site origin — untrusted.
+			result += `<llms_txt>\n${sanitizeUntrusted(llmsTxt)}\n</llms_txt>\n`
+		}
+
+		result += '</instructions>\n\n'
+
+		return result
+	}
+
+	/**
+	 * Generate system observations before each step
+	 * @todo loop detection
+	 * @todo console error
+	 */
+	async #handleObservations(step: number): Promise<void> {
+		// Accumulated wait time warning
+		if (this.#states.totalWaitTime >= 3) {
+			this.pushObservation(
+				`You have waited ${this.#states.totalWaitTime} seconds accumulatively. ` +
+					`DO NOT wait any longer unless you have a good reason.`
+			)
+		}
+
+		// Detect URL change
+		const currentURL = this.#states.browserState?.url || ''
+		if (currentURL !== this.#states.lastURL) {
+			this.pushObservation(`Page navigated to → ${currentURL}`)
+
+			// Re-invoke skill router when the origin changes (different site = different context)
+			if (this.config.skillRouter && this.#states.lastURL) {
+				try {
+					const prevOrigin = new URL(this.#states.lastURL).origin
+					const nextOrigin = new URL(currentURL).origin
+					if (prevOrigin !== nextOrigin) {
+						const refreshed = await this.config.skillRouter
+							.route(this.task)
+							.catch(() => null)
+						if (refreshed) {
+							this.#states.skillContext = refreshed
+							this.pushObservation('Skill context refreshed for new page context.')
+						}
+					}
+				} catch {
+					// invalid URL — skip re-route
+				}
+			}
+
+			this.#states.lastURL = currentURL
+			await waitFor(0.5) // wait for page to stabilize
+		}
+
+		// Remaining steps warning
+		const remaining = this.config.maxSteps - step
+		if (remaining === 5) {
+			this.pushObservation(
+				`Warning: Only ${remaining} steps remaining. ` +
+					`Consider wrapping up or calling done with partial results.`
+			)
+		} else if (remaining === 2) {
+			this.pushObservation(
+				`Warning: Critical: Only ${remaining} steps left! You must finish the task or call done immediately.`
+			)
+		}
+
+		// Push observations to history and emit
+		if (this.#observations.length > 0) {
+			for (const content of this.#observations) {
+				this.history.push({ type: 'observation', content })
+			}
+			this.#observations = []
+			this.#emitHistoryChange()
+		}
+	}
+
+	async #assembleUserPrompt(): Promise<string> {
+		const browserState = this.#states.browserState!
+
+		let prompt = ''
+
+		// <instructions> (optional)
+
+		prompt += await this.#getInstructions()
+
+		// <skill_context> (optional — injected when skillRouter is configured)
+
+		prompt += this.#getSkillContext()
+
+		// <agent_state>
+		//  - <user_request>
+		//  - <step_info>
+		// <agent_state>
+
+		const stepCount = this.history.filter((e) => e.type === 'step').length
+
+		prompt += '<agent_state>\n'
+		prompt += '<user_request>\n'
+		prompt += `${this.task}\n`
+		prompt += '</user_request>\n'
+		prompt += '<step_info>\n'
+		prompt += `Step ${stepCount + 1} of ${this.config.maxSteps} max possible steps\n`
+		prompt += `Current time: ${new Date().toLocaleString()}\n`
+		prompt += '</step_info>\n'
+		prompt += '</agent_state>\n\n'
+
+		// <agent_history>
+		//  - <step_N> for steps
+		//  - <sys> for observations and system messages
+
+		prompt += '<agent_history>\n'
+
+		let stepIndex = 0
+		for (const event of this.history) {
+			if (event.type === 'step') {
+				stepIndex++
+				prompt += `<step_${stepIndex}>\n`
+				prompt += `Evaluation of Previous Step: ${event.reflection.evaluation_previous_goal}\n`
+				prompt += `Memory: ${event.reflection.memory}\n`
+				prompt += `Next Goal: ${event.reflection.next_goal}\n`
+				// Tool output can embed untrusted page/DB text — defuse framing delimiters.
+				prompt += `Action Results: ${sanitizeUntrusted(event.action.output)}\n`
+				prompt += `</step_${stepIndex}>\n`
+			} else if (event.type === 'observation') {
+				prompt += `<sys>${sanitizeUntrusted(event.content)}</sys>\n`
+			} else if (event.type === 'user_takeover') {
+				prompt += `<sys>User took over control and made changes to the page</sys>\n`
+			} else if (event.type === 'error') {
+				// Error events are mainly for panel rendering, not included in LLM context
+				// to avoid polluting the agent's reasoning with transient errors
+			}
+		}
+
+		prompt += '</agent_history>\n\n'
+
+		// <browser_state>
+
+		let pageContent = browserState.content
+		if (this.config.transformPageContent) {
+			pageContent = await this.config.transformPageContent(pageContent)
+		}
+		// Page DOM is fully untrusted — defuse any forged framing tags before injecting.
+		pageContent = sanitizeUntrusted(pageContent)
+
+		prompt += '<browser_state>\n'
+		prompt += `${sanitizeUntrusted(browserState.header)}\n`
+		prompt += `${pageContent}\n`
+		prompt += `${browserState.footer}\n\n`
+		prompt += '</browser_state>\n\n'
+
+		return prompt
+	}
+
+	#sendSkillFeedback(success: boolean): void {
+		const ctx = this.#states.skillContext
+		if (!ctx || !this.config.skillRouter) return
+		this.config.skillRouter
+			.feedback(ctx.request_id, success ? 'success' : 'failure')
+			.catch((err) =>
+				console.warn(chalk.yellow('[SupaAgent] Skill feedback failed:'), err.message)
+			)
+	}
+
+	#getSkillContext(): string {
+		const chunks = this.#states.skillContext?.chunks
+		if (!chunks?.length) return ''
+
+		let out = '<skill_context>\n'
+		for (const c of chunks) {
+			// Retrieved chunks are untrusted content — defuse framing delimiters.
+			out += `[${c.impact}] ${sanitizeUntrusted(c.title)}\n`
+			out += `Why relevant: ${sanitizeUntrusted(c.relevance_reason)}\n`
+			out += `${sanitizeUntrusted(c.content)}\n\n`
+		}
+		out += '</skill_context>\n\n'
+		return out
+	}
+
+	/** Detect an abort across the various shapes errors take in this codebase. */
+	#isAbortError(error: unknown): boolean {
+		const e = error as { name?: string; message?: string; rawError?: { name?: string } }
+		return (
+			this.#abortController.signal.aborted ||
+			e?.name === 'AbortError' ||
+			e?.message === 'AbortError' ||
+			e?.rawError?.name === 'AbortError'
+		)
+	}
+
+	/** Produce a concise, single-line, token-stripped error message for history/UI. */
+	#sanitizeError(error: unknown): string {
+		const raw = error instanceof Error ? error.message : String(error)
+		return raw
+			.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
+			.split('\n')[0]
+			.slice(0, 200)
+	}
+
+	#onDone(success = true) {
+		this.pageController.cleanUpHighlights()
+		this.pageController.hideMask() // No await - fire and forget
+		this.#setStatus(success ? 'completed' : 'error')
+		this.#abortController.abort()
+	}
+
+	dispose() {
+		this.disposed = true
+		this.pageController.dispose()
+		// this.history = []
+		this.#abortController.abort()
+
+		// Emit dispose event for UI cleanup
+		this.dispatchEvent(new Event('dispose'))
+
+		this.config.onDispose?.(this)
+	}
+}

@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,7 +7,7 @@
 			rel="icon"
 			href="https://img.alicdn.com/imgextra/i1/O1CN01mRGret1QrKiu7CFJI_!!6000000002029-2-tps-64-64.png"
 		/>
-		<title>Page Agent MCP Launcher</title>
+		<title>SupaAgent MCP Launcher</title>
 		<style>
 			* {
 				margin: 0;
@@ -146,20 +146,20 @@
 			<img
 				class="logo"
 				src="https://img.alicdn.com/imgextra/i3/O1CN01JPT4Fj1FJTfmHfNxO_!!6000000000466-49-tps-512-512.webp"
-				alt="Page Agent"
+				alt="SupaAgent"
 			/>
-			<div class="badge">Page Agent MCP Launcher</div>
+			<div class="badge">SupaAgent MCP Launcher</div>
 
 			<div id="connecting">
 				<div class="spinner"></div>
-				<h1 data-i18n="connecting_title">Connecting to Page Agent</h1>
-				<p class="sub" data-i18n="connecting_sub">Opening the hub in your browser…</p>
+				<h1>Connecting to SupaAgent</h1>
+				<p class="sub">Opening the hub in your browser…</p>
 			</div>
 
 			<div id="install" class="install">
-				<h1 data-i18n="install_title">Extension Required</h1>
-				<p class="sub" data-i18n="install_sub">
-					Page Agent requires the latest browser extension to work.
+				<h1>Extension Required</h1>
+				<p class="sub">
+					SupaAgent requires the latest browser extension to work.
 				</p>
 
 				<a class="store-btn" href="__STORE_URL__" target="_blank">
@@ -167,32 +167,30 @@
 						src="https://img.alicdn.com/imgextra/i3/O1CN01JpW0Vo1sR3FpiZKFM_!!6000000005762-55-tps-192-192.svg"
 						alt=""
 					/>
-					<span data-i18n="install_btn">Install from Chrome Web Store</span>
+					<span>Install from Chrome Web Store</span>
 				</a>
 
 				<ul class="tips">
-					<li data-i18n="tip_outdated">
+					<li>
 						If the extension is outdated, please update it to the latest version.
 					</li>
-					<li data-i18n="tip_other_browser">
+					<li>
 						If the extension is not installed in this browser, open this page from the browser that
 						has it installed.
 					</li>
-					<li data-i18n="tip_refresh">Refresh this page after installing or updating.</li>
+					<li>Refresh this page after installing or updating.</li>
 				</ul>
 			</div>
 
 			<div class="links">
 				<a
-					href="https://alibaba.github.io/page-agent/docs/introduction/overview"
+					href="https://github.com/JesseVent/supa-agent"
 					target="_blank"
-					data-i18n="link_docs"
 					>Docs</a
 				>
 				<a
-					href="https://github.com/alibaba/page-agent/issues"
+					href="https://github.com/JesseVent/supa-agent/issues"
 					target="_blank"
-					data-i18n="link_issues"
 					>Report an Issue</a
 				>
 			</div>
@@ -202,26 +200,6 @@
 			{
 				const EXT_ID = '__EXT_ID__'
 				const wsPort = __WS_PORT__
-
-				const zh = {
-					connecting_title: '正在连接 Page Agent',
-					connecting_sub: '正在浏览器中打开 Hub…',
-					install_title: '需要安装浏览器插件',
-					install_sub: 'Page Agent 需要安装最新版浏览器插件才能运行。',
-					install_btn: '从 Chrome 应用商店安装',
-					tip_outdated: '如果插件版本过旧，请更新到最新版本。',
-					tip_other_browser: '如果该浏览器中未安装插件，请从装有插件的浏览器打开此页面。',
-					tip_refresh: '安装或更新后，请刷新此页面。',
-					link_docs: '文档',
-					link_issues: '问题反馈',
-				}
-
-				if (/^zh\b/i.test(navigator.language)) {
-					document.querySelectorAll('[data-i18n]').forEach((el) => {
-						const key = el.getAttribute('data-i18n')
-						if (zh[key]) el.textContent = zh[key]
-					})
-				}
 
 				const showInstall = () => {
 					document.getElementById('connecting').style.display = 'none'

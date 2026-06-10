@@ -2,13 +2,17 @@ export function getPageInfo() {
 	const viewport_width = window.innerWidth
 	const viewport_height = window.innerHeight
 
-	const page_width = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth || 0)
+	const page_width = Math.max(
+		document.documentElement.scrollWidth,
+		document.body.scrollWidth || 0
+	)
 	const page_height = Math.max(
 		document.documentElement.scrollHeight,
 		document.body.scrollHeight || 0
 	)
 
-	const scroll_x = window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0
+	const scroll_x =
+		window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0
 	const scroll_y = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0
 
 	const pixels_below = Math.max(0, page_height - (window.innerHeight + scroll_y))

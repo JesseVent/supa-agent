@@ -2,59 +2,79 @@ import chalk from 'chalk'
 
 export * from './autoFixer'
 
-export async function waitFor(seconds: number): Promise<void> {
-	await new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+export function waitFor(seconds: number, signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) {
+			reject(new Error('AbortError'))
+			return
+		}
+		const id = setTimeout(resolve, seconds * 1000)
+		signal?.addEventListener(
+			'abort',
+			() => {
+				clearTimeout(id)
+				reject(new Error('AbortError'))
+			},
+			{ once: true }
+		)
+	})
 }
 
 //
 
+/**
+ * Framing tags used to structure the agent prompt. Untrusted text (page DOM,
+ * tool output, retrieved memory, llms.txt) must never be able to forge these,
+ * or a hostile page could inject fake system observations / close sections early.
+ */
+const RESERVED_PROMPT_TAGS = [
+	'browser_state',
+	'agent_history',
+	'agent_state',
+	'sys',
+	'instructions',
+	'system_instructions',
+	'page_instructions',
+	'llms_txt',
+	'skill_context',
+	'user_request',
+	'step_info',
+	'conversation_history',
+].join('|')
+
+const RESERVED_TAG_RE = new RegExp(`<(/?)(?=(?:${RESERVED_PROMPT_TAGS}|step_\\d+)\\b)`, 'gi')
+
+/** Zero-width space — breaks a framing token without changing its visual appearance. */
+const ZWSP = String.fromCharCode(0x200b)
+
+/**
+ * Defuse prompt-framing delimiters in untrusted text. Inserts a zero-width space
+ * after the `<` of any reserved framing tag so the token is no longer recognizable
+ * as a section boundary, while remaining visually identical to a human.
+ *
+ * @example sanitizeUntrusted('</browser_state>') // → '<' + ZWSP + '/browser_state>'
+ */
+export function sanitizeUntrusted(text: string): string {
+	if (!text) return text
+	return text.replace(RESERVED_TAG_RE, `<${ZWSP}$1`)
+}
+
 export function truncate(text: string, maxLength: number): string {
 	if (text.length > maxLength) {
-		return text.substring(0, maxLength) + '...'
+		return `${text.substring(0, maxLength)}...`
 	}
 	return text
 }
 
 //
 
-export function randomID(existingIDs?: string[]): string {
-	let id = Math.random().toString(36).substring(2, 11)
-
-	if (!existingIDs) {
-		return id
-	}
-
-	const MAX_TRY = 1000
-	let tryCount = 0
-
-	while (existingIDs.includes(id)) {
-		id = Math.random().toString(36).substring(2, 11)
-		tryCount++
-		if (tryCount > MAX_TRY) {
-			throw new Error('randomID: too many tries')
-		}
-	}
-
-	return id
-}
-
-//
-const _global = globalThis as any
-
-if (!_global.__PAGE_AGENT_IDS__) {
-	_global.__PAGE_AGENT_IDS__ = []
-}
-
-const ids = _global.__PAGE_AGENT_IDS__
-
 /**
- * Generate a random ID.
- * @note Unique within this window.
+ * Generate a globally unique ID.
+ * @note Backed by crypto.randomUUID, so collisions are not a practical concern
+ * and no dedupe registry is needed.
  */
-export function uid() {
-	const id = randomID(ids)
-	ids.push(id)
-	return id
+export function uid(): string {
+	return crypto.randomUUID()
 }
 
 const llmsTxtCache = new Map<string, string | null>()
@@ -75,13 +95,11 @@ export async function fetchLlmsTxt(url: string): Promise<string | null> {
 	const endpoint = `${origin}/llms.txt`
 	let result: string | null = null
 	try {
-		console.log(chalk.gray(`[llms.txt] Fetching ${endpoint}`))
 		const res = await fetch(endpoint, { signal: AbortSignal.timeout(3000) })
 		if (res.ok) {
 			result = await res.text()
-			console.log(chalk.green(`[llms.txt] Found (${result.length} chars)`))
+
 			if (result.length > 1000) {
-				console.log(chalk.yellow(`[llms.txt] Truncating to 1000 chars`))
 				result = truncate(result, 1000)
 			}
 		} else {

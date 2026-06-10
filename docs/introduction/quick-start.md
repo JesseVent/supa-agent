@@ -1,50 +1,77 @@
 # Quick Start
 
-Integrate page-agent in minutes.
+## Chrome Extension
 
-## Installation Steps
+The fastest way to use SupaAgent.
 
-### Quick Try
+1. **Get an API key** from [OpenRouter](https://openrouter.ai) (free tier available)
+2. **Build or download** the extension:
+   - From source: `bun run build:ext` (or `npm run build:ext`)
+   - From [GitHub Releases](https://github.com/JesseVent/supa-agent/releases)
+3. **Load in Chrome**: go to `chrome://extensions/` → enable Developer mode → Load unpacked → select `packages/extension/output/chrome-mv3/`
+4. **Open the side panel**: click the SupaAgent icon in the toolbar
+5. **Enter your API key** in Settings
+6. **Describe your task** and press Enter
 
-> ⚠️ This demo CDN uses OpenRouter API. By using it you agree to the [Terms of Use](https://supabase.com/docs/terms).
+### Connect Supabase (optional)
 
-```html
-<script src="DEMO_CDN_URL" crossorigin="true"></script>
-```
+You can connect your Supabase project in two ways:
+*   **OAuth (Recommended)**: Click **Connect with Supabase** to authenticate via secure OAuth 2.1 (Dynamic Client Registration + PKCE).
+*   **Manual**: Expand **Advanced** settings and provide your **Project Ref** and **Personal Access Token (`sbp_...`)**.
 
-Add `?autoInit=false` to load the script without creating the demo agent automatically. You can then instantiate it with `new window.PageAgent(...)`.
+This grants the agent access to Supabase MCP tools (database queries, logs, edge functions, etc.) for direct project management.
 
-| Mirrors | URL |
-|---|---|
-| Global | `https://cdn.jsdelivr.net/npm/page-agent@1.8.2/dist/iife/page-agent.demo.js` |
-| China | |
+---
 
-### NPM Install (Recommended)
+## NPM Package (Server-Side)
+
+For server-side browser automation (Node.js/Bun) or headless scripts, use `@supa-agent/core` and `@supa-agent/page-controller`. Sourced credentials and configuration should be loaded securely from your environment or `.env` file:
 
 ```bash
-// npm install page-agent
-
-import { PageAgent } from 'page-agent'
+npm install @supa-agent/core @supa-agent/page-controller
+# or
+bun add @supa-agent/core @supa-agent/page-controller
 ```
 
-### 2. Initialize Configuration
+```ts
+import { SupaAgentCore } from '@supa-agent/core'
+import { PageController } from '@supa-agent/page-controller'
 
-```javascript
-const agent = new PageAgent({
-  model: 'minimax/minimax-m3',
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: 'YOUR_API_KEY',
-  language: 'en-US'
+// Create controller for browser DOM operations
+const pageController = new PageController()
+
+// Initialize the agent server-side
+const agent = new SupaAgentCore({
+  baseURL: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
+  model: process.env.LLM_MODEL_NAME || 'google/gemini-2.5-flash',
+  apiKey: process.env.LLM_API_KEY, // Sourced from .env
+  pageController,
 })
+
+const result = await agent.execute('Click the submit button and wait for the confirmation message')
+console.log(result)
 ```
 
-### 3. Start Using
+---
 
-```javascript
-// Execute natural language instructions programmatically
-await agent.execute('Click submit button, then fill username as John');
+## MCP Server
 
-// Or:
-// Show panel for user to input instructions
-agent.panel.show()
+Let Claude Desktop, Cursor, or any MCP-compatible client control your browser:
+
+```json
+{
+  "mcpServers": {
+    "supa-agent": {
+      "command": "npx",
+      "args": ["-y", "@supa-agent/mcp"],
+      "env": {
+        "LLM_BASE_URL": "https://openrouter.ai/api/v1",
+        "LLM_API_KEY": "your-openrouter-key",
+        "LLM_MODEL_NAME": "google/gemini-2.5-flash"
+      }
+    }
+  }
+}
 ```
+
+The MCP server exposes `execute_task`, `set_config`, `get_config`, `get_status`, and `stop_task` tools. The first time it runs, a Hub tab opens in Chrome — approve the connection when prompted.

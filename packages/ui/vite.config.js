@@ -1,14 +1,12 @@
 // @ts-check
-import chalk from 'chalk'
-import { dirname, resolve } from 'path'
+
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import dts from 'unplugin-dts/vite'
-import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-
-console.log(chalk.cyan(`📦 Building @supa-agent/ui`))
 
 export default defineConfig({
 	clearScreen: false,
@@ -28,8 +26,8 @@ export default defineConfig({
 	build: {
 		lib: {
 			entry: resolve(__dirname, 'src/index.ts'),
-			name: 'PageAgentUI',
-			fileName: 'page-agent-ui',
+			name: 'SupaAgentUI',
+			fileName: 'supa-agent-ui',
 			formats: ['es'],
 		},
 		outDir: resolve(__dirname, 'dist', 'lib'),

@@ -18,7 +18,7 @@ export type AgentActivity =
 
 /**
  * Minimal interface that Panel expects from an agent.
- * Panel does not depend on PageAgent directly - it only requires this interface.
+ * Panel does not depend on SupaAgent directly - it only requires this interface.
  * This enables decoupling and allows any agent implementation to work with Panel.
  *
  * Events:
@@ -63,7 +63,7 @@ export interface PanelAgentAdapter extends EventTarget {
 	 * Callback for when agent needs user input.
 	 * Panel will set this to handle user questions via its UI.
 	 */
-	onAskUser?: (question: string) => Promise<string>
+	onAskUser?: (question: string, options?: { signal?: AbortSignal }) => Promise<string>
 
 	/** Execute a task */
 	execute(task: string): Promise<unknown>

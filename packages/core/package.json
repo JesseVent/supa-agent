@@ -3,23 +3,23 @@
     "private": false,
     "version": "1.8.2",
     "type": "module",
-    "main": "./src/PageAgentCore.ts",
-    "types": "./src/PageAgentCore.ts",
+    "main": "./src/SupaAgentCore.ts",
+    "types": "./src/SupaAgentCore.ts",
     "exports": {
         ".": {
-            "types": "./src/PageAgentCore.ts",
-            "default": "./src/PageAgentCore.ts"
+            "types": "./src/SupaAgentCore.ts",
+            "default": "./src/SupaAgentCore.ts"
         }
     },
     "publishConfig": {
-        "main": "./dist/esm/page-agent-core.js",
-        "module": "./dist/esm/page-agent-core.js",
-        "types": "./dist/esm/PageAgentCore.d.ts",
+        "main": "./dist/esm/supa-agent-core.js",
+        "module": "./dist/esm/supa-agent-core.js",
+        "types": "./dist/esm/SupaAgentCore.d.ts",
         "exports": {
             ".": {
-                "types": "./dist/esm/PageAgentCore.d.ts",
-                "import": "./dist/esm/page-agent-core.js",
-                "default": "./dist/esm/page-agent-core.js"
+                "types": "./dist/esm/SupaAgentCore.d.ts",
+                "import": "./dist/esm/supa-agent-core.js",
+                "default": "./dist/esm/supa-agent-core.js"
             }
         }
     },
@@ -49,7 +49,7 @@
     "scripts": {
         "build": "vite build",
         "dev:iife": "concurrently \"vite build --config vite.iife.config.js --watch\" \"npx serve dist/iife -p 5174\"",
-        "prepublishOnly": "node ../../scripts/pre-publish.js",
+        "prepublishOnly": "node ../../scripts/publish-guard.js && node ../../scripts/pre-publish.js",
         "postpublish": "node ../../scripts/post-publish.js"
     },
     "dependencies": {

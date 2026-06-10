@@ -38,7 +38,9 @@ function ResultCard({
 		<div
 			className={cn(
 				'rounded-lg border p-3',
-				success ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'
+				success
+					? 'border-green-500/30 bg-green-500/10'
+					: 'border-destructive/30 bg-destructive/10'
 			)}
 		>
 			<div className="flex items-center gap-2 mb-2">
@@ -115,7 +117,9 @@ function ReflectionSection({
 						? 'Hide reasoning'
 						: `${items.length} reasoning item${items.length > 1 ? 's' : ''}`}
 				</span>
-				<ChevronDown className={cn('size-3 transition-transform', expanded && 'rotate-180')} />
+				<ChevronDown
+					className={cn('size-3 transition-transform', expanded && 'rotate-180')}
+				/>
 			</button>
 			{expanded && (
 				<div className="grid grid-cols-[14px_1fr] gap-x-2 gap-y-2">
@@ -258,7 +262,9 @@ function StepCard({ event }: { event: AgentStepEvent }) {
 						/>
 						<div className="flex-1 min-w-0">
 							<p className="text-xs text-foreground/80 mb-0.5 wrap-anywhere break-all line-clamp-1 hover:line-clamp-none">
-								<span className="font-medium text-foreground/70">{event.action.name}</span>
+								<span className="font-medium text-foreground/70">
+									{event.action.name}
+								</span>
 								{event.action.name !== 'done' && (
 									<span className="text-muted-foreground/70 ml-1.5">
 										{JSON.stringify(event.action.input)}

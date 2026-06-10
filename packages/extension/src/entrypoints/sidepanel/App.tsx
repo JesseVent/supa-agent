@@ -1,11 +1,11 @@
-import { History, Send, Settings, Square } from 'lucide-react'
+import { History, Moon, Send, Settings, Square, Sun } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ConfigPanel } from '@/components/ConfigPanel'
+import { ActivityCard, EventCard } from '@/components/cards'
 import { HistoryDetail } from '@/components/HistoryDetail'
 import { HistoryList } from '@/components/HistoryList'
-import { ActivityCard, EventCard } from '@/components/cards'
-import { EmptyState, Logo, MotionOverlay, StatusDot } from '@/components/misc'
+import { EmptyState, HeaderStatus, MotionOverlay } from '@/components/misc'
 import { Button } from '@/components/ui/button'
 import {
 	InputGroup,
@@ -37,12 +37,24 @@ export default function App() {
 		config,
 		mcpStatus,
 		mcpError,
+		conversationTurnCount,
 		execute,
 		stop,
 		configure,
+		clearConversation,
+		effectiveTheme,
 	} = useAgent()
 
-	// Persist session when task finishes
+	// Sync DOM class whenever effective theme changes
+	useEffect(() => {
+		document.documentElement.classList.toggle('dark', effectiveTheme === 'dark')
+	}, [effectiveTheme])
+
+	// Persist session when task finishes.
+	// `config` is held in a ref so the effect only re-runs on task state changes
+	// (the snapshot is only used at the moment a task transitions to terminal state).
+	const configRef = useRef(config)
+	configRef.current = config
 	const prevStatusRef = useRef(status)
 	useEffect(() => {
 		const prev = prevStatusRef.current
@@ -54,17 +66,18 @@ export default function App() {
 			history.length > 0 &&
 			currentTask
 		) {
+			const cfg = configRef.current
 			saveSession({
 				task: currentTask,
 				history,
 				status,
-				configSnapshot: config
+				configSnapshot: cfg
 					? {
-							model: config.model || '',
-							baseURL: config.baseURL || '',
-							projectRef: config.supabaseMcpProjectRef,
-							projectName: config.supabaseMcpProjectName,
-							language: config.language,
+							model: cfg.model || '',
+							baseURL: cfg.baseURL || '',
+							projectRef: cfg.supabaseMcpProjectRef,
+							projectName: cfg.supabaseMcpProjectName,
+							language: cfg.language,
 						}
 					: undefined,
 			}).catch((err) => console.error('[SidePanel] Failed to save session:', err))
@@ -76,7 +89,7 @@ export default function App() {
 		if (historyRef.current) {
 			historyRef.current.scrollTop = historyRef.current.scrollHeight
 		}
-	}, [history, activity])
+	}, [])
 
 	const runTask = useCallback(
 		(task: string) => {
@@ -86,9 +99,21 @@ export default function App() {
 			setInputValue('')
 			setView({ name: 'chat' })
 
-			execute(normalizedTask).catch((error) => {
-				console.error('[SidePanel] Failed to execute task:', error)
-			})
+			// Request <all_urls> inside the user-gesture handler so Chrome shows the
+			// permission prompt synchronously. If already granted, resolves instantly.
+			chrome.permissions
+				.request({ origins: ['<all_urls>'] })
+				.then((granted) => {
+					if (!granted) {
+						console.warn(
+							'[SidePanel] Host permission denied — agent may not reach all pages.'
+						)
+					}
+					return execute(normalizedTask)
+				})
+				.catch((error) => {
+					console.error('[SidePanel] Failed to execute task:', error)
+				})
 		},
 		[execute, status]
 	)
@@ -102,7 +127,6 @@ export default function App() {
 	)
 
 	const handleStop = useCallback(() => {
-		console.log('[SidePanel] Stopping task...')
 		stop()
 	}, [stop])
 
@@ -159,13 +183,46 @@ export default function App() {
 		<div className="relative flex flex-col h-screen bg-background">
 			<MotionOverlay active={isRunning} />
 			{/* Header */}
-			<header className="flex items-center justify-between border-b px-3 py-2">
-				<div className="flex items-center gap-2">
-					<Logo className="size-5" />
-					<span className="text-sm font-medium">SupaAgent</span>
-				</div>
-				<div className="flex items-center gap-1">
-					<StatusDot status={status} />
+			<header className="flex items-center justify-between border-b px-3 py-2 gap-2">
+				<HeaderStatus
+					status={status}
+					projectName={config?.supabaseMcpProjectName || config?.supabaseMcpProjectRef}
+					hasModel={!!config?.apiKey}
+					onStop={handleStop}
+				/>
+				<div className="flex items-center gap-1 shrink-0">
+					{conversationTurnCount > 0 && !isRunning && (
+						<button
+							type="button"
+							onClick={clearConversation}
+							className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground border border-dashed rounded px-1.5 py-0.5 transition-colors cursor-pointer"
+							title="Clear conversation context and start fresh"
+						>
+							{conversationTurnCount}t
+						</button>
+					)}
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onClick={() => {
+							const next: 'system' | 'light' | 'dark' =
+								config?.theme === 'light'
+									? 'dark'
+									: config?.theme === 'dark'
+										? 'system'
+										: 'light'
+							void configure({ ...config!, theme: next })
+						}}
+						className="cursor-pointer"
+						aria-label="Toggle theme"
+						title={`Theme: ${config?.theme ?? 'system'}`}
+					>
+						{effectiveTheme === 'dark' ? (
+							<Sun className="size-3.5" />
+						) : (
+							<Moon className="size-3.5" />
+						)}
+					</Button>
 					<Button
 						variant="ghost"
 						size="icon-sm"
@@ -194,7 +251,9 @@ export default function App() {
 				{/* Current task */}
 				{currentTask && (
 					<div className="border-b px-3 py-2 bg-muted/30">
-						<div className="text-[10px] text-muted-foreground uppercase tracking-wide">Task</div>
+						<div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+							Task
+						</div>
 						<div className="text-xs font-medium truncate" title={currentTask}>
 							{currentTask}
 						</div>
@@ -203,7 +262,13 @@ export default function App() {
 
 				{/* History */}
 				<div ref={historyRef} className="flex-1 overflow-y-auto p-3 space-y-2">
-					{showEmptyState && <EmptyState />}
+					{showEmptyState && (
+						<EmptyState
+							conversationTurnCount={conversationTurnCount}
+							onClearConversation={clearConversation}
+							onExample={runTask}
+						/>
+					)}
 
 					{history.map((event, index) => (
 						<EventCard key={index} event={event} />

@@ -11,21 +11,21 @@
         }
     },
     "publishConfig": {
-        "main": "./dist/lib/page-agent-ui.js",
-        "module": "./dist/lib/page-agent-ui.js",
+        "main": "./dist/lib/supa-agent-ui.js",
+        "module": "./dist/lib/supa-agent-ui.js",
         "types": "./dist/lib/index.d.ts",
         "exports": {
             ".": {
                 "types": "./dist/lib/index.d.ts",
-                "import": "./dist/lib/page-agent-ui.js",
-                "default": "./dist/lib/page-agent-ui.js"
+                "import": "./dist/lib/supa-agent-ui.js",
+                "default": "./dist/lib/supa-agent-ui.js"
             }
         }
     },
     "files": [
         "dist/"
     ],
-    "description": "UI components for page-agent - Panel and i18n",
+    "description": "UI components for SupaAgent - Panel and i18n",
     "keywords": [
         "supa-agent",
         "ui",
@@ -42,7 +42,7 @@
     "homepage": "https://github.com/JesseVent/supa-agent",
     "scripts": {
         "build": "vite build",
-        "prepublishOnly": "node ../../scripts/pre-publish.js",
+        "prepublishOnly": "node ../../scripts/publish-guard.js && node ../../scripts/pre-publish.js",
         "postpublish": "node ../../scripts/post-publish.js"
     }
 }

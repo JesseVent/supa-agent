@@ -7,7 +7,7 @@ Use the instructions config to inject system-level directives and page-specific 
 Global directives applied to all tasks. Define the AI's role, working style, and behavioral boundaries.
 
 ```javascript
-const agent = new PageAgent({
+const agent = new SupaAgent({
   // ...other config
   instructions: {
     system: `
@@ -27,7 +27,7 @@ Guidelines:
 A dynamic callback invoked before each step. Returns page-specific instructions based on the current URL. Useful for providing targeted guidance on different pages.
 
 ```javascript
-const agent = new PageAgent({
+const agent = new SupaAgent({
   // ...other config
   instructions: {
     system: 'You are an order management assistant.',
@@ -58,7 +58,7 @@ This is the product listing page.
 
 ## How It Works
 
-Before each execution step, page-agent prepends the instructions to the user prompt:
+Before each execution step, SupaAgent prepends the instructions to the user prompt:
 
 ```xml
 <instructions>

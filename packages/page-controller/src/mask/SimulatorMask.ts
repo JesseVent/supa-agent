@@ -1,9 +1,8 @@
 import { Motion } from 'ai-motion'
 
 import { isPageDark } from './checkDarkMode'
-
-import styles from './SimulatorMask.module.css'
 import cursorStyles from './cursor.module.css'
+import styles from './SimulatorMask.module.css'
 
 export class SimulatorMask extends EventTarget {
 	shown: boolean = false
@@ -23,10 +22,9 @@ export class SimulatorMask extends EventTarget {
 	constructor() {
 		super()
 
-		this.wrapper.id = 'page-agent-runtime_simulator-mask'
+		this.wrapper.id = 'supa-agent-runtime_simulator-mask'
 		this.wrapper.className = styles.wrapper
-		this.wrapper.setAttribute('data-browser-use-ignore', 'true')
-		this.wrapper.setAttribute('data-page-agent-ignore', 'true')
+		this.wrapper.setAttribute('data-supa-agent-ignore', 'true')
 
 		try {
 			const motion = new Motion({
@@ -96,16 +94,16 @@ export class SimulatorMask extends EventTarget {
 			this.wrapper.style.pointerEvents = 'auto'
 		}
 
-		window.addEventListener('PageAgent::MovePointerTo', movePointerToListener)
-		window.addEventListener('PageAgent::ClickPointer', clickPointerListener)
-		window.addEventListener('PageAgent::EnablePassThrough', enablePassThroughListener)
-		window.addEventListener('PageAgent::DisablePassThrough', disablePassThroughListener)
+		window.addEventListener('SupaAgent::MovePointerTo', movePointerToListener)
+		window.addEventListener('SupaAgent::ClickPointer', clickPointerListener)
+		window.addEventListener('SupaAgent::EnablePassThrough', enablePassThroughListener)
+		window.addEventListener('SupaAgent::DisablePassThrough', disablePassThroughListener)
 
 		this.addEventListener('dispose', () => {
-			window.removeEventListener('PageAgent::MovePointerTo', movePointerToListener)
-			window.removeEventListener('PageAgent::ClickPointer', clickPointerListener)
-			window.removeEventListener('PageAgent::EnablePassThrough', enablePassThroughListener)
-			window.removeEventListener('PageAgent::DisablePassThrough', disablePassThroughListener)
+			window.removeEventListener('SupaAgent::MovePointerTo', movePointerToListener)
+			window.removeEventListener('SupaAgent::ClickPointer', clickPointerListener)
+			window.removeEventListener('SupaAgent::EnablePassThrough', enablePassThroughListener)
+			window.removeEventListener('SupaAgent::DisablePassThrough', disablePassThroughListener)
 		})
 	}
 
@@ -209,7 +207,7 @@ export class SimulatorMask extends EventTarget {
 
 	dispose() {
 		this.#disposed = true
-		console.log('dispose SimulatorMask')
+
 		this.motion?.dispose()
 		this.wrapper.remove()
 		this.dispatchEvent(new Event('dispose'))

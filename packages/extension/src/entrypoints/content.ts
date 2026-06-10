@@ -1,4 +1,5 @@
 import { initPageController } from '@/agent/RemotePageController.content'
+import { isDomainAllowed } from '@/agent/security'
 
 // import { DEMO_CONFIG } from '@/agent/constants'
 
@@ -12,33 +13,74 @@ export default defineContentScript({
 		console.debug(`${DEBUG_PREFIX} Loaded on ${window.location.href}`)
 		initPageController()
 
+		// Migrate legacy storage key to new brand name
+		chrome.storage.local.get('PageAgentExtUserAuthToken').then((legacy) => {
+			if (legacy.PageAgentExtUserAuthToken) {
+				chrome.storage.local
+					.set({ SupaAgentExtUserAuthToken: legacy.PageAgentExtUserAuthToken })
+					.then(() => chrome.storage.local.remove('PageAgentExtUserAuthToken'))
+			}
+		})
+
 		// if auth token matches, expose agent to page
-		chrome.storage.local.get('PageAgentExtUserAuthToken').then((result) => {
+		chrome.storage.local.get('SupaAgentExtUserAuthToken').then((result) => {
 			// extension side token.
 			// @note this is isolated world. it is safe to assume user script cannot access it
-			const extToken = result.PageAgentExtUserAuthToken
+			const extToken = result.SupaAgentExtUserAuthToken
 			if (!extToken) return
 
 			// page side token
-			const pageToken = localStorage.getItem('PageAgentExtUserAuthToken')
+			const pageToken =
+				localStorage.getItem('SupaAgentExtUserAuthToken') ||
+				localStorage.getItem('PageAgentExtUserAuthToken') // legacy compat
 			if (!pageToken) return
 
 			if (pageToken !== extToken) return
 
-			console.log('[SupaAgent]: Auth tokens match. Exposing agent to page.')
+			// Security: only expose the page-facing API on the origin tab and whitelisted domains
+			chrome.storage.local
+				.get(['agentOriginTabId', 'advancedConfig'])
+				.then(({ agentOriginTabId, advancedConfig }) => {
+					chrome.runtime
+						.sendMessage({ type: 'PAGE_CONTROL', action: 'get_my_tab_id' })
+						.then((response) => {
+							const myTabId = (response as { tabId: number | null }).tabId
+							const cfg = advancedConfig as Record<string, unknown> | undefined
+							const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
 
-			// add isolated world script
-			exposeAgentToPage().then(
-				// add main-world script
-				() => injectScript('/main-world.js')
-			)
+							if (myTabId !== agentOriginTabId) {
+								console.debug(
+									'[SupaAgent]: Not origin tab — skipping page exposure.'
+								)
+								return
+							}
+							if (!isDomainAllowed(window.location.href, allowedDomains)) {
+								console.debug(
+									'[SupaAgent]: Domain not in whitelist — skipping page exposure.',
+									allowedDomains
+								)
+								return
+							}
+
+							// add isolated world script
+							exposeAgentToPage().then(
+								// add main-world script
+								() => injectScript('/main-world.js')
+							)
+						})
+						.catch((err) => {
+							console.error(
+								'[SupaAgent]: Failed to get tab id for page exposure check:',
+								err
+							)
+						})
+				})
 		})
 	},
 })
 
 async function exposeAgentToPage() {
 	const { MultiPageAgent } = await import('@/agent/MultiPageAgent')
-	console.log('[SupaAgent]: MultiPageAgent loaded')
 
 	/**
 	 * singleton MultiPageAgent to handle requests from the page
@@ -84,7 +126,7 @@ async function exposeAgentToPage() {
 
 					// events
 
-					multiPageAgent.addEventListener('statuschange', (event) => {
+					multiPageAgent.addEventListener('statuschange', (_event) => {
 						if (!multiPageAgent) return
 						window.postMessage(
 							{
@@ -110,7 +152,7 @@ async function exposeAgentToPage() {
 						)
 					})
 
-					multiPageAgent.addEventListener('historychange', (event) => {
+					multiPageAgent.addEventListener('historychange', (_event) => {
 						if (!multiPageAgent) return
 						window.postMessage(
 							{

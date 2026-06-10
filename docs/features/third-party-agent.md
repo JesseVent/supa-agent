@@ -1,6 +1,6 @@
 # Third-party Agent Integration
 
-Integrate pageAgent as a tool in your support assistant or Agent system, becoming the eyes and hands of your Agent.
+Integrate supaAgent as a tool in your support assistant or Agent system, becoming the eyes and hands of your Agent.
 
 ## Integration Method
 
@@ -8,8 +8,8 @@ Integrate pageAgent as a tool in your support assistant or Agent system, becomin
 
 ```javascript
 // Define tool
-const pageAgentTool = {
-  name: "page_agent",
+const supaAgentTool = {
+  name: "supa_agent",
   description: "Execute web page operations",
   parameters: {
     type: "object",
@@ -19,7 +19,7 @@ const pageAgentTool = {
     required: ["instruction"]
   },
   execute: async (params) => {
-    const result = await pageAgent.execute(params.instruction)
+    const result = await supaAgent.execute(params.instruction)
     return { success: result.success, message: result.data }
   }
 }

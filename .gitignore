@@ -49,3 +49,14 @@ static-analysis.datadog.yml
 
 # Supabase CLI temp state (contains local project refs)
 supabase/.temp/
+
+# Next.js build output
+.next/
+
+# Zipped extension builds
+*.zip
+
+# Fable review documents
+fable.md
+fable.pdf
+

@@ -53,6 +53,14 @@ export class SupabaseMcpClient {
 	}
 
 	/**
+	 * Strip JWT-like tokens and cap the length of a raw response body before it
+	 * is interpolated into an error message, so bearer tokens never leak.
+	 */
+	private _sanitizeBody(body: string): string {
+		return body.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]').slice(0, 300)
+	}
+
+	/**
 	 * Create a fetch wrapper that injects the Bearer token and auto-refreshes
 	 * via the background script when a 401 is received.
 	 *
@@ -62,7 +70,8 @@ export class SupabaseMcpClient {
 		await this._loadToken()
 
 		return async (input, init?) => {
-			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+			const url =
+				typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
 			const headers = new Headers(init?.headers)
 			if (this._token) {
 				headers.set('Authorization', `Bearer ${this._token}`)
@@ -74,7 +83,6 @@ export class SupabaseMcpClient {
 
 			// Auto-refresh only for OAuth tokens
 			if (res.status === 401 && this._token && this._tokenSource === 'oauth') {
-				console.log('[SupabaseMcpClient] Token expired (401), refreshing...')
 				const refresh = await chrome.runtime.sendMessage({ type: 'MGMT_REFRESH_TOKEN' })
 				if (refresh?.error) {
 					throw new Error(`Token refresh failed: ${refresh.error}`)
@@ -84,7 +92,9 @@ export class SupabaseMcpClient {
 					headers.set('Authorization', `Bearer ${this._token}`)
 					res = await fetch(url, { ...init, headers })
 				} else {
-					throw new Error('Token refresh returned no token — please reconnect in Settings')
+					throw new Error(
+						'Token refresh returned no token — please reconnect in Settings'
+					)
 				}
 			}
 
@@ -96,7 +106,7 @@ export class SupabaseMcpClient {
 						'JWT failed verification — the OAuth token is invalid. Disconnect and reconnect in Settings.'
 					)
 				}
-				throw new Error(`MCP HTTP error (${res.status}): ${body}`)
+				throw new Error(`MCP HTTP error (${res.status}): ${this._sanitizeBody(body)}`)
 			}
 
 			return res

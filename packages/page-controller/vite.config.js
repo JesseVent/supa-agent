@@ -1,14 +1,12 @@
 // @ts-check
-import chalk from 'chalk'
-import { dirname, resolve } from 'path'
+
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import dts from 'unplugin-dts/vite'
-import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-
-console.log(chalk.cyan(`📦 Building @supa-agent/page-controller`))
 
 export default defineConfig({
 	clearScreen: false,
@@ -35,7 +33,7 @@ export default defineConfig({
 		outDir: resolve(__dirname, 'dist', 'lib'),
 		rollupOptions: {
 			external: ['@supa-agent/*', 'ai-motion'],
-			onwarn: function (message, handler) {
+			onwarn: (message, handler) => {
 				if (message.code === 'EVAL') return
 				handler(message)
 			},

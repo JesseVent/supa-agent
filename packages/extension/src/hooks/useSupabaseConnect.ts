@@ -41,6 +41,48 @@ export function useSupabaseConnect(opts: {
 		return token ?? null
 	}, [])
 
+	const applyOAuthProject = useCallback(
+		async (project: OAuthProject, accessToken: string) => {
+			setIsOAuthConnecting(true)
+			setCreateError(null)
+			try {
+				let anonKey = ''
+				try {
+					// Fetch publishable (anon) key via project-scoped MCP
+					const client = new SupabaseMcpClient({ projectRef: project.ref, accessToken })
+					const keyRaw = await client.callTool('get_publishable_keys', {})
+					// Response may be plain text or JSON
+					try {
+						const parsed = JSON.parse(keyRaw)
+						if (Array.isArray(parsed?.keys)) {
+							const anon = parsed.keys.find(
+								(k: any) => k.name === 'anon' || k.type === 'legacy'
+							)
+							anonKey = anon?.api_key ?? ''
+						} else if (typeof parsed === 'string') {
+							anonKey = parsed
+						} else {
+							anonKey = parsed?.key ?? parsed?.anon_key ?? ''
+						}
+					} catch {
+						anonKey = keyRaw.trim()
+					}
+				} catch {
+					// Non-fatal — user can paste the key manually
+				}
+				opts.onApplyProject({ ref: project.ref, name: project.name, anonKey })
+				setOauthProjects(null)
+			} catch (err) {
+				setCreateError(
+					err instanceof Error ? err.message : 'Failed to load project details'
+				)
+			} finally {
+				setIsOAuthConnecting(false)
+			}
+		},
+		[opts]
+	)
+
 	const connectWithOAuth = useCallback(async () => {
 		setIsOAuthConnecting(true)
 		setCreateError(null)
@@ -50,7 +92,8 @@ export function useSupabaseConnect(opts: {
 			})) as { ok?: true; accessToken?: string; error?: string } | undefined
 
 			if (response?.error) throw new Error(response.error)
-			if (!response?.ok) throw new Error('OAuth handshake failed — no response from background')
+			if (!response?.ok)
+				throw new Error('OAuth handshake failed — no response from background')
 
 			const accessToken = await getStoredToken()
 			if (!accessToken) throw new Error('Token not found in storage after OAuth')
@@ -75,46 +118,7 @@ export function useSupabaseConnect(opts: {
 		} finally {
 			setIsOAuthConnecting(false)
 		}
-		// applyOAuthProject is defined below but stable (useCallback with [opts])
-	}, [getStoredToken]) // eslint-disable-line react-hooks/exhaustive-deps
-
-	const applyOAuthProject = useCallback(
-		async (project: OAuthProject, accessToken: string) => {
-			setIsOAuthConnecting(true)
-			setCreateError(null)
-			try {
-				let anonKey = ''
-				try {
-					// Fetch publishable (anon) key via project-scoped MCP
-					const client = new SupabaseMcpClient({ projectRef: project.ref, accessToken })
-					const keyRaw = await client.callTool('get_publishable_keys', {})
-					// Response may be plain text or JSON
-					try {
-						const parsed = JSON.parse(keyRaw)
-						if (Array.isArray(parsed?.keys)) {
-							const anon = parsed.keys.find((k: any) => k.name === 'anon' || k.type === 'legacy')
-							anonKey = anon?.api_key ?? ''
-						} else if (typeof parsed === 'string') {
-							anonKey = parsed
-						} else {
-							anonKey = parsed?.key ?? parsed?.anon_key ?? ''
-						}
-					} catch {
-						anonKey = keyRaw.trim()
-					}
-				} catch {
-					// Non-fatal — user can paste the key manually
-				}
-				opts.onApplyProject({ ref: project.ref, name: project.name, anonKey })
-				setOauthProjects(null)
-			} catch (err) {
-				setCreateError(err instanceof Error ? err.message : 'Failed to load project details')
-			} finally {
-				setIsOAuthConnecting(false)
-			}
-		},
-		[opts]
-	)
+	}, [getStoredToken, applyOAuthProject])
 
 	const prefillFromEnv = useCallback(() => {
 		setCreateError('No .env prefill configured for the extension — paste values manually.')

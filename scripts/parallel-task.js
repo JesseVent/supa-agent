@@ -1,5 +1,5 @@
+import { spawn } from 'node:child_process'
 import chalk from 'chalk'
-import { spawn } from 'child_process'
 
 /**
  * Run multiple shell commands in parallel with progress reporting.
@@ -92,7 +92,7 @@ export async function parallelTask(tasks, options = {}) {
 		const bg = bgColors[i % bgColors.length]
 		const fg = fgOnBg[i % fgOnBg.length]
 		const banner = bg(fg.bold(` ✔ ${r.label} `))
-		console.log(`\n${banner}`)
+
 		if (r.output.trim()) process.stdout.write(r.output)
 	}
 
@@ -101,7 +101,7 @@ export async function parallelTask(tasks, options = {}) {
 			const banner = chalk.bgRed(
 				chalk.white.bold(` ✘ ${r.label} ${r.timedOut ? '· timed out' : '· failed'} `)
 			)
-			console.log(`\n${banner}`)
+
 			if (r.output.trim()) process.stdout.write(r.output)
 		}
 		const summary = failedTasks.map((t) => t.label).join(', ')
@@ -110,6 +110,4 @@ export async function parallelTask(tasks, options = {}) {
 		)
 		process.exit(1)
 	}
-
-	console.log(`\n${chalk.bgGreen.black.bold(` ✔ All ${total} tasks completed `)}`)
 }

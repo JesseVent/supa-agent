@@ -19,14 +19,16 @@ export default function App() {
 		if (historyRef.current) {
 			historyRef.current.scrollTop = historyRef.current.scrollHeight
 		}
-	}, [history, activity])
+	}, [])
 
 	const isRunning = status === 'running'
 	const WsIcon = wsState === 'connected' ? PlugZap : wsState === 'connecting' ? Plug : Unplug
 	const wsLabel = {
 		connected: 'Connected',
 		connecting: 'Connecting...',
-		disconnected: new URLSearchParams(location.search).get('ws') ? 'Disconnected' : 'No connection',
+		disconnected: new URLSearchParams(location.search).get('ws')
+			? 'Disconnected'
+			: 'No connection',
 	}[wsState]
 
 	return (
@@ -49,8 +51,8 @@ export default function App() {
 				<div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
 					<div className="text-xs text-muted-foreground leading-relaxed space-y-2">
 						<p>
-							SupaAgent Hub lets local apps (e.g. MCP servers) control the SupaAgent extension via
-							WebSocket.
+							SupaAgent Hub lets local apps (e.g. MCP servers) control the SupaAgent
+							extension via WebSocket.
 						</p>
 						<p>
 							Check out the official{' '}
@@ -89,7 +91,12 @@ export default function App() {
 					<div className="flex items-center gap-3">
 						<StatusDot status={status} />
 						{isRunning && (
-							<Button variant="destructive" size="sm" onClick={stop} className="h-7 text-xs">
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={stop}
+								className="h-7 text-xs"
+							>
 								<Square className="size-3 mr-1" />
 								Stop
 							</Button>
@@ -167,7 +174,8 @@ function HubConfig() {
 				<div className="group-hover/hub:visible group-hover/hub:opacity-100 transition-opacity duration-150 left-0 right-0 top-full z-10 pt-2">
 					<div className="relative p-2.5 rounded-md border border-border bg-background/60 backdrop-blur-md shadow-2xl text-muted-foreground text-xs leading-relaxed">
 						<div className="absolute -top-1.5 left-5 size-3 rotate-45 rounded-[1px] border-l border-t border-border bg-background/60 backdrop-blur-md" />
-						By default, each connection requires your approval before running tasks. <br />
+						By default, each connection requires your approval before running tasks.{' '}
+						<br />
 						Enable this to skip per-session approval.
 						<br />
 						<span className="font-semibold">* Use with caution!</span>
@@ -217,14 +225,18 @@ function ProtocolDocsCollapsible() {
 					</section>
 
 					<section>
-						<h4 className="text-[11px] font-medium text-foreground/60 mb-1.5">Caller to Hub</h4>
+						<h4 className="text-[11px] font-medium text-foreground/60 mb-1.5">
+							Caller to Hub
+						</h4>
 						<pre className="bg-muted/50 rounded-md p-3 font-mono text-[10px] leading-relaxed whitespace-pre-wrap">
 							{`{ type: "execute", task: string, config?: object }\n{ type: "stop" }`}
 						</pre>
 					</section>
 
 					<section>
-						<h4 className="text-[11px] font-medium text-foreground/60 mb-1.5">Hub to Caller</h4>
+						<h4 className="text-[11px] font-medium text-foreground/60 mb-1.5">
+							Hub to Caller
+						</h4>
 						<pre className="bg-muted/50 rounded-md p-3 font-mono text-[10px] leading-relaxed whitespace-pre-wrap">
 							{`{ type: "ready" }\n{ type: "result", success: boolean, data: string }\n{ type: "error", message: string }`}
 						</pre>

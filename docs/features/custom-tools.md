@@ -17,9 +17,9 @@ Use the `tool()` helper to define custom tools with `description`, `inputSchema`
 
 ```javascript
 import { z } from 'zod/v4'
-import { PageAgent, tool } from 'page-agent'
+import { SupaAgent, tool } from 'supa-agent'
 
-const pageAgent = new PageAgent({
+const supaAgent = new SupaAgent({
   customTools: {
 
 	//
@@ -62,7 +62,7 @@ const pageAgent = new PageAgent({
 Use the same name to override a built-in tool, or set it to `null` to remove it entirely.
 
 ```javascript
-const pageAgent = new PageAgent({
+const supaAgent = new SupaAgent({
   customTools: {
     scroll: null, // remove scroll tool
     execute_javascript: null, // remove script execution

@@ -34,7 +34,7 @@ Baseline-tested (marked with `*`): `minimax/minimax-m3`, `anthropic/claude-sonne
 
 ```javascript
 // OpenRouter
-const pageAgent = new PageAgent({
+const supaAgent = new SupaAgent({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: 'your-api-key',
   model: 'minimax/minimax-m3'
@@ -48,7 +48,7 @@ If you only use it as a personal assistant, you can connect to your LLM service 
 If you plan to integrate it into your web app, it's better to have a backend proxy for the LLM and use `customFetch` to authenticate the request with cookies or other methods:
 
 ```javascript
-const agent = new PageAgent({
+const agent = new SupaAgent({
   baseURL: '/api/llm-proxy',
   model: 'minimax/minimax-m3',
   customFetch: (url, init) =>
@@ -67,7 +67,7 @@ Some LLMs benefit significantly from prompt caching. Because each provider expos
 Claude supports global Automatic prompt caching. When using a Claude-compatible proxy, add `cache_control` at the top level of the request body.
 
 ```typescript
-const pageAgent = new PageAgent({
+const supaAgent = new SupaAgent({
   baseURL: 'https://your-claude-proxy.example/v1',
   apiKey: 'your-api-key',
   model: 'claude-sonnet-4.5',
@@ -80,7 +80,7 @@ const pageAgent = new PageAgent({
 
 ## Local LLMs
 
-Use local OpenAI-compatible runtimes such as Ollama and LM Studio with PageAgent for offline or LAN deployments.
+Use local OpenAI-compatible runtimes such as Ollama and LM Studio with SupaAgent for offline or LAN deployments.
 
 ### Requirements
 
@@ -93,13 +93,13 @@ Use local OpenAI-compatible runtimes such as Ollama and LM Studio with PageAgent
 
 ```javascript
 // Local OpenAI-compatible runtime - no apiKey needed
-const pageAgent = new PageAgent({
+const supaAgent = new SupaAgent({
   baseURL: 'http://localhost:11434/v1',
   model: 'qwen3:14b'
 });
 
 // Or connect to LM Studio
-const lmStudioAgent = new PageAgent({
+const lmStudioAgent = new SupaAgent({
   baseURL: 'http://127.0.0.1:1234/v1',
   model: 'qwen/qwen3.5-27b'
 });

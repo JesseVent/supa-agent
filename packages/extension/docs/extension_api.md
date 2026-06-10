@@ -1,6 +1,6 @@
-# Page Agent Extension API
+# SupaAgent Extension API
 
-Integrate the Page Agent extension into your web app and trigger multi-page browser tasks from page JavaScript.
+Integrate the SupaAgent extension into your web app and trigger multi-page browser tasks from page JavaScript.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Integrate the Page Agent extension into your web app and trigger multi-page brow
 
 Primary channel:
 
-- Chrome Web Store: https://chromewebstore.google.com/detail/page-agent-ext/akldabonmimlicnjlflnapfeklbfemhj
+- Chrome Web Store: https://chromewebstore.google.com/detail/supa-agent-ext/akldabonmimlicnjlflnapfeklbfemhj
 
 Latest updates are often published earlier on:
 
@@ -36,7 +36,7 @@ Setup:
 2. Set the token in your page:
 
 ```typescript
-localStorage.setItem('PageAgentExtUserAuthToken', 'your-token')
+localStorage.setItem('SupaAgentExtUserAuthToken', 'your-token')
 ```
 
 ## Quick Start

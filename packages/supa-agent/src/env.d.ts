@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
-import type { PageAgent } from './PageAgent'
+import type { SupaAgent } from './SupaAgent'
 
 declare global {
 	interface Window {
-		pageAgent?: PageAgent
-		PageAgent: typeof PageAgent
+		supaAgent?: SupaAgent
+		SupaAgent: typeof SupaAgent
 	}
 }

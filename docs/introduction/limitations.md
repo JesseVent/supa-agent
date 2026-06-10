@@ -1,12 +1,12 @@
 # Limitations
 
-Page Agent understands web pages via DOM and performs actions accordingly. This defines its capability boundary.
+SupaAgent understands web pages via DOM and performs actions accordingly. This defines its capability boundary.
 
-## PageAgent.js vs PageAgentExt
+## SupaAgent.js vs SupaAgentExt
 
-PageAgent.js is the core library running inside a page. PageAgentExt is an optional browser extension that adds browser-level control.
+SupaAgent.js is the core library running inside a page. SupaAgentExt is an optional browser extension that adds browser-level control.
 
-| | PageAgent.js | PageAgentExt |
+| | SupaAgent.js | SupaAgentExt |
 |---|---|---|
 | Integration | Site developer integrates the library | User installs a browser extension |
 | Scope | Current page (designed for SPAs) | Any web page, multi-tab |

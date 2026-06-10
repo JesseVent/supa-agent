@@ -71,6 +71,8 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 	const [supabaseMcpAccessToken, setSupabaseMcpAccessToken] = useState(
 		config?.supabaseMcpAccessToken ?? ''
 	)
+	const [allowMcpWrites, setAllowMcpWrites] = useState(config?.allowMcpWrites ?? false)
+	const [allowedDomains, setAllowedDomains] = useState(config?.allowedDomains?.join(', ') ?? '')
 	const [showSupabaseToken, setShowSupabaseToken] = useState(false)
 	const [advancedOpen, setAdvancedOpen] = useState(false)
 	const [saving, setSaving] = useState(false)
@@ -78,6 +80,8 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 	const [copied, setCopied] = useState(false)
 	const [showToken, setShowToken] = useState(false)
 	const [showApiKey, setShowApiKey] = useState(false)
+	const [theme, setTheme] = useState(config?.theme ?? 'system')
+	const [preserveMemory, setPreserveMemory] = useState(config?.preserveMemory ?? false)
 
 	const [prevConfig, setPrevConfig] = useState(config)
 	if (prevConfig !== config) {
@@ -97,6 +101,10 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 		setSupabaseMcpProjectRef(config?.supabaseMcpProjectRef ?? '')
 		setSupabaseMcpProjectName(config?.supabaseMcpProjectName ?? '')
 		setSupabaseMcpAccessToken(config?.supabaseMcpAccessToken ?? '')
+		setAllowMcpWrites(config?.allowMcpWrites ?? false)
+		setAllowedDomains(config?.allowedDomains?.join(', ') ?? '')
+		setTheme(config?.theme ?? 'system')
+		setPreserveMemory(config?.preserveMemory ?? false)
 	}
 
 	// Poll for user auth token every second until found
@@ -104,8 +112,8 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 		let interval: NodeJS.Timeout | null = null
 
 		const fetchToken = async () => {
-			const result = await chrome.storage.local.get('PageAgentExtUserAuthToken')
-			const token = result.PageAgentExtUserAuthToken
+			const result = await chrome.storage.local.get('SupaAgentExtUserAuthToken')
+			const token = result.SupaAgentExtUserAuthToken
 			if (typeof token === 'string' && token) {
 				setUserAuthToken(token)
 				if (interval) {
@@ -150,6 +158,15 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				supabaseMcpProjectRef: supabaseMcpProjectRef || undefined,
 				supabaseMcpProjectName: supabaseMcpProjectName || undefined,
 				supabaseMcpAccessToken: supabaseMcpAccessToken || undefined,
+				allowMcpWrites,
+				allowedDomains: allowedDomains
+					? allowedDomains
+							.split(',')
+							.map((d) => d.trim())
+							.filter((d) => d.length > 0)
+					: undefined,
+				theme,
+				preserveMemory,
 			})
 		} finally {
 			setSaving(false)
@@ -173,7 +190,10 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 
 			{/* User Auth Token Section */}
 			<div className="flex flex-col gap-1.5 p-3 bg-muted/50 rounded-md border">
-				<label htmlFor="user-auth-token" className="text-xs font-medium text-muted-foreground">
+				<label
+					htmlFor="user-auth-token"
+					className="text-xs font-medium text-muted-foreground"
+				>
 					User Auth Token
 				</label>
 				<p className="text-[10px] text-muted-foreground mb-1">
@@ -290,7 +310,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 						</span>
 					</div>
 					{mcpStatus === 'error' && mcpError && (
-						<div className="text-[10px] text-destructive/80 leading-relaxed">{mcpError}</div>
+						<div className="text-[10px] text-destructive/80 leading-relaxed">
+							{mcpError}
+						</div>
 					)}
 					<div className="flex gap-2">
 						<SupabaseConnectDialog
@@ -310,6 +332,7 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 								setSupabaseMcpProjectRef('')
 								setSupabaseMcpProjectName('')
 								setSupabaseMcpAccessToken('')
+								setAllowMcpWrites(false)
 								toast.info('Project unlinked')
 							}}
 						>
@@ -381,11 +404,25 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				<label className="text-xs text-muted-foreground">Response Language</label>
 				<select
 					value={language ?? ''}
-					onChange={(e) => setLanguage((e.target.value || undefined) as LanguagePreference)}
+					onChange={(e) =>
+						setLanguage((e.target.value || undefined) as LanguagePreference)
+					}
 					className="h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
 				>
 					<option value="">System</option>
 					<option value="en-US">English</option>
+				</select>
+			</div>
+			<div className="flex flex-col gap-1.5">
+				<label className="text-xs text-muted-foreground">Theme</label>
+				<select
+					value={theme}
+					onChange={(e) => setTheme(e.target.value as 'system' | 'light' | 'dark')}
+					className="h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
+				>
+					<option value="system">System</option>
+					<option value="light">Light</option>
+					<option value="dark">Dark</option>
 				</select>
 			</div>
 
@@ -396,7 +433,11 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer mt-1 font-bold"
 			>
 				Advanced
-				{advancedOpen ? <FoldVertical className="size-3" /> : <UnfoldVertical className="size-3" />}
+				{advancedOpen ? (
+					<FoldVertical className="size-3" />
+				) : (
+					<UnfoldVertical className="size-3" />
+				)}
 			</button>
 
 			{advancedOpen && (
@@ -412,7 +453,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 							min={1}
 							max={200}
 							value={maxSteps ?? ''}
-							onChange={(e) => setMaxSteps(e.target.value ? Number(e.target.value) : undefined)}
+							onChange={(e) =>
+								setMaxSteps(e.target.value ? Number(e.target.value) : undefined)
+							}
 							className="text-xs h-8 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
 						/>
 					</div>
@@ -429,25 +472,73 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 					</div>
 
 					<label className="flex items-center justify-between cursor-pointer">
-						<span className="text-xs text-muted-foreground">Disable named tool_choice</span>
-						<Switch checked={disableNamedToolChoice} onCheckedChange={setDisableNamedToolChoice} />
+						<span className="text-xs text-muted-foreground">
+							Preserve memory across settings changes
+						</span>
+						<Switch checked={preserveMemory} onCheckedChange={setPreserveMemory} />
 					</label>
 
 					<label className="flex items-center justify-between cursor-pointer">
-						<span className="text-xs text-muted-foreground">Experimental llms.txt support</span>
-						<Switch checked={experimentalLlmsTxt} onCheckedChange={setExperimentalLlmsTxt} />
-					</label>
-
-					<label className="flex items-center justify-between cursor-pointer">
-						<span className="text-xs text-muted-foreground">Experimental include all tabs</span>
+						<span className="text-xs text-muted-foreground">
+							Disable named tool_choice
+						</span>
 						<Switch
-							checked={experimentalIncludeAllTabs}
-							onCheckedChange={setExperimentalIncludeAllTabs}
+							checked={disableNamedToolChoice}
+							onCheckedChange={setDisableNamedToolChoice}
 						/>
 					</label>
 
+					<label className="flex items-center justify-between cursor-pointer">
+						<span className="text-xs text-muted-foreground">
+							Experimental llms.txt support
+						</span>
+						<Switch
+							checked={experimentalLlmsTxt}
+							onCheckedChange={setExperimentalLlmsTxt}
+						/>
+					</label>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="flex items-center justify-between cursor-pointer">
+							<span className="text-xs text-muted-foreground">
+								Experimental include all tabs
+							</span>
+							<Switch
+								checked={experimentalIncludeAllTabs}
+								onCheckedChange={setExperimentalIncludeAllTabs}
+							/>
+						</label>
+						{experimentalIncludeAllTabs && (
+							<p className="text-[10px] text-amber-500 leading-relaxed">
+								⚠️ This lets the agent control all unpinned tabs. Use with caution.
+							</p>
+						)}
+					</div>
+
+					<div className="flex flex-col gap-1.5 pt-2 border-t border-border/50">
+						<label
+							htmlFor="allowed-domains"
+							className="text-xs font-medium text-muted-foreground"
+						>
+							Allowed Domains
+						</label>
+						<p className="text-[10px] text-muted-foreground">
+							Comma-separated list (e.g. supabase.com, github.com). Leave empty to
+							allow all.
+						</p>
+						<Input
+							id="allowed-domains"
+							placeholder="supabase.com, github.com, vercel.com"
+							value={allowedDomains}
+							onChange={(e) => setAllowedDomains(e.target.value)}
+							className="text-xs h-8"
+						/>
+					</div>
+
 					<div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-						<span className="text-xs font-medium text-muted-foreground">Skill Router</span>
+						<span className="text-xs font-medium text-muted-foreground">
+							Skill Router
+						</span>
 						<Input
 							placeholder="https://<project>.supabase.co"
 							value={skillRouterUrl}
@@ -470,7 +561,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 					</div>
 
 					<div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-						<span className="text-xs font-medium text-muted-foreground">Supabase MCP</span>
+						<span className="text-xs font-medium text-muted-foreground">
+							Supabase MCP
+						</span>
 						<p className="text-[10px] text-muted-foreground">
 							Lets the agent query your Supabase project from any page.
 						</p>
@@ -495,15 +588,40 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 								onClick={() => setShowSupabaseToken(!showSupabaseToken)}
 								aria-label={showSupabaseToken ? 'Hide token' : 'Show token'}
 							>
-								{showSupabaseToken ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+								{showSupabaseToken ? (
+									<EyeOff className="size-3" />
+								) : (
+									<Eye className="size-3" />
+								)}
 							</Button>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<label className="flex items-center justify-between cursor-pointer">
+								<span className="text-xs text-muted-foreground">
+									Allow MCP writes
+								</span>
+								<Switch
+									checked={allowMcpWrites}
+									onCheckedChange={setAllowMcpWrites}
+								/>
+							</label>
+							<p className="text-[10px] text-amber-500 leading-relaxed">
+								{allowMcpWrites
+									? '⚠️ The agent can run write operations. Destructive ops (DROP/DELETE/migrations) still require explicit confirmation.'
+									: 'Read-only: write and destructive MCP tools are blocked. Enable only if you need the agent to modify your project.'}
+							</p>
 						</div>
 					</div>
 				</>
 			)}
 
 			<div className="flex gap-2 mt-2">
-				<Button variant="outline" onClick={onClose} className="flex-1 h-8 text-xs cursor-pointer">
+				<Button
+					variant="outline"
+					onClick={onClose}
+					className="flex-1 h-8 text-xs cursor-pointer"
+				>
 					Cancel
 				</Button>
 				<Button
@@ -528,7 +646,12 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 						rel="noopener noreferrer"
 						className="flex items-center gap-1 hover:text-foreground"
 					>
-						<svg role="img" viewBox="0 0 24 24" className="size-3 fill-current">
+						<svg
+							role="img"
+							aria-label="GitHub"
+							viewBox="0 0 24 24"
+							className="size-3 fill-current"
+						>
 							<path d={siGithub.path} />
 						</svg>
 						<span>Source Code</span>
@@ -641,7 +764,12 @@ function SupabaseConnectDialog({
 					}
 				>
 					<span className="flex items-center gap-2">
-						<svg role="img" viewBox="0 0 24 24" className="size-4 fill-current">
+						<svg
+							role="img"
+							aria-label="Supabase"
+							viewBox="0 0 24 24"
+							className="size-4 fill-current"
+						>
 							<path d="M19.944 9.052c-1.59-3.17-4.9-5.252-8.595-5.52L5.263 24h8.986c.4-.035.783-.127 1.147-.274.92-.369 1.674-1.048 2.11-1.91l3.84-7.764a.404.404 0 0 0-.402-.578h-3.84c-.264 0-.4.173-.347.435.147.73.163 1.49.04 2.24-.04.256.16.49.435.49h1.47l-2.47 5.01c-.22.455-.56.836-.98 1.1-.17.11-.354.19-.55.245a2.02 2.02 0 0 1-.52.065H8.64l5.3-10.71a.404.404 0 0 0-.402-.578h-3.84c-.264 0-.4.173-.347.435.147.73.163 1.49.04 2.24-.04.256.16.49.435.49h1.47L7.57 22.15c-.16.32-.48.512-.824.512H4.57l6.37-12.87c.16-.32.48-.512.824-.512h3.16l.39-.78a8.63 8.63 0 0 1 1.26-1.916l.14-.174a.2.2 0 0 1 .21-.072c.08.024.14.087.16.168.04.16.05.32.03.48zM15.66 5.22a9.53 9.53 0 0 0-2.79-.41c-2.64 0-5.05 1.04-6.83 2.74L.59 15.06c-.16.32-.09.71.17.96.26.25.66.28.96.09l5.59-3.61c.11-.07.24-.11.37-.11h2.5c.22 0 .4.18.4.4v2.5c0 .13-.04.26-.11.37l-3.61 5.59c-.19.3-.16.7.09.96.25.26.64.33.96.17l7.51-5.45a9.53 9.53 0 0 0 1.63-14.45z" />
 						</svg>
 						{triggerLabel}
@@ -682,7 +810,9 @@ function SupabaseConnectDialog({
 
 					{oauthProjects ? (
 						<div className="flex flex-col gap-2">
-							<p className="text-xs text-muted-foreground">Select a project to connect:</p>
+							<p className="text-xs text-muted-foreground">
+								Select a project to connect:
+							</p>
 							{oauthProjects.map((p) => (
 								<Button
 									key={p.ref}
@@ -690,8 +820,11 @@ function SupabaseConnectDialog({
 									className="justify-start gap-2 h-auto py-2.5"
 									disabled={isOAuthConnecting}
 									onClick={async () => {
-										const stored = await chrome.storage.local.get('SupaAgentMgmtToken')
-										const token = stored.SupaAgentMgmtToken as string | undefined
+										const stored =
+											await chrome.storage.local.get('SupaAgentMgmtToken')
+										const token = stored.SupaAgentMgmtToken as
+											| string
+											| undefined
 										if (token) await applyOAuthProject(p, token)
 									}}
 								>
@@ -756,7 +889,9 @@ function SupabaseConnectDialog({
 
 							<div className="flex items-center gap-3">
 								<div className="flex-1 h-px bg-border" />
-								<span className="text-xs text-muted-foreground">or enter manually</span>
+								<span className="text-xs text-muted-foreground">
+									or enter manually
+								</span>
 								<div className="flex-1 h-px bg-border" />
 							</div>
 
@@ -819,7 +954,11 @@ function SupabaseConnectDialog({
 									className="text-xs h-8"
 								/>
 							</div>
-							<Button onClick={handleManualConnect} disabled={isCreating} className="w-full">
+							<Button
+								onClick={handleManualConnect}
+								disabled={isCreating}
+								className="w-full"
+							>
 								{isCreating ? (
 									<Loader2 className="mr-2 size-4 animate-spin" />
 								) : (

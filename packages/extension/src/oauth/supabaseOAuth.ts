@@ -74,9 +74,10 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 		client_id_issued_at?: number
 	}
 	if (!data.client_id) throw new Error('Registration response missing client_id')
+	if (!data.client_secret) throw new Error('DCR response missing client_secret')
 	return {
 		client_id: data.client_id,
-		client_secret: data.client_secret ?? '',
+		client_secret: data.client_secret,
 		client_id_issued_at: data.client_id_issued_at,
 	}
 }

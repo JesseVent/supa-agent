@@ -4,7 +4,7 @@
 
 **Symptom:** The model returns malformed tool calls, plain text, or unexpected JSON instead of structured actions.
 
-1. **Verify model compatibility** — Not all models can handle page-agent tool definitions correctly. Check the tested models list.
+1. **Verify model compatibility** — Not all models can handle SupaAgent tool definitions correctly. Check the tested models list.
 2. **Check proxy/gateway parameter forwarding** — If using an API proxy or gateway, make sure the `tools` parameter is forwarded to the model provider intact. Some proxies may strip or alter this field.
 3. **Get community help** — If the above steps don't help, open a [GitHub Issue](https://github.com/supabase/supabase/issues) with your model name and error details.
 
@@ -41,7 +41,7 @@ Some LLM providers use parameter formats that are not fully compatible with the 
 Use the customFetch config to intercept requests and adapt parameters before sending them to the target provider:
 
 ```javascript
-const agent = new PageAgent({
+const agent = new SupaAgent({
   // ...
   customFetch: async (url, init) => {
     // Adapt parameters for your provider
@@ -54,4 +54,4 @@ const agent = new PageAgent({
 })
 ```
 
-See the PageAgentCore API for full customFetch documentation.
+See the SupaAgentCore API for full customFetch documentation.

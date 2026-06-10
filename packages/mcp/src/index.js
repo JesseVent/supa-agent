@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { exec } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { platform } from 'node:os'
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import * as z from 'zod/v4'
 
 import { HubBridge } from './hub-bridge.js'
 
 const env = process.env
-const port = parseInt(env.PORT || '38401')
+const port = parseInt(env.PORT || '38401', 10)
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 /** @type {Record<string, string>} */
@@ -32,7 +32,7 @@ exec(`${cmd} "${url}"`, (err) => {
 
 // --- MCP server (stdio) ---
 
-const mcpServer = new McpServer({ name: 'page-agent', version })
+const mcpServer = new McpServer({ name: 'supa-agent', version })
 
 mcpServer.registerTool(
 	'execute_task',
@@ -72,7 +72,7 @@ mcpServer.registerTool(
 mcpServer.registerTool(
 	'get_status',
 	{
-		description: 'Check the current status of the Page Agent hub.',
+		description: 'Check the current status of the SupaAgent hub.',
 	},
 	async () => ({
 		content: [

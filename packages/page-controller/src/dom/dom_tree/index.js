@@ -239,7 +239,7 @@ export default (
 					.padStart(2, '0')
 
 			// Get iframe offset if necessary
-			let iframeOffset = { x: 0, y: 0 }
+			const iframeOffset = { x: 0, y: 0 }
 			if (parentIframe) {
 				const iframeRect = parentIframe.getBoundingClientRect() // Keep getBoundingClientRect for iframe offset
 				iframeOffset.x = iframeRect.left
@@ -312,7 +312,7 @@ export default (
 			// Update positions on scroll/resize
 			const updatePositions = () => {
 				const newRects = element.getClientRects() // Get fresh rects
-				let newIframeOffset = { x: 0, y: 0 }
+				const newIframeOffset = { x: 0, y: 0 }
 
 				if (parentIframe) {
 					const iframeRect = parentIframe.getBoundingClientRect() // Keep getBoundingClientRect for iframe
@@ -356,15 +356,24 @@ export default (
 					let newLabelTop = firstNewRectTop + 2
 					let newLabelLeft = firstNewRectLeft + firstNewRect.width - labelWidth - 2
 
-					if (firstNewRect.width < labelWidth + 4 || firstNewRect.height < labelHeight + 4) {
+					if (
+						firstNewRect.width < labelWidth + 4 ||
+						firstNewRect.height < labelHeight + 4
+					) {
 						newLabelTop = firstNewRectTop - labelHeight - 2
 						newLabelLeft = firstNewRectLeft + firstNewRect.width - labelWidth
 						if (newLabelLeft < newIframeOffset.x) newLabelLeft = firstNewRectLeft
 					}
 
 					// Ensure label stays within viewport bounds
-					newLabelTop = Math.max(0, Math.min(newLabelTop, window.innerHeight - labelHeight))
-					newLabelLeft = Math.max(0, Math.min(newLabelLeft, window.innerWidth - labelWidth))
+					newLabelTop = Math.max(
+						0,
+						Math.min(newLabelTop, window.innerHeight - labelHeight)
+					)
+					newLabelLeft = Math.max(
+						0,
+						Math.min(newLabelLeft, window.innerWidth - labelWidth)
+					)
 
 					label.style.top = `${newLabelTop}px`
 					label.style.left = `${newLabelLeft}px`
@@ -394,7 +403,9 @@ export default (
 				window.removeEventListener('scroll', throttledUpdatePositions, true)
 				window.removeEventListener('resize', throttledUpdatePositions)
 				// Remove overlay elements if needed
-				overlays.forEach((overlay) => overlay.element.remove())
+				overlays.forEach((overlay) => {
+					overlay.element.remove()
+				})
 				if (label) label.remove()
 			}
 
@@ -406,9 +417,8 @@ export default (
 			// Store cleanup function for later use
 			if (cleanupFn) {
 				// Keep a reference to cleanup functions in a global array
-				;(window._highlightCleanupFunctions = window._highlightCleanupFunctions || []).push(
-					cleanupFn
-				)
+				window._highlightCleanupFunctions = window._highlightCleanupFunctions || []
+				window._highlightCleanupFunctions.push(cleanupFn)
 			}
 		}
 	}
@@ -552,8 +562,6 @@ export default (
 			scrollData: scrollData,
 		})
 
-		console.log('scrollData!!!', scrollData)
-
 		return scrollData
 	}
 
@@ -579,7 +587,11 @@ export default (
 				} catch (e) {
 					// Fallback if checkVisibility is not supported
 					const style = window.getComputedStyle(parentElement)
-					return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+					return (
+						style.display !== 'none' &&
+						style.visibility !== 'hidden' &&
+						style.opacity !== '0'
+					)
 				}
 			}
 
@@ -630,7 +642,11 @@ export default (
 			} catch (e) {
 				// Fallback if checkVisibility is not supported
 				const style = window.getComputedStyle(parentElement)
-				return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+				return (
+					style.display !== 'none' &&
+					style.visibility !== 'hidden' &&
+					style.opacity !== '0'
+				)
 			}
 		} catch (e) {
 			console.warn('Error checking text node visibility:', e)
@@ -645,7 +661,7 @@ export default (
 	 * @returns {boolean} Whether the element is accepted.
 	 */
 	function isElementAccepted(element) {
-		if (!element || !element.tagName) return false
+		if (!element?.tagName) return false
 
 		// Always accept body and common container elements
 		const alwaysAccept = new Set([
@@ -780,7 +796,7 @@ export default (
 			return false
 		}
 
-		let isInteractiveCursor = doesElementHaveInteractivePointer(element)
+		const isInteractiveCursor = doesElementHaveInteractivePointer(element)
 
 		// Genius fix for almost all interactive elements
 		if (isInteractiveCursor) {
@@ -1005,7 +1021,7 @@ export default (
 		}
 
 		// Find the correct document context and root element
-		let doc = element.ownerDocument
+		const doc = element.ownerDocument
 
 		// If we're in an iframe, elements are considered top by default
 		if (doc !== window.document) {
@@ -1016,7 +1032,7 @@ export default (
 		 * @edit improve `sampleRect`, filter out rects with 0 area
 		 */
 		// find a rect that has width and height as sample
-		let rect = Array.from(rects).find((r) => r.width > 0 && r.height > 0)
+		const rect = Array.from(rects).find((r) => r.width > 0 && r.height > 0)
 		if (!rect) {
 			return false // No valid rect found
 		}
@@ -1280,7 +1296,7 @@ export default (
 		const hasVisibleChildren = [...element.children].some(isElementVisible)
 
 		// Avoid highlighting elements whose parent is <body> (top-level wrappers)
-		const isParentBody = element.parentElement && element.parentElement.isSameNode(document.body)
+		const isParentBody = element.parentElement?.isSameNode(document.body)
 
 		return (
 			(isInteractiveElement(element) || hasInteractiveAttributes || hasInteractiveClass) &&
@@ -1492,9 +1508,9 @@ export default (
 		}
 
 		/**
-		 * @edit add `data-browser-use-ignore` attribute
+		 * @edit add `data-supa-agent-ignore` attribute
 		 */
-		if (node.dataset?.browserUseIgnore === 'true' || node.dataset?.pageAgentIgnore === 'true') {
+		if (node.dataset?.supaAgentIgnore === 'true') {
 			return null // Skip this node and its children
 		}
 
@@ -1564,7 +1580,8 @@ export default (
 			const style = getCachedComputedStyle(node)
 
 			// Skip viewport check for fixed/sticky elements as they may appear anywhere
-			const isFixedOrSticky = style && (style.position === 'fixed' || style.position === 'sticky')
+			const isFixedOrSticky =
+				style && (style.position === 'fixed' || style.position === 'sticky')
 
 			// Check if element has actual dimensions using offsetWidth/Height (quick check)
 			const hasSize = node.offsetWidth > 0 || node.offsetHeight > 0
@@ -1650,7 +1667,12 @@ export default (
 				if (nodeData.isTopElement || isMenuContainer) {
 					nodeData.isInteractive = isInteractiveElement(node)
 					// Call the dedicated highlighting function
-					nodeWasHighlighted = handleHighlighting(nodeData, node, parentIframe, isParentHighlighted)
+					nodeWasHighlighted = handleHighlighting(
+						nodeData,
+						node,
+						parentIframe,
+						isParentHighlighted
+					)
 
 					/**
 					 * @edit direct dom ref
@@ -1723,11 +1745,17 @@ export default (
 		}
 
 		// Skip empty anchor tags only if they have no dimensions and no children
-		if (nodeData.tagName === 'a' && nodeData.children.length === 0 && !nodeData.attributes.href) {
+		if (
+			nodeData.tagName === 'a' &&
+			nodeData.children.length === 0 &&
+			!nodeData.attributes.href
+		) {
 			// Check if the anchor has actual dimensions
 			const rect = getCachedBoundingRect(node)
 			const hasSize =
-				(rect && rect.width > 0 && rect.height > 0) || node.offsetWidth > 0 || node.offsetHeight > 0
+				(rect && rect.width > 0 && rect.height > 0) ||
+				node.offsetWidth > 0 ||
+				node.offsetHeight > 0
 
 			if (!hasSize) {
 				return null

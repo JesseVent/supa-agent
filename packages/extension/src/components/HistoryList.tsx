@@ -3,15 +3,27 @@ import {
 	ArrowLeft,
 	CheckCircle,
 	History,
+	Info,
 	RotateCcw,
+	ScrollText,
 	Trash2,
+	TriangleAlert,
 	XCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { type SessionRecord, clearSessions, deleteSession, listSessions } from '@/lib/db'
+import {
+	clearLogs,
+	clearSessions,
+	deleteSession,
+	type LogEntry,
+	listLogs,
+	listSessions,
+	type SessionRecord,
+} from '@/lib/db'
 import { downloadHistoryExport } from '@/lib/history-export'
+import { cn } from '@/lib/utils'
 
 function timeAgo(ts: number): string {
 	const seconds = Math.floor((Date.now() - ts) / 1000)
@@ -24,6 +36,119 @@ function timeAgo(ts: number): string {
 	return `${days}d ago`
 }
 
+function LogLevelIcon({ level }: { level: LogEntry['level'] }) {
+	if (level === 'success')
+		return <CheckCircle className="size-3 text-emerald-500 shrink-0 mt-0.5" />
+	if (level === 'error') return <XCircle className="size-3 text-destructive shrink-0 mt-0.5" />
+	if (level === 'warn') return <TriangleAlert className="size-3 text-amber-500 shrink-0 mt-0.5" />
+	return <Info className="size-3 text-muted-foreground shrink-0 mt-0.5" />
+}
+
+function LogsPanel({ onClear }: { onClear: () => void }) {
+	const [logs, setLogs] = useState<LogEntry[]>([])
+	const [loading, setLoading] = useState(true)
+
+	const load = useCallback(async () => {
+		try {
+			setLogs(await listLogs())
+		} catch (err) {
+			console.error('[LogsPanel] Failed to load logs:', err)
+		} finally {
+			setLoading(false)
+		}
+	}, [])
+
+	useEffect(() => {
+		load()
+	}, [load])
+
+	const handleClear = async () => {
+		await clearLogs()
+		setLogs([])
+		onClear()
+	}
+
+	return (
+		<>
+			{logs.length > 0 && (
+				<div className="flex justify-end px-3 py-1 border-b">
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={handleClear}
+						className="text-[10px] text-muted-foreground hover:text-destructive cursor-pointer h-6 px-2"
+					>
+						<Trash2 className="size-3 mr-1" />
+						Clear
+					</Button>
+				</div>
+			)}
+			<div className="flex-1 overflow-y-auto">
+				{loading && (
+					<div className="flex flex-col" aria-label="Loading logs" aria-busy="true">
+						{[...Array(4)].map((_, i) => (
+							<div key={i} className="flex items-start gap-2 px-3 py-2 border-b">
+								<div className="size-3 mt-0.5 rounded-full bg-muted animate-pulse shrink-0" />
+								<div className="flex-1 space-y-1.5">
+									<div className="h-2.5 bg-muted animate-pulse rounded w-3/4" />
+									<div className="h-2 bg-muted animate-pulse rounded w-1/3" />
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+
+				{!loading && logs.length === 0 && (
+					<div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
+						<ScrollText className="size-8 opacity-30" />
+						<p className="text-xs">No logs yet</p>
+					</div>
+				)}
+
+				{logs.map((entry) => (
+					<div
+						key={entry.id}
+						className={cn(
+							'flex items-start gap-2 px-3 py-2 border-b',
+							entry.level === 'error' && 'bg-destructive/5'
+						)}
+					>
+						<LogLevelIcon level={entry.level} />
+						<div className="flex-1 min-w-0">
+							<div className="flex items-center gap-1.5">
+								<span
+									className={cn(
+										'text-[9px] px-1 py-0.5 rounded font-mono uppercase tracking-wide',
+										entry.source === 'mcp'
+											? 'bg-emerald-500/15 text-emerald-500'
+											: entry.source === 'agent'
+												? 'bg-blue-500/15 text-blue-500'
+												: 'bg-muted text-muted-foreground'
+									)}
+								>
+									{entry.source}
+								</span>
+								<span className="text-[10px] text-muted-foreground">
+									{timeAgo(entry.timestamp)}
+								</span>
+							</div>
+							<p className="text-xs mt-0.5">{entry.message}</p>
+							{entry.detail && (
+								<p
+									className="text-[10px] text-muted-foreground truncate mt-0.5"
+									title={entry.detail}
+								>
+									{entry.detail}
+								</p>
+							)}
+						</div>
+					</div>
+				))}
+			</div>
+		</>
+	)
+}
+
 export function HistoryList({
 	onSelect,
 	onBack,
@@ -33,6 +158,7 @@ export function HistoryList({
 	onBack: () => void
 	onRerun: (task: string) => void
 }) {
+	const [tab, setTab] = useState<'sessions' | 'logs'>('sessions')
 	const [sessions, setSessions] = useState<SessionRecord[]>([])
 	const [loading, setLoading] = useState(true)
 
@@ -80,8 +206,38 @@ export function HistoryList({
 				>
 					<ArrowLeft className="size-3.5" />
 				</Button>
-				<span className="text-sm font-medium flex-1">History</span>
-				{sessions.length > 0 && (
+
+				{/* Tabs */}
+				<div className="flex items-center gap-0.5 flex-1">
+					<button
+						type="button"
+						onClick={() => setTab('sessions')}
+						className={cn(
+							'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors cursor-pointer',
+							tab === 'sessions'
+								? 'bg-muted text-foreground font-medium'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+					>
+						<History className="size-3" />
+						Sessions
+					</button>
+					<button
+						type="button"
+						onClick={() => setTab('logs')}
+						className={cn(
+							'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors cursor-pointer',
+							tab === 'logs'
+								? 'bg-muted text-foreground font-medium'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+					>
+						<ScrollText className="size-3" />
+						Logs
+					</button>
+				</div>
+
+				{tab === 'sessions' && sessions.length > 0 && (
 					<Button
 						variant="ghost"
 						size="sm"
@@ -97,95 +253,109 @@ export function HistoryList({
 				)}
 			</header>
 
-			{/* List */}
-			<div className="flex-1 overflow-y-auto">
-				{loading && (
-					<div className="flex flex-col" aria-label="Loading history" aria-busy="true">
-						{[...Array(4)].map((_, i) => (
-							<div key={i} className="flex items-start gap-2 px-3 py-2.5 border-b">
-								<div className="size-3.5 mt-0.5 rounded-full bg-muted animate-pulse shrink-0" />
-								<div className="flex-1 space-y-1.5">
-									<div className="h-2.5 bg-muted animate-pulse rounded w-3/4" />
-									<div className="h-2 bg-muted animate-pulse rounded w-1/3" />
+			{/* Logs tab */}
+			{tab === 'logs' && <LogsPanel onClear={() => {}} />}
+
+			{/* Sessions tab */}
+			{tab === 'sessions' && (
+				<div className="flex-1 overflow-y-auto">
+					{loading && (
+						<div
+							className="flex flex-col"
+							aria-label="Loading history"
+							aria-busy="true"
+						>
+							{[...Array(4)].map((_, i) => (
+								<div
+									key={i}
+									className="flex items-start gap-2 px-3 py-2.5 border-b"
+								>
+									<div className="size-3.5 mt-0.5 rounded-full bg-muted animate-pulse shrink-0" />
+									<div className="flex-1 space-y-1.5">
+										<div className="h-2.5 bg-muted animate-pulse rounded w-3/4" />
+										<div className="h-2 bg-muted animate-pulse rounded w-1/3" />
+									</div>
 								</div>
-							</div>
-						))}
-					</div>
-				)}
+							))}
+						</div>
+					)}
 
-				{!loading && sessions.length === 0 && (
-					<div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
-						<History className="size-8 opacity-30" />
-						<p className="text-xs">No history yet</p>
-					</div>
-				)}
+					{!loading && sessions.length === 0 && (
+						<div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
+							<History className="size-8 opacity-30" />
+							<p className="text-xs">No history yet</p>
+						</div>
+					)}
 
-				{sessions.map((session) => (
-					<div
-						key={session.id}
-						role="button"
-						tabIndex={0}
-						onClick={() => onSelect(session.id)}
-						className="w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors cursor-pointer flex items-start gap-2 group"
-					>
-						{/* Status icon */}
-						{session.status === 'completed' ? (
-							<CheckCircle className="size-3.5 text-green-500 shrink-0 mt-0.5" />
-						) : (
-							<XCircle className="size-3.5 text-destructive shrink-0 mt-0.5" />
-						)}
+					{sessions.map((session) => (
+						<div
+							key={session.id}
+							role="button"
+							tabIndex={0}
+							onClick={() => onSelect(session.id)}
+							className="w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors cursor-pointer flex items-start gap-2 group"
+						>
+							{/* Status icon */}
+							{session.status === 'completed' ? (
+								<CheckCircle className="size-3.5 text-green-500 shrink-0 mt-0.5" />
+							) : (
+								<XCircle className="size-3.5 text-destructive shrink-0 mt-0.5" />
+							)}
 
-						{/* Content */}
-						<div className="flex-1 min-w-0">
-							<p className="text-xs font-medium truncate">{session.task}</p>
-							<div className="flex items-center mt-0.5">
-								<p className="text-[10px] text-muted-foreground">
-									{timeAgo(session.createdAt)} · {session.history.length} steps
-								</p>
-								{session.configSnapshot?.projectRef && (
-									<span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono truncate max-w-[80px] ml-1.5">
-										{session.configSnapshot.projectName || session.configSnapshot.projectRef}
-									</span>
-								)}
-								{session.configSnapshot?.model && (
-									<span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono truncate max-w-[100px] ml-1.5">
-										{session.configSnapshot.model.split('/').pop()}
-									</span>
-								)}
-								<div className="flex items-center gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-									<button
-										type="button"
-										onClick={(e) => handleRerun(e, session.task)}
-										className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-										title="Run task again"
-										aria-label={`Run history task again: ${session.task}`}
-									>
-										<RotateCcw className="size-3" />
-									</button>
-									<button
-										type="button"
-										onClick={(e) => handleExport(e, session)}
-										className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-										title="Export history JSON"
-										aria-label={`Export history for ${session.task}`}
-									>
-										<ArrowDownToLine className="size-3" />
-									</button>
-									<button
-										type="button"
-										onClick={(e) => handleDelete(e, session.id)}
-										className="p-0.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-										title="Delete history"
-										aria-label={`Delete history for ${session.task}`}
-									>
-										<Trash2 className="size-3" />
-									</button>
+							{/* Content */}
+							<div className="flex-1 min-w-0">
+								<p className="text-xs font-medium truncate">{session.task}</p>
+								<div className="flex items-center mt-0.5">
+									<p className="text-[10px] text-muted-foreground">
+										{timeAgo(session.createdAt)} · {session.history.length}{' '}
+										steps
+									</p>
+									{session.configSnapshot?.projectRef && (
+										<span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono truncate max-w-[80px] ml-1.5">
+											{session.configSnapshot.projectName ||
+												session.configSnapshot.projectRef}
+										</span>
+									)}
+									{session.configSnapshot?.model && (
+										<span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono truncate max-w-[100px] ml-1.5">
+											{session.configSnapshot.model.split('/').pop()}
+										</span>
+									)}
+									<div className="flex items-center gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+										<button
+											type="button"
+											onClick={(e) => handleRerun(e, session.task)}
+											className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+											title="Run task again"
+											aria-label={`Run history task again: ${session.task}`}
+										>
+											<RotateCcw className="size-3" />
+										</button>
+										<button
+											type="button"
+											onClick={(e) => handleExport(e, session)}
+											className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+											title="Export history JSON"
+											aria-label={`Export history for ${session.task}`}
+										>
+											<ArrowDownToLine className="size-3" />
+										</button>
+										<button
+											type="button"
+											onClick={(e) => handleDelete(e, session.id)}
+											className="p-0.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+											title="Delete history"
+											aria-label={`Delete history for ${session.task}`}
+										>
+											<Trash2 className="size-3" />
+										</button>
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
-				))}
-			</div>
+					))}
+				</div>
+			)}
 		</div>
 	)
 }

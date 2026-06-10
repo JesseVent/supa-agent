@@ -203,7 +203,9 @@ export function useHubWs(
 	config: ExtConfig | null
 ): { wsState: HubWsState } {
 	const wsPort = new URLSearchParams(location.search).get('ws')
-	const [wsState, setWsState] = useState<HubWsState>(() => (wsPort ? 'connecting' : 'disconnected'))
+	const [wsState, setWsState] = useState<HubWsState>(() =>
+		wsPort ? 'connecting' : 'disconnected'
+	)
 	const hubWsRef = useRef<HubWs | null>(null)
 
 	const latestRef = useRef({ execute, stop, configure, config })

@@ -1,4 +1,5 @@
 import { isContentScriptAllowed } from './RemotePageController'
+import { isDomainAllowed } from './security'
 
 const PREFIX = '[TabsController]'
 
@@ -70,6 +71,9 @@ export class TabsController {
 			}
 		}
 
+		// Record the origin tab so content scripts can gate main-world API exposure
+		await chrome.storage.local.set({ agentOriginTabId: this.initialTabId })
+
 		this.connectTabEvents()
 
 		if (experimentalIncludeAllTabs) {
@@ -120,6 +124,16 @@ export class TabsController {
 
 	async openNewTab(url: string): Promise<string> {
 		debug('openNewTab', url)
+
+		// Enforce domain whitelist before opening any new tab
+		const { advancedConfig } = await chrome.storage.local.get('advancedConfig')
+		const cfg = advancedConfig as Record<string, unknown> | undefined
+		const allowedDomains = (cfg?.allowedDomains ?? []) as string[]
+		if (!isDomainAllowed(url, allowedDomains)) {
+			throw new Error(
+				`Domain not allowed: ${url}. Whitelist: ${allowedDomains.join(', ') || 'none configured'}`
+			)
+		}
 
 		const result = await sendMessage({
 			type: 'TAB_CONTROL',
@@ -244,7 +258,7 @@ export class TabsController {
 	async getTabInfo(tabId: number): Promise<{ title: string; url: string }> {
 		// use cached tab info if available
 		const tabMeta = this.tabs.find((t) => t.id === tabId)
-		if (tabMeta && tabMeta.url && tabMeta.title) {
+		if (tabMeta?.url && tabMeta.title) {
 			return { title: tabMeta.title, url: tabMeta.url }
 		}
 
@@ -312,7 +326,8 @@ export class TabsController {
 
 			if (message.action === 'created') {
 				const tab = message.payload.tab as chrome.tabs.Tab
-				const shouldTrack = this.experimentalIncludeAllTabs || tab.groupId === this.tabGroupId
+				const shouldTrack =
+					this.experimentalIncludeAllTabs || tab.groupId === this.tabGroupId
 				if (shouldTrack && tab.id != null) {
 					this.addTab({ id: tab.id, isInitial: false })
 					this.switchToTab(tab.id)
@@ -347,7 +362,7 @@ export class TabsController {
 			if (this.disposed) return
 			this.portRetries++
 			// Exponential backoff: 100ms, 200ms, 400ms … capped at 30s
-			const delay = Math.min(100 * Math.pow(2, this.portRetries - 1), 30_000)
+			const delay = Math.min(100 * 2 ** (this.portRetries - 1), 30_000)
 			debug(`port disconnected, reconnecting in ${delay}ms (attempt ${this.portRetries})`)
 			this.connectTabEvents(delay)
 		})
@@ -358,6 +373,7 @@ export class TabsController {
 		this.disposed = true
 		this.port?.disconnect()
 		this.port = undefined
+		chrome.storage.local.remove('agentOriginTabId').catch(() => {})
 	}
 }
 

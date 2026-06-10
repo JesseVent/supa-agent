@@ -1,16 +1,16 @@
-import { OpenAIClient } from './OpenAIClient'
 import { DEFAULT_TEMPERATURE, LLM_MAX_RETRIES } from './constants'
 import { InvokeError, InvokeErrorTypes } from './errors'
+import { OpenAIClient } from './OpenAIClient'
 import type { InvokeOptions, InvokeResult, LLMClient, LLMConfig, Message, Tool } from './types'
 
-export { InvokeError, InvokeErrorTypes }
 export type { InvokeOptions, InvokeResult, LLMClient, LLMConfig, Message, Tool }
+export { InvokeError, InvokeErrorTypes }
 
 export function parseLLMConfig(config: LLMConfig): Required<LLMConfig> {
 	// Runtime validation as defensive programming (types already guarantee these)
 	if (!config.baseURL || !config.model) {
 		throw new Error(
-			'[PageAgent] LLM configuration required. Please provide: baseURL, model. ' +
+			'[SupaAgent] LLM configuration required. Please provide: baseURL, model. ' +
 				'See: https://supabase.com/docs'
 		)
 	}
@@ -40,9 +40,16 @@ export class LLM extends EventTarget {
 	}
 
 	/**
-	 * - call llm api *once*
-	 * - invoke tool call *once*
-	 * - return the result of the tool
+	 * Call the LLM API and return a *validated* tool call.
+	 *
+	 * @remarks
+	 * - The tool is NOT executed here — execution is the caller's responsibility so
+	 *   side-effecting tools never run inside the retry loop.
+	 * - Retries cover only the network round-trip + response normalization + schema
+	 *   validation, with exponential backoff + jitter.
+	 * - On `INVALID_TOOL_ARGS` / `NO_TOOL_CALL`, the validation error is appended to a
+	 *   working copy of the messages so the next attempt receives different input
+	 *   instead of an identical resend.
 	 */
 	async invoke(
 		messages: Message[],
@@ -50,65 +57,84 @@ export class LLM extends EventTarget {
 		abortSignal: AbortSignal,
 		options?: InvokeOptions
 	): Promise<InvokeResult> {
-		return await withRetry(
-			async () => {
-				// in case user aborted before invoking
-				if (abortSignal.aborted) throw new Error('AbortError')
+		const maxRetries = this.config.maxRetries
+		// Working copy — may be augmented with feedback between attempts.
+		const working: Message[] = [...messages]
+		let attempt = 0
+		let lastError: Error | null = null
 
-				const result = await this.client.invoke(messages, tools, abortSignal, options)
+		while (attempt <= maxRetries) {
+			// In case the user aborted before/between invocations.
+			if (abortSignal.aborted) throw new Error('AbortError')
 
-				return result
-			},
-			// retry settings
-			{
-				maxRetries: this.config.maxRetries,
-				onRetry: (attempt: number) => {
-					this.dispatchEvent(
-						new CustomEvent('retry', { detail: { attempt, maxAttempts: this.config.maxRetries } })
-					)
-				},
-				onError: (error: Error) => {
-					this.dispatchEvent(new CustomEvent('error', { detail: { error } }))
-				},
+			if (attempt > 0) {
+				this.dispatchEvent(
+					new CustomEvent('retry', { detail: { attempt, maxAttempts: maxRetries } })
+				)
+				await sleep(backoffDelay(attempt), abortSignal)
 			}
-		)
+
+			try {
+				return await this.client.invoke(working, tools, abortSignal, options)
+			} catch (error: unknown) {
+				// Never retry an abort.
+				if (isAbortError(error)) throw error
+
+				console.error(error)
+				this.dispatchEvent(new CustomEvent('error', { detail: { error } }))
+
+				// Do not retry non-retryable errors.
+				if (error instanceof InvokeError && !error.retryable) throw error
+
+				// Feedback: make the next attempt different from the last.
+				if (
+					error instanceof InvokeError &&
+					(error.type === InvokeErrorTypes.INVALID_TOOL_ARGS ||
+						error.type === InvokeErrorTypes.NO_TOOL_CALL)
+				) {
+					working.push({
+						role: 'user',
+						content: `Your previous response was invalid: ${error.message}. Respond again by calling the required tool with valid arguments.`,
+					})
+				}
+
+				lastError = error as Error
+				attempt++
+			}
+		}
+
+		throw lastError!
 	}
 }
 
-async function withRetry<T>(
-	fn: () => Promise<T>,
-	settings: {
-		maxRetries: number
-		onRetry: (attempt: number) => void
-		onError: (error: Error) => void
-	}
-): Promise<T> {
-	let attempt = 0
-	let lastError: Error | null = null
-	while (attempt <= settings.maxRetries) {
-		if (attempt > 0) {
-			settings.onRetry(attempt)
-			await new Promise((resolve) => setTimeout(resolve, 100))
-		}
+/** Exponential backoff with jitter, capped. attempt is 1-indexed. */
+function backoffDelay(attempt: number): number {
+	const base = 250
+	const cap = 4000
+	const exp = Math.min(base * 2 ** (attempt - 1), cap)
+	return exp + Math.random() * base
+}
 
-		try {
-			return await fn()
-		} catch (error: unknown) {
-			// do not retry if aborted by user
-			if ((error as any)?.rawError?.name === 'AbortError') throw error
+function isAbortError(error: unknown): boolean {
+	const e = error as { name?: string; message?: string; rawError?: { name?: string } }
+	return (
+		e?.name === 'AbortError' ||
+		e?.message === 'AbortError' ||
+		e?.rawError?.name === 'AbortError'
+	)
+}
 
-			console.error(error)
-			settings.onError(error as Error)
-
-			// do not retry if error is not retryable (InvokeError)
-			if (error instanceof InvokeError && !error.retryable) throw error
-
-			lastError = error as Error
-			attempt++
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-		}
-	}
-
-	throw lastError!
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) return reject(new Error('AbortError'))
+		const id = setTimeout(resolve, ms)
+		signal?.addEventListener(
+			'abort',
+			() => {
+				clearTimeout(id)
+				reject(new Error('AbortError'))
+			},
+			{ once: true }
+		)
+	})
 }
