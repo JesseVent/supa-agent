@@ -67,7 +67,7 @@ const pageController = new PageController()
 // Initialize the agent server-side
 const agent = new SupaAgentCore({
   baseURL: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
-  model: process.env.LLM_MODEL_NAME || 'google/gemini-2.5-flash',
+  model: process.env.LLM_MODEL_NAME || 'google/gemini-3.1-flash-lite',
   apiKey: process.env.LLM_API_KEY, // Sourced from .env
   pageController,
 })
@@ -86,7 +86,7 @@ const result = await agent.execute('Find all tables in my Supabase project and s
       "env": {
         "LLM_BASE_URL": "https://openrouter.ai/api/v1",
         "LLM_API_KEY": "your-openrouter-key",
-        "LLM_MODEL_NAME": "google/gemini-2.5-flash"
+        "LLM_MODEL_NAME": "google/gemini-3.1-flash-lite"
       }
     }
   }
@@ -99,7 +99,7 @@ Any OpenRouter-compatible model works. Well-tested options:
 
 | Provider | Model ID |
 |---|---|
-| Google | `google/gemini-2.5-flash` |
+| Google | `google/gemini-3.1-flash-lite` |
 | Anthropic | `anthropic/claude-sonnet-4-6` |
 | OpenAI | `openai/gpt-5.1` |
 | DeepSeek | `deepseek/deepseek-v3` |
@@ -146,7 +146,7 @@ bun run lint
 | Setting | Default | Description |
 |---|---|---|
 | **Base URL** | `https://openrouter.ai/api/v1` | OpenAI-compatible API endpoint |
-| **Model** | `google/gemini-2.5-flash` | Model ID |
+| **Model** | `google/gemini-3.1-flash-lite` | Model ID |
 | **API Key** | — | Your OpenRouter API key |
 | **Response Language** | `System` | Preferences for agent response language |
 | **Theme** | `System` | Theme choice (`system`, `light`, `dark`) |

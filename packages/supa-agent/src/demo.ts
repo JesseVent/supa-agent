@@ -15,7 +15,7 @@ if (autoInit && window.supaAgent) {
 // Mount to global window object
 window.SupaAgent = SupaAgent
 
-const DEMO_MODEL = 'google/gemini-2.5-flash'
+const DEMO_MODEL = 'google/gemini-3.1-flash-lite'
 const DEMO_BASE_URL = 'https://openrouter.ai/api/v1'
 const DEMO_API_KEY = ''
 

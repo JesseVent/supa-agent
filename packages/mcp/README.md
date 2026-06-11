@@ -23,7 +23,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
             "env": {
                 "LLM_BASE_URL": "https://openrouter.ai/api/v1",
                 "LLM_API_KEY": "sk-xxx",
-                "LLM_MODEL_NAME": "google/gemini-2.5-flash"
+                "LLM_MODEL_NAME": "google/gemini-3.1-flash-lite"
             }
         }
     }

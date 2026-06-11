@@ -107,7 +107,7 @@ const result = await window.PAGE_AGENT_EXT.execute(
   {
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: 'your-api-key',
-    model: 'google/gemini-2.5-flash',
+    model: 'google/gemini-3.1-flash-lite',
     onStatusChange: status => console.log('Status:', status),
     onActivity: activity => console.log('Activity:', activity),
   }

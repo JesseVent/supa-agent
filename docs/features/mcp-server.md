@@ -23,7 +23,7 @@ SupaAgent ships an MCP server (`@supa-agent/mcp`) that lets external AI clients 
       "env": {
         "LLM_BASE_URL": "https://openrouter.ai/api/v1",
         "LLM_API_KEY": "your-openrouter-key",
-        "LLM_MODEL_NAME": "google/gemini-2.5-flash"
+        "LLM_MODEL_NAME": "google/gemini-3.1-flash-lite"
       }
     }
   }
@@ -41,7 +41,7 @@ SupaAgent ships an MCP server (`@supa-agent/mcp`) that lets external AI clients 
       "env": {
         "LLM_BASE_URL": "https://openrouter.ai/api/v1",
         "LLM_API_KEY": "your-openrouter-key",
-        "LLM_MODEL_NAME": "google/gemini-2.5-flash",
+        "LLM_MODEL_NAME": "google/gemini-3.1-flash-lite",
         "HUB_AUTH_TOKEN": "your-hub-token"
       }
     }

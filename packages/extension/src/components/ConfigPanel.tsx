@@ -369,7 +369,7 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				</label>
 				<Input
 					id="model"
-					placeholder="google/gemini-2.5-flash"
+					placeholder="google/gemini-3.1-flash-lite"
 					value={model}
 					onChange={(e) => setModel(e.target.value)}
 					className="text-xs h-8"

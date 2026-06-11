@@ -43,7 +43,7 @@ const pageController = new PageController()
 // Initialize the agent server-side
 const agent = new SupaAgentCore({
   baseURL: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
-  model: process.env.LLM_MODEL_NAME || 'google/gemini-2.5-flash',
+  model: process.env.LLM_MODEL_NAME || 'google/gemini-3.1-flash-lite',
   apiKey: process.env.LLM_API_KEY, // Sourced from .env
   pageController,
 })
@@ -67,7 +67,7 @@ Let Claude Desktop, Cursor, or any MCP-compatible client control your browser:
       "env": {
         "LLM_BASE_URL": "https://openrouter.ai/api/v1",
         "LLM_API_KEY": "your-openrouter-key",
-        "LLM_MODEL_NAME": "google/gemini-2.5-flash"
+        "LLM_MODEL_NAME": "google/gemini-3.1-flash-lite"
       }
     }
   }
