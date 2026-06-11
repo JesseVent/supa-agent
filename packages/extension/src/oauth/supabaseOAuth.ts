@@ -1,7 +1,8 @@
 // Supabase Management API OAuth for browser extensions (DCR + PKCE).
-// Registers its own OAuth client at runtime via RFC 7591 — no pre-registered
-// app, no client secret. Runs entirely in the extension (background service
-// worker or sidepanel — both expose crypto.subtle and chrome.identity).
+// Registers its own OAuth client at runtime via RFC 7591. Runs entirely in
+// the extension (background service worker or sidepanel — both expose
+// crypto.subtle and chrome.identity). Stores any returned client_secret and
+// forwards it on token exchange/refresh (client_secret_post auth method).
 
 const MGMT_API = 'https://api.supabase.com'
 
@@ -58,7 +59,7 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 		body: JSON.stringify({
 			client_name: 'SupaAgent Extension',
 			redirect_uris: [redirectUri],
-			token_endpoint_auth_method: 'none',
+			token_endpoint_auth_method: 'client_secret_post',
 			grant_types: ['authorization_code', 'refresh_token'],
 			response_types: ['code'],
 			scope: DEFAULT_SCOPES,
@@ -108,8 +109,8 @@ export interface TokenResponse {
 }
 
 /**
- * Exchange the authorization code for an access token. With
- * `token_endpoint_auth_method: 'none'`, no client_secret is sent.
+ * Exchange the authorization code for an access token.
+ * Passes client_secret when present (client_secret_post auth method).
  */
 export async function exchangeCode(
 	clientId: string,

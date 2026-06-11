@@ -14,6 +14,7 @@ import {
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
 const MGMT_REFRESH_KEY = 'SupaAgentMgmtRefreshToken'
 const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientIdV3'
+const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecretV3'
 
 export default defineBackground(() => {
 	// tab change events
@@ -90,48 +91,75 @@ async function openOrFocusHubTab(wsPort: number, wsToken?: string) {
 
 // ── Supabase Management API OAuth (hosted MCP DCR) ───────────────────────────
 
-async function getOrCreateClientId(): Promise<{ clientId: string }> {
-	const stored = await chrome.storage.local.get([MGMT_CLIENT_ID_KEY])
-	const existingId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
-	if (existingId != null) return { clientId: existingId }
+async function getOrCreateClient(
+	force = false
+): Promise<{ clientId: string; clientSecret?: string }> {
+	if (!force) {
+		const stored = await chrome.storage.local.get([MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
+		const existingId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
+		if (existingId != null) {
+			return {
+				clientId: existingId,
+				clientSecret: stored[MGMT_CLIENT_SECRET_KEY] as string | undefined,
+			}
+		}
+	}
 
 	const redirectUri = getRedirectUri()
-	const { client_id } = await registerDynamicClient(redirectUri)
-	await chrome.storage.local.set({
-		[MGMT_CLIENT_ID_KEY]: client_id,
-	})
-	return { clientId: client_id }
+	const { client_id, client_secret } = await registerDynamicClient(redirectUri)
+	const update: Record<string, string> = { [MGMT_CLIENT_ID_KEY]: client_id }
+	// Supabase DCR may return a client_secret without token_endpoint_auth_method.
+	// Storing and forwarding it ensures the token exchange uses client_secret_post
+	// rather than treating the client as public — which causes MCP auth rejection.
+	if (client_secret) update[MGMT_CLIENT_SECRET_KEY] = client_secret
+	await chrome.storage.local.set(update)
+	return { clientId: client_id, clientSecret: client_secret }
 }
 
 async function handleConnectStart(): Promise<
 	{ ok: true; accessToken: string } | { error: string }
 > {
-	try {
+	const attempt = async (force = false) => {
 		const redirectUri = getRedirectUri()
-		const { clientId } = await getOrCreateClientId()
+		const { clientId, clientSecret } = await getOrCreateClient(force)
 		const { codeVerifier, codeChallenge } = await generatePKCE()
 		const state = crypto.randomUUID()
 		const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
 
 		const redirectUrl = await launchAuthFlow(authorizeUrl)
-		if (!redirectUrl) {
-			return { error: 'Sign-in window was closed' }
-		}
+		if (!redirectUrl) throw new Error('Sign-in window was closed')
 
-		// Verify state — defense against CSRF on the redirect.
 		const returnedState = new URL(redirectUrl).searchParams.get('state')
-		if (returnedState !== state) {
-			return { error: 'OAuth state mismatch — possible CSRF, try again' }
-		}
+		if (returnedState !== state)
+			throw new Error('OAuth state mismatch — possible CSRF, try again')
 
 		const code = extractCode(redirectUrl)
-		const tokens = await exchangeCode(clientId, code, codeVerifier, redirectUri)
+		return exchangeCode(clientId, code, codeVerifier, redirectUri, clientSecret)
+	}
+
+	try {
+		let tokens: Awaited<ReturnType<typeof exchangeCode>>
+		try {
+			tokens = await attempt()
+		} catch (err) {
+			if (/unrecognized.client/i.test(err instanceof Error ? err.message : '')) {
+				await chrome.storage.local.remove([MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
+				tokens = await attempt(true)
+			} else if (
+				/required.parameter.*client_secret/i.test(err instanceof Error ? err.message : '')
+			) {
+				await chrome.storage.local.remove([MGMT_CLIENT_ID_KEY, MGMT_CLIENT_SECRET_KEY])
+				tokens = await attempt(true)
+			} else {
+				throw err
+			}
+		}
 
 		const update: Record<string, string> = { [MGMT_TOKEN_KEY]: tokens.accessToken }
 		if (tokens.refreshToken) update[MGMT_REFRESH_KEY] = tokens.refreshToken
 		await chrome.storage.local.set(update)
 
-		return { ok: true, accessToken: tokens.accessToken }
+		return { ok: true as const, accessToken: tokens.accessToken }
 	} catch (err) {
 		return { error: err instanceof Error ? err.message : 'OAuth connection failed' }
 	}
@@ -139,13 +167,42 @@ async function handleConnectStart(): Promise<
 
 async function handleRefreshToken(): Promise<{ token?: string; error?: string }> {
 	try {
-		const stored = await chrome.storage.local.get([MGMT_REFRESH_KEY, MGMT_CLIENT_ID_KEY])
+		const stored = await chrome.storage.local.get([
+			MGMT_REFRESH_KEY,
+			MGMT_CLIENT_ID_KEY,
+			MGMT_CLIENT_SECRET_KEY,
+		])
 		const refreshToken = stored[MGMT_REFRESH_KEY] as string | undefined
 		const clientId = stored[MGMT_CLIENT_ID_KEY] as string | undefined
+		const clientSecret = stored[MGMT_CLIENT_SECRET_KEY] as string | undefined
 		if (!refreshToken) return { error: 'No refresh token — please reconnect' }
 		if (!clientId) return { error: 'No client_id — please reconnect' }
 
-		const tokens = await refreshAccessToken(clientId, refreshToken)
+		let tokens: Awaited<ReturnType<typeof refreshAccessToken>>
+		try {
+			tokens = await refreshAccessToken(clientId, refreshToken, clientSecret)
+		} catch (err) {
+			if (/unrecognized.client/i.test(err instanceof Error ? err.message : '')) {
+				await chrome.storage.local.remove([
+					MGMT_CLIENT_ID_KEY,
+					MGMT_CLIENT_SECRET_KEY,
+					MGMT_REFRESH_KEY,
+				])
+				return { error: 'Session expired — please reconnect via OAuth' }
+			}
+			if (
+				/required.parameter.*client_secret/i.test(err instanceof Error ? err.message : '')
+			) {
+				await chrome.storage.local.remove([
+					MGMT_CLIENT_ID_KEY,
+					MGMT_CLIENT_SECRET_KEY,
+					MGMT_REFRESH_KEY,
+				])
+				return { error: 'Missing client_secret — please reconnect via OAuth' }
+			}
+			throw err
+		}
+
 		const update: Record<string, string> = { [MGMT_TOKEN_KEY]: tokens.accessToken }
 		if (tokens.refreshToken) update[MGMT_REFRESH_KEY] = tokens.refreshToken
 		await chrome.storage.local.set(update)
