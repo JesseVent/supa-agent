@@ -31,6 +31,23 @@ function sanitizeMcpError(raw: string): string {
 		.slice(0, 120)
 }
 
+/**
+ * Broadcast agent events from the side-panel to the active tab's page.
+ * This lets external pages (e.g. supabasehire.me) display a live trace stream
+ * even when the task was started from the side-panel rather than the page API.
+ */
+function broadcastAgentEvent(action: string, payload: unknown) {
+	try {
+		void chrome.runtime.sendMessage({
+			type: 'AGENT_EVENT',
+			action,
+			payload,
+		})
+	} catch {
+		// Extension context may be invalidated
+	}
+}
+
 /** A single completed turn in the current conversation session */
 interface ConversationTurn {
 	task: string
@@ -197,12 +214,18 @@ export function useAgent(): UseAgentResult {
 			if (newStatus === 'idle' || newStatus === 'completed' || newStatus === 'error') {
 				setActivity(null)
 			}
+			broadcastAgentEvent('status_change_event', newStatus)
 		}
 		const handleHistoryChange = () => {
-			if (createdAgent) setHistory([...createdAgent.history])
+			if (!createdAgent) return
+			const h = [...createdAgent.history]
+			setHistory(h)
+			broadcastAgentEvent('history_change_event', h)
 		}
 		const handleActivity = (e: Event) => {
-			setActivity((e as CustomEvent).detail as AgentActivity)
+			const activity = (e as CustomEvent).detail as AgentActivity
+			setActivity(activity)
+			broadcastAgentEvent('activity_event', activity)
 		}
 
 		;(async () => {

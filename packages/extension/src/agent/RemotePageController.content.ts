@@ -179,3 +179,21 @@ function getMethodName(action: string): string {
 			return action
 	}
 }
+
+/**
+ * Listen for agent events broadcast from the side-panel via the background script.
+ * Forward them to the page so external sites (e.g. supabasehire.me) can show
+ * a live trace stream even when the task was started from the side-panel.
+ */
+chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
+	if (message.type === 'AGENT_EVENT') {
+		window.postMessage(
+			{
+				channel: 'PAGE_AGENT_EXT_RESPONSE',
+				action: message.action,
+				payload: message.payload,
+			},
+			window.location.origin
+		)
+	}
+})

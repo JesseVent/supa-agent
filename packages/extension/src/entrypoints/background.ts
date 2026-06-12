@@ -50,6 +50,17 @@ export default defineBackground(() => {
 		} else if (message.type === 'MGMT_DISCONNECT') {
 			handleDisconnect().then(sendResponse)
 			return true
+		} else if (message.type === 'AGENT_EVENT') {
+			// Forward side-panel agent events to the active tab so external pages
+			// (e.g. supabasehire.me) can display a live trace stream.
+			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+				const tab = tabs[0]
+				if (tab?.id) {
+					chrome.tabs.sendMessage(tab.id, message).catch(() => {})
+				}
+			})
+			// No async response needed — return undefined
+			return
 		} else {
 			sendResponse({ error: 'Unknown message type' })
 			return
