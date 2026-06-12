@@ -138,8 +138,19 @@ export class RemotePageController {
 	}
 
 	async navigateTo(url: string): Promise<DomActionReturn> {
+		// If there is no current tab (e.g. agent started from side-panel on a
+		// chrome-extension:// URL), open a new tab instead of trying to navigate
+		// a tab that does not exist.
 		if (!this.currentTabId) {
-			return { success: false, message: 'RemotePageController not initialized.' }
+			try {
+				const message = await this.tabsController.openNewTab(url)
+				return { success: true, message }
+			} catch (error) {
+				return {
+					success: false,
+					message: `Failed to open new tab: ${error instanceof Error ? error.message : String(error)}`,
+				}
+			}
 		}
 		try {
 			const message = await this.tabsController.navigateTo(this.currentTabId, url)
@@ -154,7 +165,10 @@ export class RemotePageController {
 
 	async goBack(): Promise<DomActionReturn> {
 		if (!this.currentTabId) {
-			return { success: false, message: 'RemotePageController not initialized.' }
+			return {
+				success: false,
+				message: 'No current tab to go back in. Open a tab first.',
+			}
 		}
 		try {
 			const message = await this.tabsController.goBack(this.currentTabId)
