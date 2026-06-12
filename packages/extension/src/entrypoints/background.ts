@@ -51,12 +51,36 @@ export default defineBackground(() => {
 			handleDisconnect().then(sendResponse)
 			return true
 		} else if (message.type === 'AGENT_EVENT') {
-			// Forward side-panel agent events to the active tab so external pages
-			// (e.g. supabasehire.me) can display a live trace stream.
-			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-				const tab = tabs[0]
-				if (tab?.id) {
-					chrome.tabs.sendMessage(tab.id, message).catch(() => {})
+			// Forward side-panel agent events to the tab the agent is running on.
+			// currentTabId is set by the extension when it starts controlling a tab.
+			// Falls back to the active tab if currentTabId is not set.
+			chrome.storage.local.get('currentTabId').then((result) => {
+				const targetTabId = result.currentTabId as number | undefined
+				if (targetTabId) {
+					chrome.tabs.sendMessage(targetTabId, message).catch((err) => {
+						// biome-ignore lint/suspicious/noConsole: Debug log for trace bridge
+						console.warn(
+							'[SupaAgent background] AGENT_EVENT send to tab',
+							targetTabId,
+							'failed:',
+							err?.message
+						)
+					})
+				} else {
+					chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+						const tab = tabs[0]
+						if (tab?.id) {
+							chrome.tabs.sendMessage(tab.id, message).catch((err) => {
+								// biome-ignore lint/suspicious/noConsole: Debug log for trace bridge
+								console.warn(
+									'[SupaAgent background] AGENT_EVENT send to active tab',
+									tab.id,
+									'failed:',
+									err?.message
+								)
+							})
+						}
+					})
 				}
 			})
 			// No async response needed — return undefined
