@@ -13,10 +13,11 @@
 -- TLE-compatible: idempotent, schema-qualified, no transaction control.
 -- Requires pgcrypto (preinstalled on Supabase in the `extensions` schema).
 --
--- Pairing model: the extension (publisher) and the DevTool (subscriber) sign in
--- to the same Supabase platform account. A token-exchange edge function
--- (`agent-trace-token`) mints project JWTs whose `sub` is the shared platform
--- user id (gotrue_id), so auth.uid() is identical on both sides and the topic
+-- Pairing model: the extension (publisher) and the DevTool (subscriber) both
+-- hold Management API access to this project. A token-exchange edge function
+-- (`agent-trace-token`) validates that access and mints project JWTs whose
+-- `sub` is a deterministic project-scoped UUID (UUIDv5 of the project ref),
+-- so auth.uid() is identical on both sides and the topic
 -- `agent-trace:{sha256(user_id)}` matches. The topic hash must stay
 -- byte-identical to `getChannelName()` in @supa-agent/bridge-events.
 

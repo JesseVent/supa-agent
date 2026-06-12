@@ -29,7 +29,9 @@ Run `supa_agent_trace--0.1.0.sql` against the project (psql, MCP `execute_sql`, 
 
 ## Companion edge function (required for auth)
 
-Both the extension and the DevTool authenticate with the Supabase **Management API** (account-level OAuth) — neither holds a project GoTrue session. The `agent-trace-token` edge function (in `supabase/functions/agent-trace-token/`) exchanges a Management access token for a short-lived project JWT whose `sub` is the shared platform user id (`gotrue_id`), so `auth.uid()` matches on both sides.
+Both the extension and the DevTool authenticate with the Supabase **Management API** (account-level OAuth) — neither holds a project GoTrue session. The `agent-trace-token` edge function (in `supabase/functions/agent-trace-token/`) validates that the caller's Management token can access *this* project (`GET /v1/projects/{ref}`) and exchanges it for a short-lived project JWT whose `sub` is a deterministic project-scoped UUID (UUIDv5 of the project ref), so `auth.uid()` matches on both sides.
+
+> Pairing is per **project**, not per platform user: anyone with Management API access to the project (e.g. org members who authorized the app) shares the same trace channel. The per-user design (`gotrue_id` from `/v1/profile`) is currently impossible because that endpoint rejects OAuth tokens (`"GET /v1/profile does not support oauth access yet"`).
 
 ```bash
 supabase functions deploy agent-trace-token --no-verify-jwt

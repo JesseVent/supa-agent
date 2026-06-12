@@ -14,9 +14,10 @@ export async function sha256Hex(input: string): Promise<string> {
 /**
  * Derive the Realtime topic for a pairing scope.
  *
- * The scope id is the shared Supabase platform user id (gotrue_id) when both
- * sides are signed in, or a pre-shared token in fallback mode. It is hashed so
- * the raw id never appears as a public topic name.
+ * The scope id is the project-scoped UUID minted by the `agent-trace-token`
+ * edge function (UUIDv5 of the connected project ref) when both sides are
+ * signed in, or a pre-shared token in fallback mode. It is hashed so the raw
+ * id never appears as a public topic name.
  *
  * Must stay byte-identical to the SQL helper `public.agent_trace_topic(uuid)`:
  * 'agent-trace:' || encode(extensions.digest(lower(uid::text), 'sha256'), 'hex')

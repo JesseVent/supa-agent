@@ -59,7 +59,7 @@ export async function registerDynamicClient(redirectUri: string): Promise<Dynami
 		body: JSON.stringify({
 			client_name: 'SupaAgent Extension',
 			redirect_uris: [redirectUri],
-			token_endpoint_auth_method: 'client_secret_post',
+			token_endpoint_auth_method: 'none',
 			grant_types: ['authorization_code', 'refresh_token'],
 			response_types: ['code'],
 			scope: DEFAULT_SCOPES,
@@ -97,6 +97,7 @@ export function buildAuthorizeUrl(
 	url.searchParams.set('code_challenge', codeChallenge)
 	url.searchParams.set('code_challenge_method', 'S256')
 	url.searchParams.set('state', state)
+	url.searchParams.set('scope', DEFAULT_SCOPES)
 	return url.toString()
 }
 

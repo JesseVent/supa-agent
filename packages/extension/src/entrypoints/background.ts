@@ -13,8 +13,8 @@ import {
 
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
 const MGMT_REFRESH_KEY = 'SupaAgentMgmtRefreshToken'
-const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientIdV3'
-const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecretV3'
+const MGMT_CLIENT_ID_KEY = 'SupaAgentMgmtClientIdV4'
+const MGMT_CLIENT_SECRET_KEY = 'SupaAgentMgmtClientSecretV4'
 
 export default defineBackground(() => {
 	// tab change events

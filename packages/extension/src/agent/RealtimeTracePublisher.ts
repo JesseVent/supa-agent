@@ -44,9 +44,10 @@ type PublishMode = 'persist' | 'broadcast'
  * channel is joined only for Presence ("agent online" + active run).
  *
  * Auth: exchanges the Management OAuth token for a short-lived project JWT via
- * the `agent-trace-token` edge function (sub = shared platform user id), then
- * feeds it to supabase-js through the `accessToken` callback so PostgREST and
- * Realtime stay in sync.
+ * the `agent-trace-token` edge function (sub = deterministic project-scoped
+ * UUID; the function validates the caller has Management API access to the
+ * project), then feeds it to supabase-js through the `accessToken` callback so
+ * PostgREST and Realtime stay in sync.
  *
  * Publishing must never break the agent loop: failures are surfaced through
  * `state`/`lastError` and console warnings, not thrown into callers.
@@ -178,6 +179,10 @@ export class RealtimeTracePublisher {
 				this.mode === 'persist'
 					? createClient(this.supabaseUrl, this.anonKey, {
 							auth: { persistSession: false, autoRefreshToken: false },
+							// agent_trace_events lives in `public`, which is not necessarily
+							// the project's default Data API schema (e.g. projects exposing
+							// `api` first) — target it explicitly.
+							db: { schema: 'public' },
 							// Single source of auth for PostgREST + Realtime; re-mints near expiry.
 							accessToken: async () => (await this.getToken()).token,
 						})
@@ -185,6 +190,10 @@ export class RealtimeTracePublisher {
 						createClient(this.supabaseUrl, this.anonKey, {
 							auth: { persistSession: false, autoRefreshToken: false },
 						})
+
+			if (this.mode === 'persist' && this.minted) {
+				this.client.realtime.setAuth(this.minted.token)
+			}
 		}
 		return this.client
 	}
@@ -292,7 +301,9 @@ export class RealtimeTracePublisher {
 				this.mintPromise = null
 			})
 		}
-		return this.mintPromise
+		const minted = await this.mintPromise
+		this.client?.realtime.setAuth(minted.token)
+		return minted
 	}
 
 	private async mintToken(): Promise<MintedToken> {
@@ -334,8 +345,19 @@ export class RealtimeTracePublisher {
 	}
 
 	private async loadMgmtToken(): Promise<string | null> {
+		// Prefer the OAuth-managed token: the background refresh flow keeps it
+		// fresh, while a manually pasted token in advancedConfig is static and
+		// silently goes stale. The manual token is only a fallback for users
+		// who never connected via OAuth.
 		const stored = await chrome.storage.local.get(MGMT_TOKEN_KEY)
-		return (stored[MGMT_TOKEN_KEY] as string) ?? null
+		const oauthToken = stored[MGMT_TOKEN_KEY] as string | undefined
+		if (oauthToken) return oauthToken
+
+		const config = await chrome.storage.local.get('advancedConfig')
+		const manualToken = (config.advancedConfig as any)?.supabaseMcpAccessToken as
+			| string
+			| undefined
+		return manualToken?.trim() || null
 	}
 
 	private async loadUserAuthToken(): Promise<string | null> {
