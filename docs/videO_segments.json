@@ -1,0 +1,61 @@
+{
+    "task_id": "6a2a8951a192edb5e79af4be",
+    "custom_id": null,
+    "video_source": {
+        "type": "asset_id",
+        "asset_id": "6a2a8680292dd4558c0f8efd",
+        "system_metadata": {
+            "duration": 1342.2
+        }
+    },
+    "request_params": {
+        "analysis_mode": "time_based_metadata",
+        "response_format": {
+            "type": "segment_definitions",
+            "segment_definitions": [
+                {
+                    "id": "topic_segments",
+                    "description": "Segment whenever the primary topic or subject matter changes significantly.",
+                    "fields": [
+                        {
+                            "name": "topic",
+                            "type": "string",
+                            "description": "The main topic of this segment"
+                        },
+                        {
+                            "name": "subtopics",
+                            "type": "string",
+                            "description": "Related subtopics discussed"
+                        },
+                        {
+                            "name": "key_points",
+                            "type": "string",
+                            "description": "Key points or takeaways from this segment"
+                        },
+                        {
+                            "name": "transition_type",
+                            "type": "string",
+                            "enum": ["hard_cut", "gradual", "host_introduction", "natural_flow"]
+                        }
+                    ]
+                }
+            ],
+            "segment_time_format": "seconds"
+        },
+        "temperature": 0.2,
+        "max_tokens": 32768,
+        "min_segment_duration": 15
+    },
+    "status": "ready",
+    "created_at": "2026-06-11T10:09:21Z",
+    "completed_at": "2026-06-11T10:12:01Z",
+    "result": {
+        "generation_id": "633f9d98-c4ba-47e5-aeb0-b1570c7581fc",
+        "data": "{\"topic_segments\":[{\"end_time\":133.023,\"metadata\":{\"key_points\":\"The user creates a new Supabase project named 'supabase-ai-coding-engine' and imports a pre-defined SQL schema to set up the database structure.\",\"subtopics\":\"Creating a new project, importing SQL schema, reviewing database tables and relationships.\",\"topic\":\"Supabase Project Setup and Database Schema\",\"transition_type\":\"natural_flow\"},\"start_time\":0.023},{\"end_time\":295.023,\"metadata\":{\"key_points\":\"The user creates and tests Supabase Edge Functions, including 'get_user_stats' and 'get_user_projects', using SQL queries and AI assistance to generate and debug code.\",\"subtopics\":\"Creating edge functions, writing SQL queries, handling errors, using AI for code generation.\",\"topic\":\"Supabase Edge Functions and SQL Queries\",\"transition_type\":\"natural_flow\"},\"start_time\":133.023},{\"end_time\":405.023,\"metadata\":{\"key_points\":\"The user utilizes the Supabase SQL Editor to insert data into tables and execute queries, leveraging AI to generate SQL statements for data management.\",\"subtopics\":\"Executing SQL queries, inserting data, managing tables, using AI for SQL generation.\",\"topic\":\"Supabase SQL Editor and Data Management\",\"transition_type\":\"natural_flow\"},\"start_time\":295.023},{\"end_time\":524.023,\"metadata\":{\"key_points\":\"The user explores the Supabase AI Coding Engine, deploys functions, and interacts with an AI chatbot to troubleshoot errors and generate code.\",\"subtopics\":\"AI coding engine, function deployment, error handling, AI chatbot integration.\",\"topic\":\"Supabase AI Coding Engine and Function Deployment\",\"transition_type\":\"natural_flow\"},\"start_time\":405.023},{\"end_time\":614.023,\"metadata\":{\"key_points\":\"The user navigates the Supabase dashboard, reviewing project statistics, function monitoring, and interacting with the AI chatbot for project insights.\",\"subtopics\":\"Dashboard overview, project statistics, function monitoring, AI chatbot interaction.\",\"topic\":\"Supabase Dashboard and Project Overview\",\"transition_type\":\"natural_flow\"},\"start_time\":524.023},{\"end_time\":744.023,\"metadata\":{\"key_points\":\"The user extensively uses the Supabase AI chatbot to generate code, create functions, and resolve errors, demonstrating AI-powered development capabilities.\",\"subtopics\":\"AI chatbot, code generation, function creation, error resolution, AI-powered development.\",\"topic\":\"Supabase AI Chatbot and Code Generation\",\"transition_type\":\"natural_flow\"},\"start_time\":614.023},{\"end_time\":852.023,\"metadata\":{\"key_points\":\"The user explores a GitHub repository related to Supabase, integrates it with their project, and uses the AI chatbot to manage environment variables and configuration.\",\"subtopics\":\"GitHub repository, Supabase integration, environment variables, AI chatbot interaction.\",\"topic\":\"GitHub Repository and Supabase Integration\",\"transition_type\":\"natural_flow\"},\"start_time\":744.023},{\"end_time\":1056.023,\"metadata\":{\"key_points\":\"The user continues to work with Supabase Edge Functions, using the AI chatbot to generate code, handle errors, and deploy functions, showcasing iterative development.\",\"subtopics\":\"Edge functions, AI chatbot, code generation, error handling, function deployment.\",\"topic\":\"Supabase Edge Functions and AI Chatbot\",\"transition_type\":\"natural_flow\"},\"start_time\":852.023},{\"end_time\":1195.023,\"metadata\":{\"key_points\":\"The user explores a GitHub repository and Supabase documentation, focusing on the AI coding engine, project setup, and configuration details.\",\"subtopics\":\"GitHub repository, Supabase documentation, AI coding engine, project setup, configuration.\",\"topic\":\"GitHub Repository and Supabase Documentation\",\"transition_type\":\"natural_flow\"},\"start_time\":1056.023},{\"end_time\":1342.2,\"metadata\":{\"key_points\":\"The user concludes by reviewing the Supabase AI Coding Engine documentation and a related GitHub repository, emphasizing AI-powered development and project configuration.\",\"subtopics\":\"AI coding engine, GitHub repository, project setup, configuration, AI-powered development.\",\"topic\":\"Supabase AI Coding Engine and GitHub Repository\",\"transition_type\":\"natural_flow\"},\"start_time\":1195.023}]}",
+        "finish_reason": "stop",
+        "usage": {
+            "output_tokens": 1255,
+            "input_tokens": 49325
+        }
+    }
+}

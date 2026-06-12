@@ -125,6 +125,32 @@ export function handleTabControlMessage(
 			return true // async response
 		}
 
+		case 'navigate_to': {
+			debug('navigate_to', payload)
+			chrome.tabs
+				.update(payload.tabId, { url: payload.url })
+				.then(() => {
+					sendResponse({ success: true })
+				})
+				.catch((error) => {
+					sendResponse({ error: error instanceof Error ? error.message : String(error) })
+				})
+			return true // async response
+		}
+
+		case 'go_back': {
+			debug('go_back', payload)
+			chrome.tabs
+				.goBack(payload.tabId)
+				.then(() => {
+					sendResponse({ success: true })
+				})
+				.catch((error) => {
+					sendResponse({ error: error instanceof Error ? error.message : String(error) })
+				})
+			return true // async response
+		}
+
 		case 'get_window_tabs': {
 			debug('get_window_tabs', payload)
 			chrome.tabs

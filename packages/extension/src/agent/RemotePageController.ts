@@ -137,6 +137,36 @@ export class RemotePageController {
 		return this.remoteCallDomAction('execute_javascript', args)
 	}
 
+	async navigateTo(url: string): Promise<DomActionReturn> {
+		if (!this.currentTabId) {
+			return { success: false, message: 'RemotePageController not initialized.' }
+		}
+		try {
+			const message = await this.tabsController.navigateTo(this.currentTabId, url)
+			return { success: true, message }
+		} catch (error) {
+			return {
+				success: false,
+				message: `Failed to navigate: ${error instanceof Error ? error.message : String(error)}`,
+			}
+		}
+	}
+
+	async goBack(): Promise<DomActionReturn> {
+		if (!this.currentTabId) {
+			return { success: false, message: 'RemotePageController not initialized.' }
+		}
+		try {
+			const message = await this.tabsController.goBack(this.currentTabId)
+			return { success: true, message }
+		} catch (error) {
+			return {
+				success: false,
+				message: `Failed to go back: ${error instanceof Error ? error.message : String(error)}`,
+			}
+		}
+	}
+
 	/** @note Managed by content script via storage polling. */
 	async showMask(): Promise<void> {}
 	/** @note Managed by content script via storage polling. */

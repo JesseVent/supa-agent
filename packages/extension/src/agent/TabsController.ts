@@ -216,6 +216,36 @@ export class TabsController {
 		}
 	}
 
+	async navigateTo(tabId: number, url: string): Promise<string> {
+		debug('navigateTo', tabId, url)
+
+		const result = await sendMessage({
+			type: 'TAB_CONTROL',
+			action: 'navigate_to',
+			payload: { tabId, url },
+		})
+
+		if (result.success) {
+			return `Done: Navigated tab ${tabId} to ${url}.`
+		}
+		throw new Error(`Failed to navigate tab ${tabId}: ${result.error}`)
+	}
+
+	async goBack(tabId: number): Promise<string> {
+		debug('goBack', tabId)
+
+		const result = await sendMessage({
+			type: 'TAB_CONTROL',
+			action: 'go_back',
+			payload: { tabId },
+		})
+
+		if (result.success) {
+			return `Done: Navigated back in tab ${tabId}.`
+		}
+		throw new Error(`Failed to go back in tab ${tabId}: ${result.error}`)
+	}
+
 	private async createTabGroup(tabIds: number[]) {
 		const result = await sendMessage({
 			type: 'TAB_CONTROL',
@@ -392,6 +422,8 @@ export type TabAction =
 	| 'close_tab'
 	| 'get_tab_title'
 	| 'get_window_tabs'
+	| 'navigate_to'
+	| 'go_back'
 
 interface TabMeta {
 	id: number
