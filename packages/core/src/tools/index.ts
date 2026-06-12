@@ -185,7 +185,34 @@ tools.set(
 	})
 )
 
+tools.set(
+	'go_to_url',
+	tool({
+		description:
+			'Navigate the browser to a specific URL. Use this when the user asks you to visit a website or when you need to go to a different page to complete the task.',
+		inputSchema: z.object({
+			url: z.string().url(),
+		}),
+		execute: async function (this: SupaAgentCore, input) {
+			const result = await this.pageController.navigateTo(input.url)
+			return result.message
+		},
+	})
+)
+
+tools.set(
+	'go_back',
+	tool({
+		description:
+			'Navigate back to the previous page using browser history. Use this when you need to return to a page you were on before.',
+		inputSchema: z.object({}),
+		execute: async function (this: SupaAgentCore, _input) {
+			const result = await this.pageController.goBack()
+			return result.message
+		},
+	})
+)
+
 // @todo send_keys
 // @todo upload_file
-// @todo go_back
 // @todo extract_structured_data

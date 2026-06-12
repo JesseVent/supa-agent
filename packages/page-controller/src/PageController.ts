@@ -394,6 +394,42 @@ export class PageController extends EventTarget {
 		}
 	}
 
+	/**
+	 * Navigate to a specific URL
+	 */
+	async navigateTo(url: string): Promise<ActionResult> {
+		try {
+			window.location.href = url
+			return {
+				success: true,
+				message: `Navigating to ${url}`,
+			}
+		} catch (error) {
+			return {
+				success: false,
+				message: `Failed to navigate: ${error}`,
+			}
+		}
+	}
+
+	/**
+	 * Navigate back using browser history
+	 */
+	async goBack(): Promise<ActionResult> {
+		try {
+			window.history.back()
+			return {
+				success: true,
+				message: 'Navigated back',
+			}
+		} catch (error) {
+			return {
+				success: false,
+				message: `Failed to go back: ${error}`,
+			}
+		}
+	}
+
 	// ======= Mask Operations =======
 
 	/**
