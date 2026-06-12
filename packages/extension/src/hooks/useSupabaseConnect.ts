@@ -55,10 +55,20 @@ export function useSupabaseConnect(opts: {
 					try {
 						const parsed = JSON.parse(keyRaw)
 						if (Array.isArray(parsed?.keys)) {
-							const anon = parsed.keys.find(
-								(k: any) => k.name === 'anon' || k.type === 'legacy'
-							)
-							anonKey = anon?.api_key ?? ''
+							const pick =
+								parsed.keys.find(
+									(k: any) =>
+										!k.disabled &&
+										(k.api_key?.startsWith('sb_publishable_') ?? false)
+								) ??
+								parsed.keys.find(
+									(k: any) => !k.disabled && k.type === 'publishable'
+								) ??
+								parsed.keys.find(
+									(k: any) =>
+										!k.disabled && (k.name === 'anon' || k.type === 'legacy')
+								)
+							anonKey = pick?.api_key ?? ''
 						} else if (typeof parsed === 'string') {
 							anonKey = parsed
 						} else {
