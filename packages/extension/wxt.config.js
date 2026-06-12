@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
@@ -7,6 +7,12 @@ import { defineConfig } from 'wxt'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const chromeProfile = '.wxt/chrome-data'
 mkdirSync(chromeProfile, { recursive: true })
+// Remove stale Chrome singleton locks so WXT can launch a fresh CDP instance
+for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+	try {
+		unlinkSync(join(chromeProfile, f))
+	} catch {}
+}
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -24,10 +30,18 @@ const workspaceAliases = {
 export default defineConfig({
 	srcDir: 'src',
 	modules: ['@wxt-dev/module-react'],
+	runner: {
+		disabled: true,
+	},
+	dev: {
+		server: {
+			port: 3200,
+		},
+	},
 	webExt: {
 		chromiumProfile: chromeProfile,
 		keepProfileChanges: true,
-		chromiumArgs: ['--hide-crash-restore-bubble'],
+		chromiumArgs: ['--hide-crash-restore-bubble', '--no-first-run'],
 	},
 	vite: () => ({
 		plugins: [tailwindcss()],
@@ -36,6 +50,9 @@ export default defineConfig({
 		},
 		define: {
 			__VERSION__: JSON.stringify(pkg.version),
+			// React Fast Refresh globals — no-op in contexts where the runtime isn't injected
+			$RefreshReg$: '(() => {})',
+			$RefreshSig$: '(() => (type) => type)',
 		},
 		optimizeDeps: {
 			force: true,
