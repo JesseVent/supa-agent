@@ -1,3 +1,4 @@
+import type { TraceTransport } from '@supa-agent/bridge-events'
 import {
 	Copy,
 	CornerUpLeft,
@@ -73,6 +74,13 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 	)
 	const [allowMcpWrites, setAllowMcpWrites] = useState(config?.allowMcpWrites ?? false)
 	const [allowedDomains, setAllowedDomains] = useState(config?.allowedDomains?.join(', ') ?? '')
+	const [traceTransport, setTraceTransport] = useState<TraceTransport>(
+		config?.traceTransport ?? 'postMessage'
+	)
+	const [traceSupabaseUrl, setTraceSupabaseUrl] = useState(config?.traceSupabaseUrl ?? '')
+	const [traceSupabaseAnonKey, setTraceSupabaseAnonKey] = useState(
+		config?.traceSupabaseAnonKey ?? ''
+	)
 	const [showSupabaseToken, setShowSupabaseToken] = useState(false)
 	const [advancedOpen, setAdvancedOpen] = useState(false)
 	const [saving, setSaving] = useState(false)
@@ -103,6 +111,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 		setSupabaseMcpAccessToken(config?.supabaseMcpAccessToken ?? '')
 		setAllowMcpWrites(config?.allowMcpWrites ?? false)
 		setAllowedDomains(config?.allowedDomains?.join(', ') ?? '')
+		setTraceTransport(config?.traceTransport ?? 'postMessage')
+		setTraceSupabaseUrl(config?.traceSupabaseUrl ?? '')
+		setTraceSupabaseAnonKey(config?.traceSupabaseAnonKey ?? '')
 		setTheme(config?.theme ?? 'system')
 		setPreserveMemory(config?.preserveMemory ?? false)
 	}
@@ -165,6 +176,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 							.map((d) => d.trim())
 							.filter((d) => d.length > 0)
 					: undefined,
+				traceTransport,
+				traceSupabaseUrl: traceSupabaseUrl || undefined,
+				traceSupabaseAnonKey: traceSupabaseAnonKey || undefined,
 				theme,
 				preserveMemory,
 			})
@@ -316,9 +330,11 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 					)}
 					<div className="flex gap-2">
 						<SupabaseConnectDialog
-							onApplyProject={({ ref, name }) => {
+							onApplyProject={({ ref, name, anonKey }) => {
 								setSupabaseMcpProjectRef(ref)
 								setSupabaseMcpProjectName(name)
+								setTraceSupabaseUrl(`https://${ref}.supabase.co`)
+								if (anonKey) setTraceSupabaseAnonKey(anonKey)
 								toast.success('Project linked', { description: name })
 							}}
 							triggerLabel="Change project"
@@ -333,6 +349,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 								setSupabaseMcpProjectName('')
 								setSupabaseMcpAccessToken('')
 								setAllowMcpWrites(false)
+								setTraceSupabaseUrl('')
+								setTraceSupabaseAnonKey('')
+								setTraceTransport('postMessage')
 								toast.info('Project unlinked')
 							}}
 						>
@@ -342,9 +361,11 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 				</div>
 			) : (
 				<SupabaseConnectDialog
-					onApplyProject={({ ref, name }) => {
+					onApplyProject={({ ref, name, anonKey }) => {
 						setSupabaseMcpProjectRef(ref)
 						setSupabaseMcpProjectName(name)
+						setTraceSupabaseUrl(`https://${ref}.supabase.co`)
+						if (anonKey) setTraceSupabaseAnonKey(anonKey)
 						toast.success('Project linked', { description: name })
 					}}
 				/>
@@ -612,6 +633,36 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 									: 'Read-only: write and destructive MCP tools are blocked. Enable only if you need the agent to modify your project.'}
 							</p>
 						</div>
+					</div>
+
+					<div className="flex flex-col gap-1.5 pt-2 border-t border-border/50">
+						<label
+							htmlFor="trace-transport"
+							className="text-xs font-medium text-muted-foreground"
+						>
+							Live Trace Transport
+						</label>
+						<p className="text-[10px] text-muted-foreground">
+							Where agent trace events stream: the page in the current tab
+							(postMessage), Supabase Realtime (any tab or device), or both.
+						</p>
+						<select
+							id="trace-transport"
+							value={traceTransport}
+							onChange={(e) => setTraceTransport(e.target.value as TraceTransport)}
+							className="h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
+						>
+							<option value="postMessage">Current tab only (postMessage)</option>
+							<option value="realtime">Supabase Realtime</option>
+							<option value="both">Both</option>
+						</select>
+						{traceTransport !== 'postMessage' && !traceSupabaseAnonKey && (
+							<p className="text-[10px] text-amber-500 leading-relaxed">
+								⚠️ Realtime needs a connected project with a publishable key — use
+								"Connect with Supabase" above, plus the supa_agent_trace extension
+								and agent-trace-token function installed on that project.
+							</p>
+						)}
 					</div>
 				</>
 			)}

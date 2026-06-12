@@ -1,6 +1,8 @@
 /**
  * React hook for using AgentController
  */
+
+import type { BridgeAction, TraceTransport } from '@supa-agent/bridge-events'
 import {
 	type AgentActivity,
 	type AgentStatus,
@@ -18,6 +20,7 @@ import { DEMO_CONFIG } from './constants'
 import { MultiPageAgent } from './MultiPageAgent'
 import { adaptMcpTools } from './mcpToolAdapter'
 import { SUPABASE_MIGRATION_INSTRUCTION } from './migrationInstruction'
+import { RealtimeTracePublisher } from './RealtimeTracePublisher'
 import { SupabaseMcpClient } from './SupabaseMcpClient'
 
 function isMigrationTask(task: string): boolean {
@@ -32,19 +35,34 @@ function sanitizeMcpError(raw: string): string {
 }
 
 /**
- * Broadcast agent events from the side-panel to the active tab's page.
- * This lets external pages (e.g. supabasehire.me) display a live trace stream
- * even when the task was started from the side-panel rather than the page API.
+ * The active realtime publisher + transport mode, set by the useAgent hook.
+ * Module-level so the free-standing broadcast function can reach them.
  */
-function broadcastAgentEvent(action: string, payload: unknown) {
-	try {
-		void chrome.runtime.sendMessage({
-			type: 'AGENT_EVENT',
-			action,
-			payload,
-		})
-	} catch {
-		// Extension context may be invalidated
+let activeTracePublisher: RealtimeTracePublisher | null = null
+let activeTraceTransport: TraceTransport = 'postMessage'
+
+/**
+ * Broadcast agent events from the side-panel.
+ *
+ * postMessage path: side-panel → background → content script → window.postMessage,
+ * so the page the agent is driving (e.g. supabasehire.me) can show a live trace.
+ * realtime path: persists to the connected Supabase project, whose DB trigger
+ * broadcasts to the private `agent-trace:{userScope}` topic for remote viewers.
+ */
+function broadcastAgentEvent(action: BridgeAction, payload: unknown) {
+	if (activeTraceTransport !== 'realtime') {
+		try {
+			void chrome.runtime.sendMessage({
+				type: 'AGENT_EVENT',
+				action,
+				payload,
+			})
+		} catch {
+			// Extension context may be invalidated
+		}
+	}
+	if (activeTraceTransport !== 'postMessage') {
+		activeTracePublisher?.publish(action, payload)
 	}
 }
 
@@ -78,6 +96,16 @@ export interface AdvancedConfig {
 	allowMcpWrites?: boolean
 	/** Whitelist of domains the agent may interact with. Empty = allow all. */
 	allowedDomains?: string[]
+	/**
+	 * Where to publish live trace events.
+	 * 'postMessage' (default): tab-local bridge only.
+	 * 'realtime': Supabase Realtime only. 'both': both transports.
+	 */
+	traceTransport?: TraceTransport
+	/** Supabase project URL hosting the realtime trace channel (https://<ref>.supabase.co) */
+	traceSupabaseUrl?: string
+	/** Publishable (anon) key for the trace host project */
+	traceSupabaseAnonKey?: string
 	/** Theme preference. 'system' follows OS setting. */
 	theme?: 'system' | 'light' | 'dark'
 	/**
@@ -198,6 +226,9 @@ export function useAgent(): UseAgentResult {
 			supabaseMcpProjectName,
 			supabaseMcpAccessToken,
 			allowMcpWrites,
+			traceTransport,
+			traceSupabaseUrl,
+			traceSupabaseAnonKey,
 			...agentConfig
 		} = config
 
@@ -205,6 +236,23 @@ export function useAgent(): UseAgentResult {
 			skillRouterUrl && skillRouterKey && skillRouterSkill
 				? new SkillRouterClient(skillRouterUrl, skillRouterKey).asAdapter(skillRouterSkill)
 				: undefined
+
+		const wantsRealtime = traceTransport === 'realtime' || traceTransport === 'both'
+		if (wantsRealtime && traceSupabaseUrl && traceSupabaseAnonKey) {
+			activeTracePublisher = new RealtimeTracePublisher({
+				supabaseUrl: traceSupabaseUrl,
+				anonKey: traceSupabaseAnonKey,
+			})
+			activeTraceTransport = traceTransport ?? 'postMessage'
+		} else {
+			if (wantsRealtime) {
+				console.warn(
+					'[useAgent] traceTransport requires a connected Supabase project (URL + anon key) — falling back to postMessage'
+				)
+			}
+			activeTracePublisher = null
+			activeTraceTransport = 'postMessage'
+		}
 
 		const handleStatusChange = () => {
 			const agent = createdAgent
@@ -302,6 +350,9 @@ export function useAgent(): UseAgentResult {
 
 		return () => {
 			disposed = true
+			void activeTracePublisher?.dispose()
+			activeTracePublisher = null
+			activeTraceTransport = 'postMessage'
 			if (createdAgent) {
 				createdAgent.removeEventListener('statuschange', handleStatusChange)
 				createdAgent.removeEventListener('historychange', handleHistoryChange)
@@ -343,8 +394,17 @@ export function useAgent(): UseAgentResult {
 
 		void writeLog({ level: 'info', source: 'agent', message: `Task started`, detail: task })
 
+		// Mint a runId and join the realtime channel before the first event fires.
+		if (activeTracePublisher) {
+			await activeTracePublisher.startRun()
+		}
+
 		try {
 			const result = await agent.execute(effectiveTask)
+			// Side-panel runs must emit completion too, not just the page-API path —
+			// remote viewers rely on it to mark the trace as finished.
+			broadcastAgentEvent('execute_result', result)
+			void activeTracePublisher?.endRun(result.success ? 'completed' : 'error')
 
 			// Append this turn so the next message has context
 			const summary =
@@ -361,6 +421,10 @@ export function useAgent(): UseAgentResult {
 			})
 			return result
 		} catch (err) {
+			broadcastAgentEvent('execute_result', {
+				error: err instanceof Error ? err.message : String(err),
+			})
+			void activeTracePublisher?.endRun('error')
 			void writeLog({
 				level: 'error',
 				source: 'agent',
@@ -397,6 +461,9 @@ export function useAgent(): UseAgentResult {
 			supabaseMcpAccessToken,
 			allowMcpWrites,
 			allowedDomains,
+			traceTransport,
+			traceSupabaseUrl,
+			traceSupabaseAnonKey,
 			theme,
 			preserveMemory,
 			...llmConfig
@@ -427,6 +494,9 @@ export function useAgent(): UseAgentResult {
 				supabaseMcpAccessToken,
 				allowMcpWrites,
 				allowedDomains,
+				traceTransport,
+				traceSupabaseUrl,
+				traceSupabaseAnonKey,
 				theme,
 				preserveMemory,
 			}

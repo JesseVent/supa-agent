@@ -4,6 +4,7 @@
     "version": "1.8.2",
     "type": "module",
     "workspaces": [
+        "packages/bridge-events",
         "packages/page-controller",
         "packages/ui",
         "packages/llms",

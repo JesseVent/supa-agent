@@ -15,6 +15,7 @@
         }
     },
     "include": [
+        "packages/bridge-events/src/**/*",
         "packages/llms/src/**/*",
         "packages/page-controller/src/**/*",
         "packages/ui/src/**/*",

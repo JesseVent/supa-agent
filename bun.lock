@@ -8,9 +8,9 @@
         "@biomejs/biome": "^2.4.16",
         "@commitlint/cli": "^20.5.3",
         "@commitlint/config-conventional": "^20.5.3",
-        "@microsoft/api-extractor": "^7.58.7",
+        "@microsoft/api-extractor": "^7.58.8",
         "@tailwindcss/vite": "^4.3.0",
-        "@types/node": "^25.9.1",
+        "@types/node": "^25.9.2",
         "@vitejs/plugin-react": "^6.0.2",
         "chalk": "^5.6.2",
         "concurrently": "^9.2.1",
@@ -25,10 +25,15 @@
         "wxt": "^0.20.26",
       },
     },
+    "packages/bridge-events": {
+      "name": "@supa-agent/bridge-events",
+      "version": "1.8.2",
+    },
     "packages/core": {
       "name": "@supa-agent/core",
       "version": "1.8.2",
       "dependencies": {
+        "@supa-agent/bridge-events": "1.8.2",
         "@supa-agent/llms": "1.8.2",
         "@supa-agent/page-controller": "1.8.2",
         "chalk": "^5.6.2",
@@ -45,11 +50,13 @@
       "version": "1.8.2",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
+        "@supa-agent/bridge-events": "1.8.2",
         "@supa-agent/core": "1.8.2",
         "@supa-agent/llms": "1.8.2",
         "@supa-agent/page-controller": "1.8.2",
         "@supa-agent/skill-router": "0.1.0",
         "@supa-agent/ui": "1.8.2",
+        "@supabase/supabase-js": "^2.106.2",
         "ai-motion": "^0.4.8",
         "chalk": "^5.6.2",
       },
@@ -435,6 +442,8 @@
     "@simple-libs/stream-utils": ["@simple-libs/stream-utils@1.2.0", "", {}, "sha512-KxXvfapcixpz6rVEB6HPjOUZT22yN6v0vI0urQSk1L8MlEWPDFCZkhw2xmkyoTGYeFw7tWTZd7e3lVzRZRN/EA=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+
+    "@supa-agent/bridge-events": ["@supa-agent/bridge-events@workspace:packages/bridge-events"],
 
     "@supa-agent/core": ["@supa-agent/core@workspace:packages/core"],
 

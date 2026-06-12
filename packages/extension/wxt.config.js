@@ -12,6 +12,7 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 // Workspace aliases for monorepo packages (point to source entry files)
 const workspaceAliases = {
+	'@supa-agent/bridge-events': join(__dirname, '../bridge-events/src/index.ts'),
 	'@supa-agent/core': join(__dirname, '../core/src/SupaAgentCore.ts'),
 	'@supa-agent/llms': join(__dirname, '../llms/src/index.ts'),
 	'@supa-agent/page-controller': join(__dirname, '../page-controller/src/PageController.ts'),

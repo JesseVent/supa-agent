@@ -1,0 +1,4 @@
+default_version = '0.1.0'
+comment = 'Realtime agent trace bridge for SupaAgent (table, broadcast trigger, channel authorization)'
+relocatable = false
+superuser = false

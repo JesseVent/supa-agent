@@ -1,0 +1,49 @@
+{
+    "name": "@supa-agent/bridge-events",
+    "version": "1.8.2",
+    "type": "module",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "default": "./src/index.ts"
+        }
+    },
+    "publishConfig": {
+        "main": "./dist/lib/supa-agent-bridge-events.js",
+        "module": "./dist/lib/supa-agent-bridge-events.js",
+        "types": "./dist/lib/index.d.ts",
+        "exports": {
+            ".": {
+                "types": "./dist/lib/index.d.ts",
+                "import": "./dist/lib/supa-agent-bridge-events.js",
+                "default": "./dist/lib/supa-agent-bridge-events.js"
+            }
+        }
+    },
+    "files": [
+        "dist/"
+    ],
+    "description": "Shared agent trace event contract for the SupaAgent extension (publisher) and viewers (subscribers)",
+    "keywords": [
+        "supa-agent",
+        "trace",
+        "events",
+        "supabase",
+        "realtime"
+    ],
+    "author": "Jesse Vent",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/JesseVent/supa-agent.git",
+        "directory": "packages/bridge-events"
+    },
+    "homepage": "https://github.com/JesseVent/supa-agent",
+    "scripts": {
+        "build": "vite build",
+        "prepublishOnly": "node ../../scripts/publish-guard.js && node ../../scripts/pre-publish.js",
+        "postpublish": "node ../../scripts/post-publish.js"
+    }
+}
