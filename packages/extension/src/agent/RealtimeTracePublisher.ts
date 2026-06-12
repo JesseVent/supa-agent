@@ -3,10 +3,12 @@ import {
 	AGENT_TRACE_TOKEN_FUNCTION,
 	type BridgeAction,
 	getChannelName,
+	type TraceEventEnvelope,
 } from '@supa-agent/bridge-events'
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 
 const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
+const USER_AUTH_TOKEN_KEY = 'SupaAgentExtUserAuthToken'
 /** Re-mint the project JWT this long before it actually expires. */
 const TOKEN_SLACK_SECONDS = 120
 /** Serialized payloads above this size are truncated before persisting. */
@@ -20,6 +22,15 @@ interface MintedToken {
 }
 
 export type PublisherState = 'idle' | 'connecting' | 'live' | 'error'
+
+/**
+ * 'persist': signed-in path — INSERT rows, DB trigger broadcasts on the
+ *            private user topic (replay-capable).
+ * 'broadcast': fallback when no Management OAuth token / token exchange fails —
+ *            direct channel.send() on a public topic derived from the
+ *            extension's pre-shared user auth token. Live only, no persistence.
+ */
+type PublishMode = 'persist' | 'broadcast'
 
 /**
  * Publishes agent trace events to the connected Supabase project so remote
@@ -52,6 +63,7 @@ export class RealtimeTracePublisher {
 	private seq = 0
 	private queue: { seq: number; action: BridgeAction; payload: unknown }[] = []
 	private flushing = false
+	private mode: PublishMode = 'persist'
 
 	state: PublisherState = 'idle'
 	lastError: string | null = null
@@ -69,17 +81,36 @@ export class RealtimeTracePublisher {
 		this.state = 'connecting'
 		this.lastError = null
 
+		let topic: string
 		try {
 			const { userId } = await this.getToken()
+			this.mode = 'persist'
+			topic = await getChannelName(userId)
+		} catch (err) {
+			// No project JWT possible — fall back to direct broadcast on a public
+			// topic derived from the pre-shared extension auth token.
+			const fallbackToken = await this.loadUserAuthToken()
+			if (!fallbackToken) {
+				this.state = 'error'
+				this.warn('startRun failed (no OAuth token and no fallback token)', err)
+				return this.runId
+			}
+			this.mode = 'broadcast'
+			topic = await getChannelName(fallbackToken)
+			this.warn('using public-channel fallback (live only, no persistence)', err)
+		}
+
+		try {
 			const client = this.getClient()
-			const topic = await getChannelName(userId)
 
 			// Rejoin fresh each run so presence reflects the current run only.
 			if (this.channel) {
 				await this.client?.removeChannel(this.channel)
 				this.channel = null
 			}
-			const channel = client.channel(topic, { config: { private: true } })
+			const channel = client.channel(topic, {
+				config: { private: this.mode === 'persist' },
+			})
 			this.channel = channel
 			channel.subscribe((status, err) => {
 				if (status === 'SUBSCRIBED') {
@@ -90,7 +121,8 @@ export class RealtimeTracePublisher {
 						startedAt: Date.now(),
 					})
 				} else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-					// Presence is best-effort; inserts still broadcast via the DB trigger.
+					// Presence is best-effort; persist-mode events still broadcast
+					// via the DB trigger.
 					this.warn(`presence channel ${status}`, err)
 				}
 			})
@@ -136,13 +168,23 @@ export class RealtimeTracePublisher {
 		this.state = 'idle'
 	}
 
+	private clientMode: PublishMode | null = null
+
 	private getClient(): SupabaseClient {
-		if (!this.client) {
-			this.client = createClient(this.supabaseUrl, this.anonKey, {
-				auth: { persistSession: false, autoRefreshToken: false },
-				// Single source of auth for PostgREST + Realtime; re-mints near expiry.
-				accessToken: async () => (await this.getToken()).token,
-			})
+		if (!this.client || this.clientMode !== this.mode) {
+			this.client?.realtime.disconnect()
+			this.clientMode = this.mode
+			this.client =
+				this.mode === 'persist'
+					? createClient(this.supabaseUrl, this.anonKey, {
+							auth: { persistSession: false, autoRefreshToken: false },
+							// Single source of auth for PostgREST + Realtime; re-mints near expiry.
+							accessToken: async () => (await this.getToken()).token,
+						})
+					: // Broadcast fallback: anon key only, public channel.
+						createClient(this.supabaseUrl, this.anonKey, {
+							auth: { persistSession: false, autoRefreshToken: false },
+						})
 		}
 		return this.client
 	}
@@ -153,7 +195,10 @@ export class RealtimeTracePublisher {
 		try {
 			while (this.queue.length > 0) {
 				const item = this.queue[0]
-				const ok = await this.insertWithRetry(item)
+				const ok =
+					this.mode === 'persist'
+						? await this.insertWithRetry(item)
+						: await this.sendWithRetry(item)
 				if (!ok) {
 					// Drop the event after exhausting retries — visible, not silent.
 					this.warn(`dropping trace event seq=${item.seq} action=${item.action}`)
@@ -191,6 +236,46 @@ export class RealtimeTracePublisher {
 			} else {
 				this.state = 'error'
 				this.warn(`insert failed after ${MAX_INSERT_ATTEMPTS} attempts`, error.message)
+			}
+		}
+		return false
+	}
+
+	/** Broadcast-mode delivery: channel.send (HTTP pre-subscribe, WS after). */
+	private async sendWithRetry(item: {
+		seq: number
+		action: BridgeAction
+		payload: unknown
+	}): Promise<boolean> {
+		if (!this.runId || !this.channel) return false
+		const envelope: TraceEventEnvelope = {
+			runId: this.runId,
+			seq: item.seq,
+			ts: Date.now(),
+			action: item.action,
+			payload: item.payload,
+		}
+
+		for (let attempt = 1; attempt <= MAX_INSERT_ATTEMPTS; attempt++) {
+			try {
+				const res = await this.channel.send({
+					type: 'broadcast',
+					event: item.action,
+					payload: envelope,
+				})
+				if (res === 'ok') {
+					if (this.state === 'error') this.state = 'live'
+					return true
+				}
+				this.lastError = `broadcast send: ${res}`
+			} catch (err) {
+				this.lastError = err instanceof Error ? err.message : String(err)
+			}
+			if (attempt < MAX_INSERT_ATTEMPTS) {
+				await sleep(250 * 2 ** (attempt - 1))
+			} else {
+				this.state = 'error'
+				this.warn(`broadcast failed after ${MAX_INSERT_ATTEMPTS} attempts`, this.lastError)
 			}
 		}
 		return false
@@ -251,6 +336,11 @@ export class RealtimeTracePublisher {
 	private async loadMgmtToken(): Promise<string | null> {
 		const stored = await chrome.storage.local.get(MGMT_TOKEN_KEY)
 		return (stored[MGMT_TOKEN_KEY] as string) ?? null
+	}
+
+	private async loadUserAuthToken(): Promise<string | null> {
+		const stored = await chrome.storage.local.get(USER_AUTH_TOKEN_KEY)
+		return (stored[USER_AUTH_TOKEN_KEY] as string) ?? null
 	}
 
 	private warn(message: string, detail?: unknown): void {
