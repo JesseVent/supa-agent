@@ -177,6 +177,7 @@ export class SupabaseMcpClient {
 
 	/**
 	 * List available tools from the MCP server.
+	 * Auto-refreshes the OAuth token on auth errors.
 	 */
 	async listTools(): Promise<
 		{
@@ -185,33 +186,91 @@ export class SupabaseMcpClient {
 			inputSchema: Record<string, unknown>
 		}[]
 	> {
+		const doList = async () => {
+			await this.connect()
+			const result = await this.client!.listTools()
+			return result.tools
+		}
+
+		try {
+			return await doList()
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err)
+			try {
+				return await this._retryWithFreshToken(doList, msg)
+			} catch {
+				throw err
+			}
+		}
+	}
+
+	/** Auth-related error patterns returned inside MCP tool results. */
+	private static readonly AUTH_ERROR_PATTERNS = [
+		'auth cookie',
+		'authentication failed',
+		'jwt failed verification',
+		'invalid token',
+		'token expired',
+		'unauthorized',
+	]
+
+	private _isAuthError(text: string): boolean {
+		const lower = text.toLowerCase()
+		return SupabaseMcpClient.AUTH_ERROR_PATTERNS.some((p) => lower.includes(p))
+	}
+
+	/**
+	 * Attempt a single token refresh + reconnect + retry.
+	 * Returns null if refresh failed or this isn't an OAuth-managed token.
+	 */
+	private async _retryWithFreshToken<T>(fn: () => Promise<T>, errorText: string): Promise<T> {
+		if (this._tokenSource !== 'oauth' || !this._isAuthError(errorText)) {
+			throw new Error(errorText)
+		}
+
+		const refresh = await chrome.runtime.sendMessage({ type: 'MGMT_REFRESH_TOKEN' })
+		if (refresh?.error || !refresh?.token) {
+			throw new Error(
+				`Auth error and token refresh failed: ${refresh?.error || 'no token returned'}. Disconnect and reconnect in Settings.`
+			)
+		}
+
+		this._token = refresh.token as string
+		await this.disconnect()
 		await this.connect()
-		const result = await this.client!.listTools()
-		return result.tools
+		return fn()
 	}
 
 	/**
 	 * Call an MCP tool by name with arguments.
 	 * Returns the text content from the tool result.
+	 * Auto-refreshes the OAuth token on auth errors inside the tool result.
 	 */
 	async callTool(name: string, args: Record<string, unknown>): Promise<string> {
-		await this.connect()
-		const result = await this.client!.callTool({ name, arguments: args })
+		const doCall = async (): Promise<string> => {
+			await this.connect()
+			const result = await this.client!.callTool({ name, arguments: args })
 
-		const content = result.content as { type: string; text?: string; data?: string }[]
+			const content = result.content as { type: string; text?: string; data?: string }[]
 
-		if (result.isError) {
-			const text = content
+			if (result.isError) {
+				const text = content
+					.filter((c): c is { type: 'text'; text: string } => c.type === 'text')
+					.map((c) => c.text)
+					.join('\n')
+				return await this._retryWithFreshToken(
+					doCall,
+					text || `Tool "${name}" returned an error`
+				)
+			}
+
+			const textParts = content
 				.filter((c): c is { type: 'text'; text: string } => c.type === 'text')
 				.map((c) => c.text)
-				.join('\n')
-			throw new Error(text || `Tool "${name}" returned an error`)
+
+			return textParts.join('\n')
 		}
 
-		const textParts = content
-			.filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-			.map((c) => c.text)
-
-		return textParts.join('\n')
+		return doCall()
 	}
 }

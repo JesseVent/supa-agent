@@ -335,6 +335,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 								setSupabaseMcpProjectName(name)
 								setTraceSupabaseUrl(`https://${ref}.supabase.co`)
 								if (anonKey) setTraceSupabaseAnonKey(anonKey)
+								if (!traceTransport || traceTransport === 'postMessage') {
+									setTraceTransport('both')
+								}
 								toast.success('Project linked', { description: name })
 							}}
 							triggerLabel="Change project"
@@ -366,6 +369,9 @@ export function ConfigPanel({ config, mcpStatus, mcpError, onSave, onClose }: Co
 						setSupabaseMcpProjectName(name)
 						setTraceSupabaseUrl(`https://${ref}.supabase.co`)
 						if (anonKey) setTraceSupabaseAnonKey(anonKey)
+						if (!traceTransport || traceTransport === 'postMessage') {
+							setTraceTransport('both')
+						}
 						toast.success('Project linked', { description: name })
 					}}
 				/>
