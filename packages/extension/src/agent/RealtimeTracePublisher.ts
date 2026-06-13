@@ -239,7 +239,13 @@ export class RealtimeTracePublisher {
 				if (this.state === 'error') this.state = 'live'
 				return true
 			}
-			this.lastError = error.message
+			this.lastError = `insert seq=${item.seq}: ${error.code ?? ''} ${error.message}`
+			console.warn(
+				'[RealtimeTracePublisher] insert error:',
+				error.code,
+				error.message,
+				error.details
+			)
 			if (attempt < MAX_INSERT_ATTEMPTS) {
 				await sleep(250 * 2 ** (attempt - 1))
 			} else {
