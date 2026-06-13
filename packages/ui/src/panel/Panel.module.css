@@ -4,10 +4,10 @@
 	left: 50%;
 	transform: translateX(-50%) translateY(20px);
 	opacity: 0;
-	z-index: 2147483642; /* 比 SimulatorMask 高一层 */
+	z-index: 2147483642;
 	box-sizing: border-box;
-
 	overflow: visible;
+	color-scheme: dark;
 
 	* {
 		box-sizing: border-box;
@@ -15,87 +15,52 @@
 
 	--width: 360px;
 	--height: 40px;
-	--border-radius: 12px;
-
-	--side-space: 12px; /* 控制栏两侧的间距 */
+	--border-radius: 8px;
+	--side-space: 12px;
 	--history-width: calc(var(--width) - var(--side-space) * 2);
 
-	--color-1: rgb(57, 182, 255);
-	--color-2: rgb(189, 69, 251);
-	--color-3: rgb(255, 87, 51);
-	--color-4: rgb(255, 214, 0);
+	/* Supabase dark theme tokens */
+	--supa-surface-75: hsl(0deg 0% 9%);
+	--supa-surface-100: hsl(0deg 0% 12.2%);
+	--supa-surface-200: hsl(0deg 0% 12.9%);
+	--supa-surface-300: hsl(0deg 0% 16.1%);
+	--supa-control: hsl(0deg 0% 14.1%);
+	--supa-border: hsl(0deg 0% 18%);
+	--supa-border-strong: hsl(0deg 0% 21.2%);
+	--supa-border-stronger: hsl(0deg 0% 27.1%);
+	--supa-fg: hsl(0deg 0% 98%);
+	--supa-fg-light: hsl(0deg 0% 70.6%);
+	--supa-fg-lighter: hsl(0deg 0% 53.7%);
+	--supa-brand: hsl(153.1deg 60.2% 52.7%);
+	--supa-brand-500: hsl(154.9deg 100% 19.2%);
+	--supa-brand-400: hsl(155.5deg 100% 9.6%);
+	--supa-warning: hsl(38.9deg 100% 42.9%);
+	--supa-warning-border: hsl(34.8deg 90.9% 21.6%);
+	--supa-warning-bg: hsl(33.2deg 100% 14.5%);
+	--supa-destructive: hsl(10.2deg 77.9% 53.9%);
+	--supa-destructive-border: hsl(7.9deg 71.6% 29%);
+	--supa-destructive-bg: hsl(6.7deg 60% 20.6%);
+	--supa-secondary: hsl(247.8deg 100% 70%);
+	--supa-secondary-border: hsl(248.3deg 54.5% 25.9%);
+	--supa-secondary-bg: hsl(248deg 53.6% 11%);
 
 	width: var(--width);
 	height: var(--height);
 
 	transition: all 0.3s ease-in-out;
 
-	/* 响应式设计 */
 	@media (max-width: 480px) {
 		width: calc(100vw - 40px);
 		--width: calc(100vw - 40px);
 	}
 
+	/* Background decoration is removed in the Supabase design — borders carry the UI */
 	.background {
-		position: absolute;
-		inset: -2px -8px;
-		border-radius: calc(var(--border-radius) + 4px);
-		filter: blur(16px);
-		overflow: hidden;
-		/* mix-blend-mode: lighten; */
-		/* display: none; */
-
-		&::before {
-			content: '';
-			z-index: -1;
-			pointer-events: none;
-			position: absolute;
-			width: 100%;
-			height: 100%;
-			/* left: -100%; */
-			left: 0;
-			top: 0;
-
-			background-image: linear-gradient(
-				to bottom left,
-				var(--color-1),
-				var(--color-2),
-				var(--color-1)
-			);
-			animation: mask-running 2s linear infinite;
-		}
-		&::after {
-			content: '';
-			z-index: -1;
-			pointer-events: none;
-			position: absolute;
-			width: 100%;
-			height: 100%;
-			left: 0;
-			top: 0;
-
-			background-image: linear-gradient(
-				to bottom left,
-				var(--color-2),
-				var(--color-1),
-				var(--color-2)
-			);
-			animation: mask-running 2s linear infinite;
-			animation-delay: 1s;
-		}
+		display: none;
 	}
 }
 
-@keyframes mask-running {
-	from {
-		transform: translateX(-100%);
-	}
-	to {
-		transform: translateX(100%);
-	}
-}
-
-/* 控制栏 */
+/* Control bar */
 .header {
 	display: flex;
 	align-items: center;
@@ -107,73 +72,74 @@
 	inset: 0;
 
 	cursor: pointer;
-	flex-shrink: 0; /* 防止 header 被压缩 */
+	flex-shrink: 0;
 
-	background: rgba(0, 0, 0, 0.5);
-	backdrop-filter: blur(10px);
+	background: var(--supa-surface-100);
+	border: 1px solid var(--supa-border-strong);
 	border-radius: var(--border-radius);
-	background-clip: padding-box;
-
 	box-shadow:
-		0 0 0px 2px rgba(255, 255, 255, 0.4),
-		0 0 5px 1px rgba(255, 255, 255, 0.3);
+		0 2px 4px -1px rgba(0, 0, 0, 0.22),
+		0 4px 12px -2px rgba(0, 0, 0, 0.28);
 
 	.statusSection {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		flex: 1;
-		min-height: 24px; /* 确保垂直居中 */
+		min-height: 24px;
 
 		.indicator {
 			width: 6px;
 			height: 6px;
 			border-radius: 50%;
-			background: rgba(255, 255, 255, 0.5);
+			background: var(--supa-fg-lighter);
 			flex-shrink: 0;
-			animation: none; /* 默认无动画 */
+			animation: none;
 
-			/* 运行状态 - 有动画 */
 			&.thinking {
-				background: rgb(57, 182, 255);
+				background: var(--supa-brand);
 				animation: pulse 0.8s ease-in-out infinite;
 			}
 
+			/* executing / tool_executing — both map to the same purple secondary */
+			&.executing,
 			&.tool_executing {
-				background: rgb(189, 69, 251);
+				background: var(--supa-secondary);
 				animation: pulse 0.6s ease-in-out infinite;
 			}
 
+			/* retrying / retry — warning amber */
+			&.retrying,
 			&.retry {
-				background: rgb(255, 214, 0);
+				background: var(--supa-warning);
 				animation: retryPulse 1s ease-in-out infinite;
 			}
 
-			/* 静止状态 - 无动画 */
+			&.executed,
 			&.completed,
 			&.input,
 			&.output {
-				background: rgb(34, 197, 94);
+				background: var(--supa-brand);
 				animation: none;
 			}
 
 			&.error {
-				background: rgb(239, 68, 68);
+				background: var(--supa-destructive);
 				animation: none;
 			}
 		}
 
 		.statusText {
-			color: white;
+			color: var(--supa-fg-light);
 			font-size: 12px;
 			line-height: 1;
 			font-weight: 500;
-			transition: all 0.3s ease-in-out;
+			transition: all 0.2s ease-in-out;
 			position: relative;
 			overflow: hidden;
 			display: flex;
 			align-items: center;
-			min-height: 24px; /* 确保垂直居中 */
+			min-height: 24px;
 
 			&.fadeOut {
 				animation: statusTextFadeOut 0.3s ease forwards;
@@ -193,29 +159,37 @@
 		.controlButton {
 			width: 24px;
 			height: 24px;
-			border: none;
+			border: 1px solid var(--supa-border-strong);
 			border-radius: 4px;
-			background: rgba(255, 255, 255, 0.1);
-			color: white;
+			background: var(--supa-surface-300);
+			color: var(--supa-fg-lighter);
 			cursor: pointer;
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			font-size: 12px;
 			line-height: 1;
+			transition:
+				background 150ms cubic-bezier(0.16, 1, 0.3, 1),
+				border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+				color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			&:hover {
-				background: rgba(255, 255, 255, 0.2);
+				background: var(--supa-border-stronger);
+				border-color: var(--supa-border-stronger);
+				color: var(--supa-fg);
 			}
 		}
 
 		.stopButton {
-			background: rgba(239, 68, 68, 0.2);
-			color: rgb(255, 41, 41);
+			background: var(--supa-destructive-bg);
+			color: var(--supa-destructive);
+			border-color: var(--supa-destructive-border);
 			font-weight: 600;
 
 			&:hover {
-				background: rgba(239, 68, 68, 0.3);
+				background: hsl(7.5deg 51.3% 15.3%);
+				border-color: var(--supa-destructive);
 			}
 		}
 	}
@@ -250,30 +224,22 @@
 	left: var(--side-space);
 	z-index: -2;
 
-	padding-top: 0px;
+	padding-top: 0;
 	visibility: collapse;
 	overflow: hidden;
 
 	transition: all 0.2s;
 
-	background: rgba(2, 0, 20, 0.5);
-	/* background: rgba(186, 186, 186, 0.2); */
-	backdrop-filter: blur(10px);
+	background: var(--supa-surface-100);
 
-	text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+	border-top-left-radius: var(--border-radius);
+	border-top-right-radius: var(--border-radius);
 
-	border-top-left-radius: calc(var(--border-radius) + 4px);
-	border-top-right-radius: calc(var(--border-radius) + 4px);
-
-	/* border: 2px solid rgba(255, 255, 255, 0.8); */
-	border: 2px solid rgba(255, 255, 255, 0.4);
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-
-	/* @media (prefers-color-scheme: dark) {
-		box-shadow:
-			0 8px 32px 0 rgba(0, 0, 0, 0.85),
-			0 2px 12px 0 rgba(57, 182, 255, 0.1);
-	} */
+	border: 1px solid var(--supa-border-strong);
+	border-bottom: none;
+	box-shadow:
+		0 -4px 16px rgba(0, 0, 0, 0.4),
+		0 -2px 6px rgba(0, 0, 0, 0.2);
 
 	.expanded & {
 		padding-top: 8px;
@@ -284,7 +250,8 @@
 		position: relative;
 		overflow-y: auto;
 		overscroll-behavior: contain;
-		scrollbar-width: none;
+		scrollbar-width: thin;
+		scrollbar-color: var(--supa-border-stronger) transparent;
 		max-height: 0;
 		padding-inline: 8px;
 
@@ -295,40 +262,25 @@
 		}
 
 		.historyItem {
-			/* backdrop-filter: blur(10px); */
 			padding: 8px 10px;
 			margin-bottom: 6px;
-			background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-			border-radius: 8px;
-			border-left: 2px solid rgba(57, 182, 255, 0.5);
+			background: var(--supa-surface-200);
+			border-radius: 6px;
+			border: 1px solid var(--supa-border);
+			border-left: 2px solid var(--supa-border-stronger);
 			font-size: 12px;
-			color: white;
-			/* color: black; */
+			color: var(--supa-fg-light);
 			line-height: 1.3;
 			position: relative;
 			overflow: hidden;
-
-			/* 微妙的内阴影 */
-			box-shadow:
-				inset 0 1px 0 rgba(255, 255, 255, 0.1),
-				0 1px 3px rgba(0, 0, 0, 0.1);
-
-			&::before {
-				content: '';
-				position: absolute;
-				top: 0;
-				left: 0;
-				right: 0;
-				height: 1px;
-				background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-			}
+			transition:
+				background 150ms cubic-bezier(0.16, 1, 0.3, 1),
+				border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			&:hover {
-				background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
-				/* transform: translateY(-1px); */
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.15),
-					0 2px 4px rgba(0, 0, 0, 0.15);
+				background: var(--supa-surface-300);
+				border-color: var(--supa-border-strong);
+				border-left-color: inherit;
 			}
 
 			&:last-child {
@@ -343,13 +295,12 @@
 				word-break: break-all;
 				white-space: pre-wrap;
 
-				/* overflow-x: auto; */
-
 				.statusIcon {
 					font-size: 12px;
 					flex-shrink: 0;
 					line-height: 1;
-					transition: all 0.3s ease;
+					color: var(--supa-fg-lighter);
+					transition: color 0.3s ease;
 				}
 
 				.reflectionLines {
@@ -361,8 +312,7 @@
 
 			.historyMeta {
 				font-size: 10px;
-				color: rgba(255, 255, 255, 0.6);
-				/* color: rgb(61, 61, 61); */
+				color: var(--supa-fg-lighter);
 				margin-top: 8px;
 				line-height: 1;
 			}
@@ -370,106 +320,69 @@
 			&.completed,
 			&.input,
 			&.output {
-				border-left-color: rgb(34, 197, 94);
-				background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+				border-left-color: var(--supa-brand);
+				background: var(--supa-brand-400);
 			}
 
 			&.error {
-				border-left-color: rgb(239, 68, 68);
-				background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+				border-left-color: var(--supa-destructive);
+				background: var(--supa-destructive-bg);
 			}
 
 			&.retry {
-				border-left-color: rgb(255, 214, 0);
-				background: linear-gradient(135deg, rgba(255, 214, 0, 0.1), rgba(255, 214, 0, 0.05));
+				border-left-color: var(--supa-warning);
+				background: var(--supa-warning-bg);
 			}
 
 			&.observation {
-				border-left-color: rgb(147, 51, 234);
-				background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(147, 51, 234, 0.05));
+				border-left-color: var(--supa-secondary);
+				background: var(--supa-secondary-bg);
 			}
 
 			&.question {
-				border-left-color: rgb(255, 159, 67);
-				background: linear-gradient(135deg, rgba(255, 159, 67, 0.15), rgba(255, 159, 67, 0.08));
+				border-left-color: var(--supa-warning);
+				background: var(--supa-warning-bg);
 			}
 
-			/* 突出显示 done 成功结果 */
+			/* Prominent done — success */
 			&.doneSuccess {
-				background: linear-gradient(
-					135deg,
-					rgba(34, 197, 94, 0.25),
-					rgba(34, 197, 94, 0.15),
-					rgba(34, 197, 94, 0.08)
-				);
-				border: none;
-				border-left: 4px solid rgb(34, 197, 94);
-				box-shadow:
-					0 4px 12px rgba(34, 197, 94, 0.3),
-					inset 0 1px 0 rgba(255, 255, 255, 0.2),
-					0 0 20px rgba(34, 197, 94, 0.1);
-				font-weight: 600;
-				color: rgb(220, 252, 231);
+				background: var(--supa-brand-400);
+				border: 1px solid var(--supa-brand-500);
+				border-left: 3px solid var(--supa-brand);
+				font-weight: 500;
+				color: var(--supa-fg);
 				padding: 10px 12px;
 				margin-bottom: 8px;
-				border-radius: 8px;
+				border-radius: 6px;
 				position: relative;
 				overflow: hidden;
 
-				&::before {
-					background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.4), transparent);
-				}
-
-				&::after {
-					content: '';
-					position: absolute;
-					top: 0;
-					left: -100%;
-					width: 100%;
-					height: 100%;
-					background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-					animation: shimmer 2s ease-in-out infinite;
-				}
-
 				.historyContent {
 					.statusIcon {
+						color: var(--supa-brand);
 						font-size: 16px;
 						animation: celebrate 0.8s ease-in-out;
-						filter: drop-shadow(0 2px 4px rgba(34, 197, 94, 0.5));
 					}
 				}
 			}
 
-			/* 突出显示 done 失败结果 */
+			/* Prominent done — failure */
 			&.doneError {
-				background: linear-gradient(
-					135deg,
-					rgba(239, 68, 68, 0.25),
-					rgba(239, 68, 68, 0.15),
-					rgba(239, 68, 68, 0.08)
-				);
-				border: none;
-				border-left: 4px solid rgb(239, 68, 68);
-				box-shadow:
-					0 4px 12px rgba(239, 68, 68, 0.3),
-					inset 0 1px 0 rgba(255, 255, 255, 0.2),
-					0 0 20px rgba(239, 68, 68, 0.1);
-				font-weight: 600;
-				color: rgb(254, 226, 226);
+				background: var(--supa-destructive-bg);
+				border: 1px solid var(--supa-destructive-border);
+				border-left: 3px solid var(--supa-destructive);
+				font-weight: 500;
+				color: var(--supa-fg);
 				padding: 10px 12px;
 				margin-bottom: 8px;
-				border-radius: 8px;
+				border-radius: 6px;
 				position: relative;
 				overflow: hidden;
 
-				&::before {
-					background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.4), transparent);
-				}
-
 				.historyContent {
 					.statusIcon {
+						color: var(--supa-destructive);
 						font-size: 16px;
-						filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.5));
 					}
 				}
 			}
@@ -477,7 +390,7 @@
 	}
 }
 
-/* 动画关键帧 - 更快的闪烁 */
+/* Status indicator animations */
 @keyframes pulse {
 	0%,
 	100% {
@@ -490,7 +403,6 @@
 	}
 }
 
-/* 重试动画 - 旋转脉冲 */
 @keyframes retryPulse {
 	0%,
 	100% {
@@ -511,7 +423,6 @@
 	}
 }
 
-/* 庆祝动画 */
 @keyframes celebrate {
 	0%,
 	100% {
@@ -525,17 +436,7 @@
 	}
 }
 
-/* done 卡片的光泽效果 */
-@keyframes shimmer {
-	0% {
-		left: -100%;
-	}
-	100% {
-		left: 100%;
-	}
-}
-
-/* 输入区域样式 */
+/* Input area */
 .inputSectionWrapper {
 	position: absolute;
 	width: var(--history-width);
@@ -550,14 +451,14 @@
 
 	transition: all 0.2s;
 
-	background: rgba(186, 186, 186, 0.2);
-	backdrop-filter: blur(10px);
+	background: var(--supa-surface-75);
 
-	border-bottom-left-radius: calc(var(--border-radius) + 4px);
-	border-bottom-right-radius: calc(var(--border-radius) + 4px);
+	border-bottom-left-radius: var(--border-radius);
+	border-bottom-right-radius: var(--border-radius);
 
-	border: 2px solid rgba(255, 255, 255, 0.3);
-	box-shadow: 0 1px 16px rgba(0, 0, 0, 0.4);
+	border: 1px solid var(--supa-border-strong);
+	border-top: none;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 
 	&.hidden {
 		visibility: collapse;
@@ -568,33 +469,30 @@
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		padding: 8px 8px;
+		padding: 8px;
 
 		.taskInput {
 			flex: 1;
-			background: rgba(255, 255, 255, 0.4);
-			border: 1px solid rgba(255, 255, 255, 0.3);
-			border-radius: 10px;
+			background: var(--supa-control);
+			border: 1px solid var(--supa-border-strong);
+			border-radius: 6px;
 			padding-inline: 10px;
-			color: rgb(20, 20, 20);
+			color: var(--supa-fg);
 			font-size: 12px;
 			height: 28px;
 			line-height: 1;
 			outline: none;
-			transition: all 0.2s ease;
-
-			/* text-shadow: 0 0 2px rgba(255, 255, 255, 0.8); */
-
-			/* border-color: rgba(57, 182, 255, 0.3); */
+			transition:
+				border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+				box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			&::placeholder {
-				color: rgb(53, 53, 53);
+				color: var(--supa-fg-lighter);
 			}
 
 			&:focus {
-				background: rgba(255, 255, 255, 0.8);
-				border-color: rgba(57, 182, 255, 0.6);
-				box-shadow: 0 0 0 2px rgba(57, 182, 255, 0.2);
+				border-color: var(--supa-brand);
+				box-shadow: 0 0 0 2px hsl(153.1deg 60.2% 52.7% / 0.2);
 			}
 		}
 	}

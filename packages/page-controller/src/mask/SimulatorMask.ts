@@ -34,6 +34,12 @@ export class SimulatorMask extends EventTarget {
 			this.motion = motion
 			this.wrapper.appendChild(motion.element)
 			motion.autoResize(this.wrapper)
+
+			// Override to Supabase brand green palette
+			this.wrapper.style.setProperty('--color-1', 'rgb(62, 207, 142)')   // brand green #3ECF8E
+			this.wrapper.style.setProperty('--color-2', 'rgb(0, 196, 100)')    // brand-link
+			this.wrapper.style.setProperty('--color-3', 'rgb(128, 210, 176)')  // brand-600 (light mint)
+			this.wrapper.style.setProperty('--color-4', 'rgb(0, 98, 52)')      // brand-500 (deep green)
 		} catch (e) {
 			console.warn('[SimulatorMask] Motion overlay unavailable:', e)
 		}
