@@ -906,25 +906,33 @@ function SupabaseConnectDialog({
 					) : (
 						<>
 							{/* Primary: OAuth */}
-							<Button
+							<button
+								type="button"
 								onClick={connectWithOAuth}
 								disabled={isOAuthConnecting}
-								className="w-full gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
+								className="flex items-center justify-center w-full disabled:opacity-50 disabled:cursor-not-allowed"
+								aria-label="Connect with Supabase"
 							>
 								{isOAuthConnecting ? (
-									<Loader2 className="size-4 animate-spin" />
+									<div className="flex items-center gap-2 h-10 px-4 rounded-md border border-border text-sm text-muted-foreground">
+										<Loader2 className="size-4 animate-spin" />
+										Connecting…
+									</div>
 								) : (
-									<svg
-										className="size-4"
-										viewBox="0 0 24 24"
-										fill="currentColor"
-										aria-hidden="true"
-									>
-										<path d="M21.362 9.354H12V.396a.396.396 0 0 0-.716-.233L2.203 12.424l-.401.562a.396.396 0 0 0 .32.625H12v8.958a.396.396 0 0 0 .716.233l9.081-12.261.401-.562a.396.396 0 0 0-.32-.625z" />
-									</svg>
+									<>
+										<img
+											src="/connect-supabase-dark.svg"
+											alt="Connect with Supabase"
+											className="h-10 hidden dark:block"
+										/>
+										<img
+											src="/connect-supabase-light.svg"
+											alt="Connect with Supabase"
+											className="h-10 block dark:hidden"
+										/>
+									</>
 								)}
-								{isOAuthConnecting ? 'Connecting…' : 'Connect with Supabase'}
-							</Button>
+							</button>
 
 							{/* Disconnect when connected (re-sign-in path) */}
 							{mgmtConnected && (
