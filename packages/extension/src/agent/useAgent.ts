@@ -132,6 +132,8 @@ export interface UseAgentResult {
 	stop: () => void
 	configure: (config: ExtConfig) => Promise<void>
 	clearConversation: () => void
+	/** Clear the current task + history to return to the empty/home state. */
+	resetView: () => void
 	/** Current effective theme ('light' | 'dark') derived from preference + system */
 	effectiveTheme: 'light' | 'dark'
 }
@@ -445,6 +447,11 @@ export function useAgent(): UseAgentResult {
 		void chrome.storage.local.remove('conversationHistory')
 	}, [])
 
+	const resetView = useCallback(() => {
+		setCurrentTask('')
+		setHistory([])
+	}, [])
+
 	const configure = useCallback(
 		async ({
 			language,
@@ -520,6 +527,7 @@ export function useAgent(): UseAgentResult {
 		stop,
 		configure,
 		clearConversation,
+		resetView,
 		effectiveTheme,
 	}
 }

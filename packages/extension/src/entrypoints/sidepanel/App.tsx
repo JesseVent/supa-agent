@@ -42,6 +42,7 @@ export default function App() {
 		stop,
 		configure,
 		clearConversation,
+		resetView,
 		effectiveTheme,
 	} = useAgent()
 
@@ -189,6 +190,9 @@ export default function App() {
 					projectName={config?.supabaseMcpProjectName || config?.supabaseMcpProjectRef}
 					hasModel={!!config?.apiKey}
 					onStop={handleStop}
+					onHome={
+						!isRunning && (currentTask || history.length > 0) ? resetView : undefined
+					}
 				/>
 				<div className="flex items-center gap-1 shrink-0">
 					{conversationTurnCount > 0 && !isRunning && (

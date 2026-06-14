@@ -58,20 +58,28 @@ export function HeaderStatus({
 	projectName,
 	hasModel,
 	onStop,
+	onHome,
 }: {
 	status: AgentStatus
 	projectName?: string
 	hasModel: boolean
 	onStop: () => void
+	onHome?: () => void
 }) {
 	const isRunning = status === 'running'
 
 	return (
 		<div className="flex items-center gap-2 min-w-0">
-			{/* Project identity */}
-			<span className="text-sm font-medium truncate max-w-[160px]" title={projectName}>
+			{/* Project identity — click to return to home */}
+			<button
+				type="button"
+				onClick={onHome}
+				disabled={!onHome}
+				className="text-sm font-medium truncate max-w-[160px] text-left cursor-pointer hover:text-muted-foreground transition-colors disabled:cursor-default disabled:hover:text-foreground"
+				title={onHome ? `${projectName || 'Disconnected'} — go home` : projectName}
+			>
 				{projectName || 'Disconnected'}
-			</span>
+			</button>
 
 			{/* Status / stop */}
 			{isRunning ? (
