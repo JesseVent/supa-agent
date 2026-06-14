@@ -49,11 +49,15 @@ export function initPageController() {
 			const now = Date.now()
 			const agentInTouch = typeof agentHeartbeat === 'number' && now - agentHeartbeat < 2_000
 
-			const isAgentRunning = (await chrome.storage.local.get('isAgentRunning')).isAgentRunning
-			const currentTabId = (await chrome.storage.local.get('currentTabId')).currentTabId
+			const { isAgentRunning, isBrowserControlling, currentTabId } =
+				await chrome.storage.local.get([
+					'isAgentRunning',
+					'isBrowserControlling',
+					'currentTabId',
+				])
 
 			const shouldShowMask =
-				isAgentRunning && agentInTouch && currentTabId === (await myTabIdPromise)
+				isBrowserControlling && agentInTouch && currentTabId === (await myTabIdPromise)
 
 			if (shouldShowMask) {
 				// Security: do not show mask or enable DOM ops on non-whitelisted domains

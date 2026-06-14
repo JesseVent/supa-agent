@@ -180,9 +180,24 @@ export default function App() {
 	const isRunning = status === 'running'
 	const showEmptyState = !currentTask && history.length === 0 && !isRunning
 
+	// Only animate the border when the agent is actively manipulating the browser
+	// (click, scroll, navigate, etc.) — not during MCP queries or LLM thinking.
+	const isBrowserControlling =
+		activity?.type === 'executing' &&
+		new Set([
+			'click_element_by_index',
+			'input_text',
+			'select_option',
+			'scroll',
+			'scroll_horizontally',
+			'go_to_url',
+			'go_back',
+			'execute_javascript',
+		]).has((activity as { tool: string }).tool)
+
 	return (
 		<div className="relative flex flex-col h-screen bg-background">
-			<MotionOverlay active={isRunning} />
+			<MotionOverlay active={isBrowserControlling} />
 			{/* Header */}
 			<header className="flex items-center justify-between border-b px-3 py-2 gap-2">
 				<HeaderStatus

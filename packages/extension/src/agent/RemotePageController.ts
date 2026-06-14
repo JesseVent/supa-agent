@@ -111,74 +111,80 @@ export class RemotePageController {
 	}
 
 	async clickElement(...args: any[]): Promise<DomActionReturn> {
-		const res = await this.remoteCallDomAction('click_element', args)
-		// @note may cause page navigation, wait for 1 second to ensure the page loading started
-		await new Promise((resolve) => setTimeout(resolve, 1000))
-		return res
+		return this.withBrowserControl(async () => {
+			const res = await this.remoteCallDomAction('click_element', args)
+			// @note may cause page navigation, wait for 1 second to ensure the page loading started
+			await new Promise((resolve) => setTimeout(resolve, 1000))
+			return res
+		})
 	}
 
 	async inputText(...args: any[]): Promise<DomActionReturn> {
-		return this.remoteCallDomAction('input_text', args)
+		return this.withBrowserControl(() => this.remoteCallDomAction('input_text', args))
 	}
 
 	async selectOption(...args: any[]): Promise<DomActionReturn> {
-		return this.remoteCallDomAction('select_option', args)
+		return this.withBrowserControl(() => this.remoteCallDomAction('select_option', args))
 	}
 
 	async scroll(...args: any[]): Promise<DomActionReturn> {
-		return this.remoteCallDomAction('scroll', args)
+		return this.withBrowserControl(() => this.remoteCallDomAction('scroll', args))
 	}
 
 	async scrollHorizontally(...args: any[]): Promise<DomActionReturn> {
-		return this.remoteCallDomAction('scroll_horizontally', args)
+		return this.withBrowserControl(() => this.remoteCallDomAction('scroll_horizontally', args))
 	}
 
 	async executeJavascript(...args: any[]): Promise<DomActionReturn> {
-		return this.remoteCallDomAction('execute_javascript', args)
+		return this.withBrowserControl(() => this.remoteCallDomAction('execute_javascript', args))
 	}
 
 	async navigateTo(url: string): Promise<DomActionReturn> {
-		// If there is no current tab (e.g. agent started from side-panel on a
-		// chrome-extension:// URL), open a new tab instead of trying to navigate
-		// a tab that does not exist.
-		if (!this.currentTabId) {
+		return this.withBrowserControl(async () => {
+			// If there is no current tab (e.g. agent started from side-panel on a
+			// chrome-extension:// URL), open a new tab instead of trying to navigate
+			// a tab that does not exist.
+			if (!this.currentTabId) {
+				try {
+					const message = await this.tabsController.openNewTab(url)
+					return { success: true, message }
+				} catch (error) {
+					return {
+						success: false,
+						message: `Failed to open new tab: ${error instanceof Error ? error.message : String(error)}`,
+					}
+				}
+			}
 			try {
-				const message = await this.tabsController.openNewTab(url)
+				const message = await this.tabsController.navigateTo(this.currentTabId, url)
 				return { success: true, message }
 			} catch (error) {
 				return {
 					success: false,
-					message: `Failed to open new tab: ${error instanceof Error ? error.message : String(error)}`,
+					message: `Failed to navigate: ${error instanceof Error ? error.message : String(error)}`,
 				}
 			}
-		}
-		try {
-			const message = await this.tabsController.navigateTo(this.currentTabId, url)
-			return { success: true, message }
-		} catch (error) {
-			return {
-				success: false,
-				message: `Failed to navigate: ${error instanceof Error ? error.message : String(error)}`,
-			}
-		}
+		})
 	}
 
 	async goBack(): Promise<DomActionReturn> {
-		if (!this.currentTabId) {
-			return {
-				success: false,
-				message: 'No current tab to go back in. Open a tab first.',
+		return this.withBrowserControl(async () => {
+			if (!this.currentTabId) {
+				return {
+					success: false,
+					message: 'No current tab to go back in. Open a tab first.',
+				}
 			}
-		}
-		try {
-			const message = await this.tabsController.goBack(this.currentTabId)
-			return { success: true, message }
-		} catch (error) {
-			return {
-				success: false,
-				message: `Failed to go back: ${error instanceof Error ? error.message : String(error)}`,
+			try {
+				const message = await this.tabsController.goBack(this.currentTabId)
+				return { success: true, message }
+			} catch (error) {
+				return {
+					success: false,
+					message: `Failed to go back: ${error instanceof Error ? error.message : String(error)}`,
+				}
 			}
-		}
+		})
 	}
 
 	/** @note Managed by content script via storage polling. */
@@ -187,6 +193,16 @@ export class RemotePageController {
 	async hideMask(): Promise<void> {}
 	/** @note Managed by content script via storage polling. */
 	dispose(): void {}
+
+	/** Set isBrowserControlling in storage for the duration of a browser action. */
+	private async withBrowserControl<T>(fn: () => Promise<T>): Promise<T> {
+		await chrome.storage.local.set({ isBrowserControlling: true })
+		try {
+			return await fn()
+		} finally {
+			await chrome.storage.local.set({ isBrowserControlling: false })
+		}
+	}
 
 	private async remoteCallDomAction(action: string, payload: any[]): Promise<DomActionReturn> {
 		if (!this.currentTabId) {

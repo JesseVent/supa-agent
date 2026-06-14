@@ -69,6 +69,7 @@ export class MultiPageAgent extends SupaAgentCore {
 
 				await chrome.storage.local.set({
 					isAgentRunning: false,
+					isBrowserControlling: false,
 				})
 			},
 
