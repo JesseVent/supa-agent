@@ -21,8 +21,64 @@ import {
 	Zap,
 } from 'lucide-react'
 import { Fragment, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { cn } from '@/lib/utils'
+
+function Markdown({ children }: { children: string }) {
+	return (
+		<ReactMarkdown
+			remarkPlugins={[remarkGfm]}
+			components={{
+				p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+				ul: ({ children }) => (
+					<ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>
+				),
+				ol: ({ children }) => (
+					<ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>
+				),
+				li: ({ children }) => <li className="text-[12px]">{children}</li>,
+				strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+				em: ({ children }) => <em className="italic">{children}</em>,
+				code: ({ children, className }) => {
+					const isBlock = className?.includes('language-')
+					return isBlock ? (
+						<code className="block bg-muted rounded px-2 py-1.5 font-mono text-[11px] overflow-x-auto mb-1.5">
+							{children}
+						</code>
+					) : (
+						<code className="bg-muted rounded px-1 py-0.5 font-mono text-[11px]">
+							{children}
+						</code>
+					)
+				},
+				pre: ({ children }) => <pre className="mb-1.5">{children}</pre>,
+				h1: ({ children }) => <h1 className="text-sm font-bold mb-1">{children}</h1>,
+				h2: ({ children }) => <h2 className="text-xs font-bold mb-1">{children}</h2>,
+				h3: ({ children }) => <h3 className="text-xs font-semibold mb-1">{children}</h3>,
+				a: ({ href, children }) => (
+					<a
+						href={href}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="text-primary underline underline-offset-2 hover:opacity-80"
+					>
+						{children}
+					</a>
+				),
+				blockquote: ({ children }) => (
+					<blockquote className="border-l-2 border-muted-foreground/30 pl-3 italic text-muted-foreground mb-1.5">
+						{children}
+					</blockquote>
+				),
+				hr: () => <hr className="border-muted my-2" />,
+			}}
+		>
+			{children}
+		</ReactMarkdown>
+	)
+}
 
 // Result card for done action
 function ResultCard({
@@ -58,7 +114,9 @@ function ResultCard({
 					Result: {success ? 'Success' : 'Failed'}
 				</span>
 			</div>
-			<p className="text-[12px] text-foreground pl-5 whitespace-pre-wrap">{text}</p>
+			<div className="text-[12px] text-foreground pl-5">
+				<Markdown>{text}</Markdown>
+			</div>
 			{children}
 		</div>
 	)
@@ -325,7 +383,9 @@ function ObservationCard({ event }: { event: ObservationEvent }) {
 			</div> */}
 			<div className="flex items-start gap-2">
 				<Eye className="size-3.5 text-green-500 shrink-0 mt-0.5" />
-				<span className="text-[11px] text-muted-foreground">{event.content}</span>
+				<div className="text-[11px] text-muted-foreground flex-1 min-w-0">
+					<Markdown>{event.content}</Markdown>
+				</div>
 			</div>
 		</div>
 	)

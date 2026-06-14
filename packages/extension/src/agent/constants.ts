@@ -1,6 +1,6 @@
 import type { LLMConfig } from '@supa-agent/llms'
 
-export const DEMO_MODEL = 'google/gemini-3.1-flash-lite'
+export const DEMO_MODEL = 'google/gemini-3.5-flash'
 export const DEMO_BASE_URL = 'https://openrouter.ai/api/v1'
 
 export const DEMO_CONFIG: LLMConfig = {
