@@ -1,0 +1,11 @@
+[package]
+name = "supa_agent_trace"
+version = "0.1.0"
+description = "Realtime agent trace bridge for SupaAgent — persisted trace events, private broadcast channel, and RLS authorization."
+homepage = "https://github.com/JesseVent/supa-agent"
+repository = "https://github.com/JesseVent/supa-agent"
+license = "MIT"
+keywords = ["realtime", "agent", "trace", "broadcast", "supabase"]
+
+[package.metadata]
+requires_supabase = true
