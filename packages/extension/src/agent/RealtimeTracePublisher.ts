@@ -11,8 +11,10 @@ const MGMT_TOKEN_KEY = 'SupaAgentMgmtToken'
 const USER_AUTH_TOKEN_KEY = 'SupaAgentExtUserAuthToken'
 /** Re-mint the project JWT this long before it actually expires. */
 const TOKEN_SLACK_SECONDS = 120
-/** Serialized payloads above this size are truncated before persisting. */
-const MAX_PAYLOAD_CHARS = 32_000
+/** Serialized payloads above this size are truncated before persisting.
+ *  PostgreSQL JSONB allows up to 1 GB; Supabase Realtime allows ~1 MB per message.
+ *  500 K covers a 20-step run with full rawRequest / rawResponse blobs. */
+const MAX_PAYLOAD_CHARS = 500_000
 const MAX_INSERT_ATTEMPTS = 3
 
 interface MintedToken {
