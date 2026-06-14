@@ -3,8 +3,7 @@ import {
 	ArrowLeftRight,
 	BookOpen,
 	Database,
-	Globe,
-	MessageSquare,
+	PauseCircle,
 	Play,
 	Sparkles,
 	Square,
@@ -147,11 +146,6 @@ const EXAMPLE_PROMPTS = [
 		task: 'Show me the latest logs from my Supabase project',
 	},
 	{
-		icon: Globe,
-		label: 'Summarize this page',
-		task: 'Summarize the content of the current page',
-	},
-	{
 		icon: ArrowLeftRight,
 		label: 'Harden my Data API',
 		task:
@@ -166,9 +160,14 @@ const EXAMPLE_PROMPTS = [
 			'9. Navigate back to this chat and paste the SQL here.',
 	},
 	{
-		icon: MessageSquare,
-		label: 'Fill out this form',
-		task: 'Help me fill out the form on this page with sensible defaults',
+		icon: PauseCircle,
+		label: 'Pause a project',
+		task:
+			'1. Navigate to https://supabase.com/dashboard for the current project. ' +
+			'2. Click on the organisation selector (the up/down arrows) and select "JesseVents Org". ' +
+			'3. Click on the "bragg-book" project, then click on "Project Settings". ' +
+			'4. Scroll down until you see the "Pause project" button. ' +
+			'5. Click the "Pause project" button.',
 	},
 ]
 
