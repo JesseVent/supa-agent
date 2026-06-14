@@ -3,6 +3,7 @@ import {
 	ArrowLeftRight,
 	BookOpen,
 	Database,
+	Globe,
 	PauseCircle,
 	Play,
 	Sparkles,
