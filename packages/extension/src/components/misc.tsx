@@ -172,8 +172,12 @@ const EXAMPLE_PROMPTS = [
 		icon: PauseCircle,
 		label: 'Pause a project',
 		task:
-			'1. Navigate to https://supabase.com/dashboard for the current project. ' +
-			'2. Click on the organisation selector (the up/down arrows) and select "JesseVents Org". ' +
+			'1. Navigate to https://supabase.com/dashboard. ' +
+			'2. IMPORTANT: You MUST change the organisation first before doing anything else. ' +
+			'Look for a small button with a chevrons-up-down icon (two arrows pointing up and down) ' +
+			'in the top-left area next to the current organisation name — it has class "lucide-chevrons-up-down". ' +
+			'Click that button to open the organisation picker, then select "JesseVents Org". ' +
+			'Do not proceed to step 3 until the organisation shown is "JesseVents Org". ' +
 			'3. Click on the "bragg-book" project, then click on "Project Settings". ' +
 			'4. Scroll down until you see the "Pause project" button. ' +
 			'5. Click the "Pause project" button.',
